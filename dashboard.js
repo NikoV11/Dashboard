@@ -1,5 +1,5 @@
 // FRED API Configuration
-const FRED_API_URL = '/.netlify/functions/fred-proxy'; // Netlify serverless function
+// API endpoint: /.netlify/functions/fred-proxy (handles API key server-side)
 
 // FRED Series IDs
 const GDPC1_ID = 'GDPC1';      // Real GDP (quarterly)
@@ -78,21 +78,11 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId}...`);
     
-    // Determine if we're on Netlify or local
-    const isNetlify = window.location.hostname.includes('netlify');
-    let endpoint;
-    
-    if (isNetlify) {
-        // On Netlify: use serverless function
-        endpoint = `/.netlify/functions/fred-proxy?seriesId=${seriesId}`;
-        console.log(`[Netlify] Attempting to fetch from serverless function: ${endpoint}...`);
-    } else {
-        // Local development: use the API URL (localhost:3000 or custom)
-        endpoint = `${FRED_API_URL}/${seriesId}`;
-        console.log(`[Local] Attempting to fetch from: ${endpoint}...`);
-    }
+    // Always use Netlify function endpoint - works on Netlify and localhost via proxy
+    const endpoint = `/.netlify/functions/fred-proxy?seriesId=${seriesId}`;
     
     try {
+        console.log(`Fetching from: ${endpoint}...`);
         const response = await fetch(endpoint, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
@@ -121,9 +111,6 @@ async function fetchFREDSeries(seriesId) {
         }
     } catch (error) {
         console.warn(`Failed to fetch ${seriesId}: ${error.message}`);
-        if (!isNetlify) {
-            console.log(`💡 Tip: For local testing, make sure a server is running on port 3000`);
-        }
     }
 
     // Fallback to sample data
