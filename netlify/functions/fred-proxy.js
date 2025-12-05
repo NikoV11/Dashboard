@@ -1,5 +1,5 @@
 const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
-const FRED_URL = 'https://api.stlouisfed.org/fred/series/data';
+const FRED_URL = 'https://api.stlouisfed.org/fred/series/observations';
 
 exports.handler = async (event) => {
   const headers = {

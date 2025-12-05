@@ -19,10 +19,41 @@ function initializeApp() {
     }
 }
 
-function fetchFREDData() {
-    // Load sample data (live FRED API integration requires valid API key)
-    console.log('Loading dashboard data...');
-    useSampleData();
+async function fetchFREDData() {
+    try {
+        // Check cache (5 minute cache)
+        if (cachedData && lastFetchTime && Date.now() - lastFetchTime < 5 * 60 * 1000) {
+            console.log('Using cached data');
+            initializeCharts();
+            populateDataTable();
+            setupEventListeners();
+            return;
+        }
+
+        console.log('Fetching FRED data...');
+        const [gdpData, cpiData] = await Promise.all([
+            fetchFREDSeries(GDPC1_ID),
+            fetchFREDSeries(CPIAUCSL_ID)
+        ]);
+
+        console.log('Data fetched successfully, calculating percent changes...');
+        cachedData = {
+            gdp: calculatePercentChange(gdpData, 'quarterly'),
+            cpi: calculatePercentChange(cpiData, 'monthly')
+        };
+
+        lastFetchTime = Date.now();
+        
+        console.log('Live data loaded successfully');
+        dataSource = 'live';
+        initializeCharts();
+        populateDataTable();
+        setupEventListeners();
+    } catch (error) {
+        console.error('Error fetching FRED data:', error);
+        console.log('Falling back to sample data...');
+        useSampleData();
+    }
 }
 
 async function fetchFREDSeries(seriesId) {
