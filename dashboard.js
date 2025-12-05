@@ -255,7 +255,7 @@ function initializeCharts() {
     gdpChart = new Chart(gdpCtx, {
         type: 'bar',
         data: {
-            labels: filteredData.gdp.map(d => formatDateLabel(d.date)),
+            labels: filteredData.gdp.map(d => formatQuarterLabel(d.date)),
             datasets: [{
                 label: 'GDP % Change',
                 data: filteredData.gdp.map(d => d.value),
@@ -292,7 +292,7 @@ function updateCharts() {
     const filteredData = getFilteredData();
 
     // Update GDP chart
-    gdpChart.data.labels = filteredData.gdp.map(d => formatDateLabel(d.date));
+    gdpChart.data.labels = filteredData.gdp.map(d => formatQuarterLabel(d.date));
     gdpChart.data.datasets[0].data = filteredData.gdp.map(d => d.value);
     gdpChart.update();
 
@@ -410,5 +410,8 @@ if (document.readyState === 'loading') {
 } else {
     initializeApp();
 }
+
+
+
 
 
