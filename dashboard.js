@@ -80,12 +80,15 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId} from FRED API...`);
     
-    const apiKey = '313359708686770c608dab3d05c3077f';
-    const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&limit=10000`;
+    // Use Netlify function to bypass CORS (runs server-side)
+    const endpoint = `/.netlify/functions/fred-proxy?seriesId=${seriesId}`;
     
     try {
-        console.log(`Calling FRED API for ${seriesId}...`);
-        const response = await fetch(fredUrl);
+        console.log(`Calling Netlify function for ${seriesId}...`);
+        const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
 
         console.log(`Response status: ${response.status}`);
         
