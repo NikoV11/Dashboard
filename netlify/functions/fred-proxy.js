@@ -15,14 +15,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Extract seriesId from query params or path
+    // Extract seriesId from query params
     let seriesId = event.queryStringParameters?.seriesId;
     
-    // Alternative: extract from path (e.g., /api/fred/GDPC1)
-    if (!seriesId && event.path) {
-      const parts = event.path.split('/');
-      seriesId = parts[parts.length - 1];
-    }
+    console.log(`[fred-proxy] Received request for seriesId: ${seriesId}`);
+    console.log(`[fred-proxy] Query params:`, event.queryStringParameters);
 
     if (!seriesId) {
       return {
@@ -35,25 +32,35 @@ exports.handler = async (event) => {
     // Fetch from FRED API
     const apiUrl = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
     
-    console.log(`Fetching ${seriesId} from FRED API...`);
+    console.log(`[fred-proxy] Calling FRED API with series_id=${seriesId}`);
+    console.log(`[fred-proxy] Full URL: ${FRED_URL}?series_id=${seriesId}&api_key=***&file_type=json`);
     
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    console.log(`[fred-proxy] FRED API response status: ${response.status}`);
     
     if (!response.ok) {
-      console.error(`FRED API error: ${response.status} ${response.statusText}`);
+      const errorBody = await response.text();
+      console.error(`[fred-proxy] FRED API error: ${response.status} ${response.statusText}`);
+      console.error(`[fred-proxy] Response body:`, errorBody);
+      
       return {
         statusCode: response.status,
         headers,
         body: JSON.stringify({ 
           error: `FRED API returned ${response.status}`,
-          details: response.statusText 
+          details: response.statusText,
+          seriesId: seriesId
         }),
       };
     }
 
     const data = await response.json();
     
-    console.log(`✓ Successfully fetched ${seriesId}: ${data.observations?.length || 0} observations`);
+    console.log(`[fred-proxy] ✓ Successfully fetched ${seriesId}: ${data.observations?.length || 0} observations`);
     
     return {
       statusCode: 200,
@@ -61,7 +68,7 @@ exports.handler = async (event) => {
       body: JSON.stringify(data),
     };
   } catch (error) {
-    console.error('Netlify function error:', error);
+    console.error('[fred-proxy] Error:', error);
     return {
       statusCode: 500,
       headers,
