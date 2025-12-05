@@ -1,6 +1,7 @@
 // FRED API Configuration
 const FRED_API_KEY = '60702495b0f5bcf665cfe1db3ae9dbe0';
 const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/data';
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 
 // FRED Series IDs
 const GDPC1_ID = 'GDPC1';      // Real GDP (quarterly)
@@ -79,15 +80,17 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     try {
         const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
-        console.log(`Fetching ${seriesId} from:`, url);
+        console.log(`Fetching ${seriesId}...`);
         
-        const response = await fetch(url);
+        // Try with CORS proxy
+        const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
+        console.log(`Using CORS proxy for ${seriesId}`);
+        
+        const response = await fetch(proxyUrl);
         console.log(`Response status for ${seriesId}:`, response.status);
 
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`FRED API error for ${seriesId}:`, errorText);
-            throw new Error(`FRED API error: ${response.status} ${response.statusText}`);
+            throw new Error(`HTTP error: ${response.status}`);
         }
 
         const data = await response.json();
@@ -102,10 +105,10 @@ async function fetchFREDSeries(seriesId) {
             value: parseFloat(obs.value)
         })).filter(obs => !isNaN(obs.value));
 
-        console.log(`Processed ${seriesId}:`, `${processedData.length} valid data points`);
+        console.log(`✓ Processed ${seriesId}: ${processedData.length} valid data points`);
         return processedData;
     } catch (error) {
-        console.error(`Error fetching ${seriesId}:`, error);
+        console.error(`✗ Error fetching ${seriesId}:`, error.message);
         throw error;
     }
 }
