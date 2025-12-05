@@ -1,4 +1,4 @@
-// FRED API Configuration
+﻿// FRED API Configuration
 // API endpoint: /.netlify/functions/fred-proxy (handles API key server-side)
 
 // FRED Series IDs
@@ -84,42 +84,57 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId} from FRED API...`);
     
-    // Use CORS proxy to bypass browser restrictions
     const apiKey = '313359708686770c608dab3d05c3077f';
     const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&limit=10000`;
-    const corsProxy = 'https://api.allorigins.win/raw?url=';
     
-    try {
-        console.log(`Calling FRED API for ${seriesId}...`);
-        const response = await fetch(corsProxy + encodeURIComponent(fredUrl));
-
-        console.log(`Response status: ${response.status}`);
+    // Multiple CORS proxies for redundancy
+    const corsProxies = [
+        'https://api.allorigins.win/raw?url=',
+        'https://cors-anywhere.herokuapp.com/',
+        'https://thingproxy.freeboard.io/fetch/'
+    ];
+    
+    for (let proxyIndex = 0; proxyIndex < corsProxies.length; proxyIndex++) {
+        const corsProxy = corsProxies[proxyIndex];
+        const proxyUrl = corsProxy === corsProxies[2] 
+            ? corsProxy + fredUrl 
+            : corsProxy + encodeURIComponent(fredUrl);
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data.observations && Array.isArray(data.observations) && data.observations.length > 0) {
-                const processedData = data.observations.map(obs => ({
-                    date: obs.date,
-                    value: parseFloat(obs.value)
-                })).filter(obs => !isNaN(obs.value));
+        try {
+            console.log(`Calling FRED API for ${seriesId} (proxy ${proxyIndex + 1}/${corsProxies.length})...`);
+            const response = await fetch(proxyUrl);
 
-                console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
-                dataSource = 'live';
-                return processedData;
+            console.log(`Response status: ${response.status}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.observations && Array.isArray(data.observations) && data.observations.length > 0) {
+                    const processedData = data.observations.map(obs => ({
+                        date: obs.date,
+                        value: parseFloat(obs.value)
+                    })).filter(obs => !isNaN(obs.value));
+
+                    console.log(` Successfully fetched ${seriesId}: ${processedData.length} data points`);
+                    return processedData;
+                } else {
+                    console.warn(`No observations found for ${seriesId}`);
+                    throw new Error('No data in response');
+                }
             } else {
-                console.warn(`No observations found for ${seriesId}`);
+                console.warn(`Server returned status ${response.status}`);
+                throw new Error(`HTTP ${response.status}`);
             }
-        } else {
-            const errorText = await response.text();
-            console.warn(`Server returned status ${response.status}: ${errorText.substring(0, 100)}`);
-            throw new Error(`HTTP ${response.status}`);
+        } catch (error) {
+            console.warn(`Proxy ${proxyIndex + 1} failed for ${seriesId}: ${error.message}`);
+            if (proxyIndex === corsProxies.length - 1) {
+                // All proxies exhausted
+                throw new Error(`Could not fetch ${seriesId} from any proxy. Using sample data.`);
+            }
+            // Try next proxy
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
-    } catch (error) {
-        console.warn(`Failed to fetch ${seriesId}: ${error.message}`);
     }
-
-    // Fallback to sample data
-    console.warn(`Falling back to sample data for ${seriesId}`);
+    
     throw new Error(`Could not fetch ${seriesId}. Using sample data.`);
 }
 
@@ -395,3 +410,4 @@ if (document.readyState === 'loading') {
 } else {
     initializeApp();
 }
+
