@@ -10,6 +10,7 @@ let gdpChart = null;
 let cpiChart = null;
 let cachedData = null;
 let lastFetchTime = null;
+let dataSource = 'sample'; // 'live' or 'sample'
 
 function initializeApp() {
     try {
@@ -23,6 +24,7 @@ async function fetchFREDData() {
     try {
         // Check cache (5 minute cache)
         if (cachedData && lastFetchTime && Date.now() - lastFetchTime < 5 * 60 * 1000) {
+            console.log('Using cached data');
             initializeCharts();
             populateDataTable();
             setupEventListeners();
@@ -30,32 +32,46 @@ async function fetchFREDData() {
         }
 
         // Show loading indicator
-        const container = document.querySelector('.container');
         const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'loading-indicator';
         loadingDiv.className = 'loading-indicator';
-        loadingDiv.textContent = 'Loading live data from FRED...';
-        loadingDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: #CB6015; color: white; padding: 10px 20px; border-radius: 4px; z-index: 1000;';
+        loadingDiv.textContent = 'Fetching live data from FRED...';
+        loadingDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: #CB6015; color: white; padding: 10px 20px; border-radius: 4px; z-index: 1000; font-size: 14px;';
         document.body.appendChild(loadingDiv);
+        console.log('Loading indicator shown');
 
+        console.log('Fetching FRED data...');
         const [gdpData, cpiData] = await Promise.all([
             fetchFREDSeries(GDPC1_ID),
             fetchFREDSeries(CPIAUCSL_ID)
         ]);
 
+        console.log('Data fetched successfully, calculating percent changes...');
         cachedData = {
             gdp: calculatePercentChange(gdpData, 'quarterly'),
             cpi: calculatePercentChange(cpiData, 'monthly')
         };
 
         lastFetchTime = Date.now();
-        document.body.removeChild(loadingDiv);
+        
+        // Remove loading indicator
+        const loader = document.getElementById('loading-indicator');
+        if (loader && document.body.contains(loader)) {
+            document.body.removeChild(loader);
+        }
 
+        console.log('Live data loaded successfully');
+        dataSource = 'live';
         initializeCharts();
         populateDataTable();
         setupEventListeners();
     } catch (error) {
         console.error('Error fetching FRED data:', error);
-        showErrorMessage('Failed to load live data. Using sample data instead.');
+        const loader = document.getElementById('loading-indicator');
+        if (loader && document.body.contains(loader)) {
+            document.body.removeChild(loader);
+        }
+        showErrorMessage('Failed to load live data. Check console for details. Using sample data instead.');
         useSampleData();
     }
 }
@@ -63,21 +79,31 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     try {
         const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
+        console.log(`Fetching ${seriesId} from:`, url);
+        
         const response = await fetch(url);
+        console.log(`Response status for ${seriesId}:`, response.status);
 
         if (!response.ok) {
-            throw new Error(`FRED API error: ${response.statusText}`);
+            const errorText = await response.text();
+            console.error(`FRED API error for ${seriesId}:`, errorText);
+            throw new Error(`FRED API error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
-        if (!data.observations) {
+        console.log(`Data received for ${seriesId}:`, data.observations ? `${data.observations.length} observations` : 'No observations');
+        
+        if (!data.observations || data.observations.length === 0) {
             throw new Error('No data returned from FRED');
         }
 
-        return data.observations.map(obs => ({
+        const processedData = data.observations.map(obs => ({
             date: obs.date,
             value: parseFloat(obs.value)
         })).filter(obs => !isNaN(obs.value));
+
+        console.log(`Processed ${seriesId}:`, `${processedData.length} valid data points`);
+        return processedData;
     } catch (error) {
         console.error(`Error fetching ${seriesId}:`, error);
         throw error;
@@ -104,6 +130,7 @@ function calculatePercentChange(data, frequency) {
 }
 
 function useSampleData() {
+    dataSource = 'sample';
     cachedData = {
         gdp: [
             { date: '2023-01-01', value: 1.6 },
@@ -131,6 +158,7 @@ function useSampleData() {
         ]
     };
 
+    console.log('Sample data loaded as fallback');
     initializeCharts();
     populateDataTable();
     setupEventListeners();
@@ -140,8 +168,10 @@ function showErrorMessage(message) {
     const errorDiv = document.createElement('div');
     errorDiv.className = 'error-message';
     errorDiv.textContent = message;
-    errorDiv.style.cssText = 'position: fixed; top: 50px; right: 10px; background: #d32f2f; color: white; padding: 15px 20px; border-radius: 4px; z-index: 1000; max-width: 300px;';
+    errorDiv.style.cssText = 'position: fixed; top: 50px; right: 10px; background: #d32f2f; color: white; padding: 15px 20px; border-radius: 4px; z-index: 1000; max-width: 300px; font-size: 14px;';
     document.body.appendChild(errorDiv);
+    
+    console.warn('User notification:', message);
 
     setTimeout(() => {
         if (document.body.contains(errorDiv)) {
@@ -302,6 +332,8 @@ function getFilteredData() {
 function populateDataTable() {
     const filteredData = getFilteredData();
     const tableBody = document.getElementById('tableBody');
+    const sourceNote = document.querySelector('.source-note');
+    
     tableBody.innerHTML = '';
 
     // Create a map for quick CPI lookup by date
@@ -322,6 +354,14 @@ function populateDataTable() {
         `;
         tableBody.appendChild(row);
     });
+
+    // Update source note
+    if (sourceNote) {
+        const sourceText = dataSource === 'live' 
+            ? 'Data Source: Federal Reserve Economic Data (FRED) - Live API - Series: GDPC1 (Real GDP), CPIAUCSL (CPI-U)' 
+            : 'Data Source: Sample Data (FRED API unavailable) - Series: GDPC1 (Real GDP), CPIAUCSL (CPI-U)';
+        sourceNote.textContent = sourceText;
+    }
 }
 
 function downloadData() {
