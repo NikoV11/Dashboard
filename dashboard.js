@@ -201,18 +201,8 @@ function initializeCharts() {
                 }
             },
             datalabels: {
-                display: true,
-                anchor: 'end',
-                align: 'end',
-                offset: 6,
-                font: {
-                    size: 11,
-                    weight: '600'
-                },
-                color: '#333',
-                formatter: function(value) {
-                    return value.toFixed(1);
-                }
+                // Hide labels on top of bars
+                display: false
             }
         },
         scales: {
