@@ -24,31 +24,48 @@ function initializeApp() {
 
 async function fetchFREDData() {
     try {
-        // Check cache (5 minute cache)
-        if (cachedData && lastFetchTime && Date.now() - lastFetchTime < 5 * 60 * 1000) {
-            console.log('Using cached data');
-            initializeCharts();
-            populateDataTable();
-            setupEventListeners();
-            return;
+        console.log('Fetching FRED data...');
+        const gdpData = await fetchFREDSeries(GDPC1_ID);
+        const cpiData = await fetchFREDSeries(CPIAUCSL_ID);
+
+        console.log('Data fetched, calculating percent changes...');
+        
+        // Calculate quarter-over-quarter % change for GDP
+        const gdpProcessed = [];
+        for (let i = 1; i < gdpData.length; i++) {
+            const current = parseFloat(gdpData[i].value);
+            const previous = parseFloat(gdpData[i - 1].value);
+            if (!isNaN(current) && !isNaN(previous)) {
+                const percentChange = ((current - previous) / previous) * 100;
+                gdpProcessed.push({
+                    date: gdpData[i].date,
+                    value: parseFloat(percentChange.toFixed(2))
+                });
+            }
         }
 
-        console.log('Fetching FRED data...');
-        const [gdpData, cpiData] = await Promise.all([
-            fetchFREDSeries(GDPC1_ID),
-            fetchFREDSeries(CPIAUCSL_ID)
-        ]);
+        // Calculate month-over-month % change for CPI
+        const cpiProcessed = [];
+        for (let i = 1; i < cpiData.length; i++) {
+            const current = parseFloat(cpiData[i].value);
+            const previous = parseFloat(cpiData[i - 1].value);
+            if (!isNaN(current) && !isNaN(previous)) {
+                const percentChange = ((current - previous) / previous) * 100;
+                cpiProcessed.push({
+                    date: cpiData[i].date,
+                    value: parseFloat(percentChange.toFixed(4))
+                });
+            }
+        }
 
-        console.log('Data fetched successfully, calculating percent changes...');
         cachedData = {
-            gdp: calculatePercentChange(gdpData, 'quarterly'),
-            cpi: calculatePercentChange(cpiData, 'monthly')
+            gdp: gdpProcessed,
+            cpi: cpiProcessed
         };
 
         lastFetchTime = Date.now();
-        
-        console.log('Live data loaded successfully');
         dataSource = 'live';
+        console.log('Live data loaded successfully');
         initializeCharts();
         populateDataTable();
         setupEventListeners();
