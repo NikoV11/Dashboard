@@ -79,15 +79,12 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId} from FRED API...`);
     
-    // Use Netlify serverless function endpoint (API key handled server-side)
-    const endpoint = `/.netlify/functions/fred-proxy?seriesId=${seriesId}`;
+    const apiKey = '313359708686770c608dab3d05c3077f';
+    const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&limit=10000`;
     
     try {
-        console.log(`Calling endpoint: ${endpoint}`);
-        const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
+        console.log(`Calling FRED API for ${seriesId}...`);
+        const response = await fetch(fredUrl);
 
         console.log(`Response status: ${response.status}`);
         
