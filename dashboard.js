@@ -11,11 +11,12 @@ let cachedData = null;
 let lastFetchTime = null;
 let dataSource = 'sample'; // 'live' or 'sample'
 
-// Register Chart.js datalabels plugin
-Chart.register(ChartDataLabels);
-
 function initializeApp() {
     try {
+        // Register Chart.js datalabels plugin when DOM is ready
+        if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+            Chart.register(ChartDataLabels);
+        }
         fetchFREDData();
     } catch (error) {
         console.error('Error initializing dashboard:', error);
