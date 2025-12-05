@@ -31,16 +31,19 @@ async function fetchFREDData() {
 
         console.log('Data fetched, calculating percent changes...');
         
-        // Calculate quarter-over-quarter % change for GDP
+        // Calculate annualized quarter-over-quarter % change for GDP
         const gdpProcessed = [];
         for (let i = 1; i < gdpData.length; i++) {
             const current = parseFloat(gdpData[i].value);
             const previous = parseFloat(gdpData[i - 1].value);
             if (!isNaN(current) && !isNaN(previous)) {
-                const percentChange = ((current - previous) / previous) * 100;
+                // Calculate QoQ % change first
+                const qoqChange = ((current - previous) / previous);
+                // Annualize: (1 + qoq)^4 - 1
+                const annualizedChange = (Math.pow(1 + qoqChange, 4) - 1) * 100;
                 gdpProcessed.push({
                     date: gdpData[i].date,
-                    value: parseFloat(percentChange.toFixed(2))
+                    value: parseFloat(annualizedChange.toFixed(2))
                 });
             }
         }
