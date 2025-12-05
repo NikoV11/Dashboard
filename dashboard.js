@@ -72,23 +72,21 @@ async function fetchFREDData() {
         setupEventListeners();
     } catch (error) {
         console.error('Error fetching FRED data:', error);
-        console.log('Falling back to sample data...');
-        useSampleData();
+        showErrorMessage('Failed to load FRED data. Please check your API connection and try again.');
     }
 }
 
 async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId} from FRED API...`);
     
-    // Use Netlify function to bypass CORS (runs server-side)
-    const endpoint = `/.netlify/functions/fred-proxy?seriesId=${seriesId}`;
+    // Use CORS proxy to bypass browser restrictions
+    const apiKey = '313359708686770c608dab3d05c3077f';
+    const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&limit=10000`;
+    const corsProxy = 'https://cors-anywhere.herokuapp.com/';
     
     try {
-        console.log(`Calling Netlify function for ${seriesId}...`);
-        const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        });
+        console.log(`Calling FRED API for ${seriesId}...`);
+        const response = await fetch(corsProxy + fredUrl);
 
         console.log(`Response status: ${response.status}`);
         
@@ -108,7 +106,7 @@ async function fetchFREDSeries(seriesId) {
             }
         } else {
             const errorText = await response.text();
-            console.warn(`Server returned status ${response.status}: ${errorText}`);
+            console.warn(`Server returned status ${response.status}: ${errorText.substring(0, 100)}`);
             throw new Error(`HTTP ${response.status}`);
         }
     } catch (error) {
@@ -137,99 +135,6 @@ function calculatePercentChange(data, frequency) {
     }
 
     return result;
-}
-
-function useSampleData() {
-    dataSource = 'sample';
-    cachedData = {
-        gdp: [
-            { date: '2020-01-01', value: -31.4 },
-            { date: '2020-04-01', value: -31.1 },
-            { date: '2020-07-01', value: 33.8 },
-            { date: '2020-10-01', value: 4.5 },
-            { date: '2021-01-01', value: 6.3 },
-            { date: '2021-04-01', value: 6.7 },
-            { date: '2021-07-01', value: 2.3 },
-            { date: '2021-10-01', value: 5.5 },
-            { date: '2022-01-01', value: -1.4 },
-            { date: '2022-04-01', value: -0.6 },
-            { date: '2022-07-01', value: 2.6 },
-            { date: '2022-10-01', value: 3.2 },
-            { date: '2023-01-01', value: 1.1 },
-            { date: '2023-04-01', value: 1.3 },
-            { date: '2023-07-01', value: 2.1 },
-            { date: '2023-10-01', value: 1.2 },
-            { date: '2024-01-01', value: 2.2 },
-            { date: '2024-04-01', value: 0.6 },
-            { date: '2024-07-01', value: 1.4 },
-            { date: '2024-10-01', value: 0.9 }
-        ],
-        cpi: [
-            { date: '2020-01-01', value: 0.3 },
-            { date: '2020-02-01', value: 0.3 },
-            { date: '2020-03-01', value: 0.4 },
-            { date: '2020-04-01', value: 0.3 },
-            { date: '2020-05-01', value: 0.1 },
-            { date: '2020-06-01', value: 0.6 },
-            { date: '2020-07-01', value: 0.6 },
-            { date: '2020-08-01', value: 0.4 },
-            { date: '2020-09-01', value: 0.2 },
-            { date: '2020-10-01', value: 0.0 },
-            { date: '2020-11-01', value: 0.2 },
-            { date: '2020-12-01', value: 0.4 },
-            { date: '2021-01-01', value: 0.4 },
-            { date: '2021-02-01', value: 0.6 },
-            { date: '2021-03-01', value: 0.6 },
-            { date: '2021-04-01', value: 0.8 },
-            { date: '2021-05-01', value: 0.5 },
-            { date: '2021-06-01', value: 0.9 },
-            { date: '2021-07-01', value: 0.5 },
-            { date: '2021-08-01', value: 0.7 },
-            { date: '2021-09-01', value: 0.4 },
-            { date: '2021-10-01', value: 0.9 },
-            { date: '2021-11-01', value: 0.8 },
-            { date: '2021-12-01', value: 0.7 },
-            { date: '2022-01-01', value: 0.5 },
-            { date: '2022-02-01', value: 0.8 },
-            { date: '2022-03-01', value: 1.2 },
-            { date: '2022-04-01', value: 0.3 },
-            { date: '2022-05-01', value: 1.0 },
-            { date: '2022-06-01', value: 1.3 },
-            { date: '2022-07-01', value: 0.0 },
-            { date: '2022-08-01', value: 0.1 },
-            { date: '2022-09-01', value: 0.8 },
-            { date: '2022-10-01', value: 0.6 },
-            { date: '2022-11-01', value: 0.1 },
-            { date: '2022-12-01', value: 0.1 },
-            { date: '2023-01-01', value: 0.5 },
-            { date: '2023-02-01', value: 0.4 },
-            { date: '2023-03-01', value: 0.5 },
-            { date: '2023-04-01', value: 0.4 },
-            { date: '2023-05-01', value: 0.1 },
-            { date: '2023-06-01', value: 0.3 },
-            { date: '2023-07-01', value: 0.2 },
-            { date: '2023-08-01', value: 0.6 },
-            { date: '2023-09-01', value: 0.4 },
-            { date: '2023-10-01', value: 0.4 },
-            { date: '2023-11-01', value: 0.3 },
-            { date: '2023-12-01', value: 0.3 },
-            { date: '2024-01-01', value: 0.3 },
-            { date: '2024-02-01', value: 0.4 },
-            { date: '2024-03-01', value: 0.4 },
-            { date: '2024-04-01', value: 0.3 },
-            { date: '2024-05-01', value: 0.0 },
-            { date: '2024-06-01', value: 0.1 },
-            { date: '2024-07-01', value: 0.2 },
-            { date: '2024-08-01', value: 0.2 },
-            { date: '2024-09-01', value: 0.2 },
-            { date: '2024-10-01', value: 0.2 }
-        ]
-    };
-
-    console.log('Sample data loaded as fallback');
-    initializeCharts();
-    populateDataTable();
-    setupEventListeners();
 }
 
 function showErrorMessage(message) {
