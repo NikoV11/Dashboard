@@ -1,7 +1,13 @@
 // FRED API Configuration
 const FRED_API_KEY = '60702495b0f5bcf665cfe1db3ae9dbe0';
 const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/data';
-const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+
+// Multiple CORS proxy options
+const CORS_PROXIES = [
+    'https://api.codetabs.com/v1/proxy?quest=',
+    'https://cors-anywhere.herokuapp.com/',
+    'https://api.allorigins.win/raw?url='
+];
 
 // FRED Series IDs
 const GDPC1_ID = 'GDPC1';      // Real GDP (quarterly)
@@ -78,39 +84,52 @@ async function fetchFREDData() {
 }
 
 async function fetchFREDSeries(seriesId) {
-    try {
-        const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
-        console.log(`Fetching ${seriesId}...`);
-        
-        // Try with CORS proxy
-        const proxyUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
-        console.log(`Using CORS proxy for ${seriesId}`);
-        
-        const response = await fetch(proxyUrl);
-        console.log(`Response status for ${seriesId}:`, response.status);
+    const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
+    console.log(`Fetching ${seriesId}...`);
+    
+    // Try multiple CORS proxies
+    for (let i = 0; i < CORS_PROXIES.length; i++) {
+        try {
+            let proxyUrl;
+            const proxy = CORS_PROXIES[i];
+            
+            if (proxy.includes('quest=')) {
+                proxyUrl = `${proxy}${url}`;
+            } else if (proxy.includes('allorigins')) {
+                proxyUrl = `${proxy}${encodeURIComponent(url)}`;
+            } else {
+                proxyUrl = `${proxy}${url}`;
+            }
+            
+            console.log(`Trying proxy ${i + 1}/${CORS_PROXIES.length} for ${seriesId}...`);
+            
+            const response = await fetch(proxyUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error: ${response.status}`);
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.observations && data.observations.length > 0) {
+                    const processedData = data.observations.map(obs => ({
+                        date: obs.date,
+                        value: parseFloat(obs.value)
+                    })).filter(obs => !isNaN(obs.value));
+
+                    console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
+                    return processedData;
+                }
+            }
+        } catch (error) {
+            console.warn(`Proxy ${i + 1} failed for ${seriesId}: ${error.message}`);
         }
-
-        const data = await response.json();
-        console.log(`Data received for ${seriesId}:`, data.observations ? `${data.observations.length} observations` : 'No observations');
-        
-        if (!data.observations || data.observations.length === 0) {
-            throw new Error('No data returned from FRED');
-        }
-
-        const processedData = data.observations.map(obs => ({
-            date: obs.date,
-            value: parseFloat(obs.value)
-        })).filter(obs => !isNaN(obs.value));
-
-        console.log(`✓ Processed ${seriesId}: ${processedData.length} valid data points`);
-        return processedData;
-    } catch (error) {
-        console.error(`✗ Error fetching ${seriesId}:`, error.message);
-        throw error;
     }
+    
+    // If all proxies fail, throw error
+    throw new Error(`Could not fetch ${seriesId} from any proxy`);
 }
 
 function calculatePercentChange(data, frequency) {
@@ -136,28 +155,86 @@ function useSampleData() {
     dataSource = 'sample';
     cachedData = {
         gdp: [
-            { date: '2023-01-01', value: 1.6 },
-            { date: '2023-04-01', value: 0.8 },
+            { date: '2020-01-01', value: -31.4 },
+            { date: '2020-04-01', value: -31.1 },
+            { date: '2020-07-01', value: 33.8 },
+            { date: '2020-10-01', value: 4.5 },
+            { date: '2021-01-01', value: 6.3 },
+            { date: '2021-04-01', value: 6.7 },
+            { date: '2021-07-01', value: 2.3 },
+            { date: '2021-10-01', value: 5.5 },
+            { date: '2022-01-01', value: -1.4 },
+            { date: '2022-04-01', value: -0.6 },
+            { date: '2022-07-01', value: 2.6 },
+            { date: '2022-10-01', value: 3.2 },
+            { date: '2023-01-01', value: 1.1 },
+            { date: '2023-04-01', value: 1.3 },
             { date: '2023-07-01', value: 2.1 },
             { date: '2023-10-01', value: 1.2 },
-            { date: '2024-01-01', value: 2.5 },
+            { date: '2024-01-01', value: 2.2 },
             { date: '2024-04-01', value: 0.6 },
             { date: '2024-07-01', value: 1.4 },
             { date: '2024-10-01', value: 0.9 }
         ],
         cpi: [
+            { date: '2020-01-01', value: 0.3 },
+            { date: '2020-02-01', value: 0.3 },
+            { date: '2020-03-01', value: 0.4 },
+            { date: '2020-04-01', value: 0.3 },
+            { date: '2020-05-01', value: 0.1 },
+            { date: '2020-06-01', value: 0.6 },
+            { date: '2020-07-01', value: 0.6 },
+            { date: '2020-08-01', value: 0.4 },
+            { date: '2020-09-01', value: 0.2 },
+            { date: '2020-10-01', value: 0.0 },
+            { date: '2020-11-01', value: 0.2 },
+            { date: '2020-12-01', value: 0.4 },
+            { date: '2021-01-01', value: 0.4 },
+            { date: '2021-02-01', value: 0.6 },
+            { date: '2021-03-01', value: 0.6 },
+            { date: '2021-04-01', value: 0.8 },
+            { date: '2021-05-01', value: 0.5 },
+            { date: '2021-06-01', value: 0.9 },
+            { date: '2021-07-01', value: 0.5 },
+            { date: '2021-08-01', value: 0.7 },
+            { date: '2021-09-01', value: 0.4 },
+            { date: '2021-10-01', value: 0.9 },
+            { date: '2021-11-01', value: 0.8 },
+            { date: '2021-12-01', value: 0.7 },
+            { date: '2022-01-01', value: 0.5 },
+            { date: '2022-02-01', value: 0.8 },
+            { date: '2022-03-01', value: 1.2 },
+            { date: '2022-04-01', value: 0.3 },
+            { date: '2022-05-01', value: 1.0 },
+            { date: '2022-06-01', value: 1.3 },
+            { date: '2022-07-01', value: 0.0 },
+            { date: '2022-08-01', value: 0.1 },
+            { date: '2022-09-01', value: 0.8 },
+            { date: '2022-10-01', value: 0.6 },
+            { date: '2022-11-01', value: 0.1 },
+            { date: '2022-12-01', value: 0.1 },
             { date: '2023-01-01', value: 0.5 },
-            { date: '2023-02-01', value: -0.1 },
-            { date: '2023-03-01', value: 0.4 },
-            { date: '2023-04-01', value: 0.2 },
-            { date: '2023-05-01', value: 0.0 },
-            { date: '2023-06-01', value: 0.1 },
+            { date: '2023-02-01', value: 0.4 },
+            { date: '2023-03-01', value: 0.5 },
+            { date: '2023-04-01', value: 0.4 },
+            { date: '2023-05-01', value: 0.1 },
+            { date: '2023-06-01', value: 0.3 },
+            { date: '2023-07-01', value: 0.2 },
+            { date: '2023-08-01', value: 0.6 },
+            { date: '2023-09-01', value: 0.4 },
+            { date: '2023-10-01', value: 0.4 },
+            { date: '2023-11-01', value: 0.3 },
+            { date: '2023-12-01', value: 0.3 },
             { date: '2024-01-01', value: 0.3 },
-            { date: '2024-02-01', value: 0.2 },
+            { date: '2024-02-01', value: 0.4 },
             { date: '2024-03-01', value: 0.4 },
-            { date: '2024-04-01', value: 0.0 },
-            { date: '2024-05-01', value: 0.1 },
-            { date: '2024-06-01', value: 0.1 }
+            { date: '2024-04-01', value: 0.3 },
+            { date: '2024-05-01', value: 0.0 },
+            { date: '2024-06-01', value: 0.1 },
+            { date: '2024-07-01', value: 0.2 },
+            { date: '2024-08-01', value: 0.2 },
+            { date: '2024-09-01', value: 0.2 },
+            { date: '2024-10-01', value: 0.2 }
         ]
     };
 
