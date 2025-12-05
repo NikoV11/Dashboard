@@ -76,13 +76,13 @@ async function fetchFREDData() {
 }
 
 async function fetchFREDSeries(seriesId) {
-    console.log(`Fetching ${seriesId}...`);
+    console.log(`Fetching ${seriesId} from FRED API...`);
     
-    // Always use Netlify function endpoint - works on Netlify and localhost via proxy
+    // Use Netlify serverless function endpoint (API key handled server-side)
     const endpoint = `/.netlify/functions/fred-proxy?seriesId=${seriesId}`;
     
     try {
-        console.log(`Fetching from: ${endpoint}...`);
+        console.log(`Calling endpoint: ${endpoint}`);
         const response = await fetch(endpoint, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
