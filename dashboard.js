@@ -84,12 +84,37 @@ async function fetchFREDData() {
 }
 
 async function fetchFREDSeries(seriesId) {
-    const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
     console.log(`Fetching ${seriesId}...`);
     
-    // Try multiple CORS proxies
+    try {
+        // Try Netlify function first (works in production)
+        const response = await fetch('/.netlify/functions/fred-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ seriesId })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.observations && data.observations.length > 0) {
+                const processedData = data.observations.map(obs => ({
+                    date: obs.date,
+                    value: parseFloat(obs.value)
+                })).filter(obs => !isNaN(obs.value));
+
+                console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
+                return processedData;
+            }
+        }
+    } catch (error) {
+        console.warn(`Netlify function failed for ${seriesId}: ${error.message}`);
+    }
+
+    // Fallback to CORS proxies
     for (let i = 0; i < CORS_PROXIES.length; i++) {
         try {
+            const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
             let proxyUrl;
             const proxy = CORS_PROXIES[i];
             
@@ -101,13 +126,11 @@ async function fetchFREDSeries(seriesId) {
                 proxyUrl = `${proxy}${url}`;
             }
             
-            console.log(`Trying proxy ${i + 1}/${CORS_PROXIES.length} for ${seriesId}...`);
+            console.log(`Trying CORS proxy ${i + 1}/${CORS_PROXIES.length} for ${seriesId}...`);
             
             const response = await fetch(proxyUrl, {
                 method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
+                headers: { 'Accept': 'application/json' }
             });
 
             if (response.ok) {
@@ -119,17 +142,17 @@ async function fetchFREDSeries(seriesId) {
                         value: parseFloat(obs.value)
                     })).filter(obs => !isNaN(obs.value));
 
-                    console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
+                    console.log(`✓ Via proxy ${i + 1} - fetched ${seriesId}: ${processedData.length} data points`);
                     return processedData;
                 }
             }
         } catch (error) {
-            console.warn(`Proxy ${i + 1} failed for ${seriesId}: ${error.message}`);
+            console.warn(`CORS proxy ${i + 1} failed for ${seriesId}: ${error.message}`);
         }
     }
     
-    // If all proxies fail, throw error
-    throw new Error(`Could not fetch ${seriesId} from any proxy`);
+    // If all methods fail, throw error
+    throw new Error(`Could not fetch ${seriesId} from any source`);
 }
 
 function calculatePercentChange(data, frequency) {
