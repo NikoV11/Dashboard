@@ -1,13 +1,6 @@
 // FRED API Configuration
 const FRED_API_KEY = '60702495b0f5bcf665cfe1db3ae9dbe0';
-const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/data';
-
-// Multiple CORS proxy options
-const CORS_PROXIES = [
-    'https://api.codetabs.com/v1/proxy?quest=',
-    'https://cors-anywhere.herokuapp.com/',
-    'https://api.allorigins.win/raw?url='
-];
+const FRED_API_URL = 'http://localhost:3000/api/fred'; // Local server endpoint
 
 // FRED Series IDs
 const GDPC1_ID = 'GDPC1';      // Real GDP (quarterly)
@@ -86,56 +79,45 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId}...`);
     
-    const fredUrl = `https://api.stlouisfed.org/fred/series/data?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
+    // Use local server endpoint
+    const localEndpoint = `${FRED_API_URL}/${seriesId}`;
     
-    // Try multiple CORS proxies in order
-    const proxyOptions = [
-        // Thingproxy.freehostname.com - most reliable
-        `https://thingproxy.freehostname.com/fetch/${fredUrl}`,
-        // Getjsonfree.com - alternative
-        `https://getjsonfree.com?url=${encodeURIComponent(fredUrl)}`,
-        // AllOrigins - can work for simple requests
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(fredUrl)}`
-    ];
-    
-    for (const proxiedUrl of proxyOptions) {
-        try {
-            console.log(`Attempting ${proxiedUrl.substring(0, 40)}...`);
-            const response = await fetch(proxiedUrl, {
-                method: 'GET',
-                headers: { 'Accept': 'application/json' }
-            });
+    try {
+        console.log(`Attempting to fetch from local server: ${localEndpoint}...`);
+        const response = await fetch(localEndpoint, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
 
-            if (response.ok) {
-                const text = await response.text();
-                
-                // Try to parse as JSON
-                try {
-                    const data = JSON.parse(text);
-                    if (data.observations && Array.isArray(data.observations) && data.observations.length > 0) {
-                        const processedData = data.observations.map(obs => ({
-                            date: obs.date,
-                            value: parseFloat(obs.value)
-                        })).filter(obs => !isNaN(obs.value));
+        console.log(`Response status: ${response.status}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.observations && Array.isArray(data.observations) && data.observations.length > 0) {
+                const processedData = data.observations.map(obs => ({
+                    date: obs.date,
+                    value: parseFloat(obs.value)
+                })).filter(obs => !isNaN(obs.value));
 
-                        console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
-                        dataSource = 'live';
-                        return processedData;
-                    }
-                } catch (parseError) {
-                    console.warn(`JSON parse failed for this proxy: ${parseError.message}`);
-                    continue; // Try next proxy
-                }
+                console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
+                dataSource = 'live';
+                return processedData;
+            } else {
+                console.warn(`No observations found for ${seriesId}`);
             }
-        } catch (error) {
-            console.warn(`Proxy attempt failed: ${error.message}`);
-            // Continue to next proxy
+        } else {
+            const errorText = await response.text();
+            console.warn(`Server returned status ${response.status}: ${errorText}`);
+            throw new Error(`HTTP ${response.status}`);
         }
+    } catch (error) {
+        console.warn(`Failed to fetch ${seriesId}: ${error.message}`);
+        console.warn(`Make sure the server is running: npm start`);
     }
 
-    // If all proxies fail, use sample data
-    console.warn(`All CORS proxies failed for ${seriesId}, falling back to sample data`);
-    throw new Error(`Could not fetch ${seriesId} from any proxy.`);
+    // Fallback to sample data
+    console.warn(`Falling back to sample data for ${seriesId}`);
+    throw new Error(`Could not fetch ${seriesId}. Using sample data.`);
 }
 
 function calculatePercentChange(data, frequency) {
