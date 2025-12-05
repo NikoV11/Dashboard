@@ -1,4 +1,4 @@
-const FRED_API_KEY = '60702495b0f5bcf665cfe1db3ae9dbe0';
+const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
 const FRED_URL = 'https://api.stlouisfed.org/fred/series/data';
 
 exports.handler = async (event) => {
