@@ -87,15 +87,19 @@ async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId}...`);
     
     try {
-        // Try Netlify function first (works in production)
+        // Try Netlify function with POST
+        console.log(`Attempting Netlify function for ${seriesId}...`);
         const response = await fetch('/.netlify/functions/fred-proxy', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ seriesId })
         });
 
+        console.log(`Response status: ${response.status}`);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log(`Response data:`, data);
             
             if (data.observations && data.observations.length > 0) {
                 const processedData = data.observations.map(obs => ({
@@ -105,16 +109,23 @@ async function fetchFREDSeries(seriesId) {
 
                 console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
                 return processedData;
+            } else if (data.error) {
+                console.error(`API error for ${seriesId}:`, data.error);
             }
+        } else {
+            const errorText = await response.text();
+            console.warn(`Netlify function returned ${response.status}: ${errorText}`);
         }
     } catch (error) {
         console.warn(`Netlify function failed for ${seriesId}: ${error.message}`);
     }
 
-    // Fallback to CORS proxies
+    // Fallback to direct API call with CORS proxies
+    const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
+    console.log(`Trying CORS proxies for ${seriesId}...`);
+    
     for (let i = 0; i < CORS_PROXIES.length; i++) {
         try {
-            const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
             let proxyUrl;
             const proxy = CORS_PROXIES[i];
             
@@ -126,7 +137,7 @@ async function fetchFREDSeries(seriesId) {
                 proxyUrl = `${proxy}${url}`;
             }
             
-            console.log(`Trying CORS proxy ${i + 1}/${CORS_PROXIES.length} for ${seriesId}...`);
+            console.log(`Trying CORS proxy ${i + 1}/${CORS_PROXIES.length}: ${proxy}`);
             
             const response = await fetch(proxyUrl, {
                 method: 'GET',
