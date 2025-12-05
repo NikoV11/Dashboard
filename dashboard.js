@@ -30,11 +30,21 @@ let gdpChart = null;
 let cpiChart = null;
 
 // Initialize charts on page load
-document.addEventListener('DOMContentLoaded', () => {
-    initializeCharts();
-    populateDataTable();
-    setupEventListeners();
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
+
+function initializeApp() {
+    try {
+        initializeCharts();
+        populateDataTable();
+        setupEventListeners();
+    } catch (error) {
+        console.error('Error initializing dashboard:', error);
+    }
+}
 
 function setupEventListeners() {
     document.getElementById('updateBtn').addEventListener('click', updateCharts);
@@ -42,11 +52,75 @@ function setupEventListeners() {
 }
 
 function initializeCharts() {
-    const gdpCtx = document.getElementById('gdpChart').getContext('2d');
-    const cpiCtx = document.getElementById('cpiChart').getContext('2d');
+    const gdpCanvas = document.getElementById('gdpChart');
+    const cpiCanvas = document.getElementById('cpiChart');
+
+    if (!gdpCanvas || !cpiCanvas) {
+        console.error('Canvas elements not found');
+        return;
+    }
+
+    const gdpCtx = gdpCanvas.getContext('2d');
+    const cpiCtx = cpiCanvas.getContext('2d');
+
+    if (!gdpCtx || !cpiCtx) {
+        console.error('Failed to get canvas context');
+        return;
+    }
 
     const filteredData = getFilteredData();
 
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                display: true,
+                labels: {
+                    font: { size: 12, weight: '600' },
+                    padding: 15,
+                    usePointStyle: true
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                padding: 10,
+                titleFont: { size: 12, weight: '600' },
+                bodyFont: { size: 11 },
+                displayColors: false,
+                callbacks: {
+                    label: function(context) {
+                        return context.parsed.y.toFixed(2) + '%';
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return value.toFixed(1) + '%';
+                    },
+                    font: { size: 11 }
+                },
+                title: {
+                    display: true,
+                    text: 'Percent Change (%)',
+                    font: { size: 12, weight: '600' }
+                }
+            },
+            x: {
+                ticks: {
+                    font: { size: 10 },
+                    maxRotation: 45,
+                    minRotation: 0
+                }
+            }
+        }
+    };
+
+    if (gdpChart) gdpChart.destroy();
     gdpChart = new Chart(gdpCtx, {
         type: 'bar',
         data: {
@@ -61,53 +135,10 @@ function initializeCharts() {
                 hoverBackgroundColor: '#a84d0f'
             }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: true,
-                    labels: {
-                        font: { size: 12, weight: '600' },
-                        padding: 15
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 10,
-                    titleFont: { size: 12, weight: '600' },
-                    bodyFont: { size: 11 },
-                    callbacks: {
-                        label: function(context) {
-                            return context.parsed.y.toFixed(2) + '%';
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value.toFixed(1) + '%';
-                        },
-                        font: { size: 11 }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Percent Change (%)',
-                        font: { size: 12, weight: '600' }
-                    }
-                },
-                x: {
-                    ticks: {
-                        font: { size: 10 }
-                    }
-                }
-            }
-        }
+        options: chartOptions
     });
 
+    if (cpiChart) cpiChart.destroy();
     cpiChart = new Chart(cpiCtx, {
         type: 'bar',
         data: {
@@ -122,51 +153,7 @@ function initializeCharts() {
                 hoverBackgroundColor: '#001d42'
             }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: true,
-                    labels: {
-                        font: { size: 12, weight: '600' },
-                        padding: 15
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 10,
-                    titleFont: { size: 12, weight: '600' },
-                    bodyFont: { size: 11 },
-                    callbacks: {
-                        label: function(context) {
-                            return context.parsed.y.toFixed(2) + '%';
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: function(value) {
-                            return value.toFixed(1) + '%';
-                        },
-                        font: { size: 11 }
-                    },
-                    title: {
-                        display: true,
-                        text: 'Percent Change (%)',
-                        font: { size: 12, weight: '600' }
-                    }
-                },
-                x: {
-                    ticks: {
-                        font: { size: 10 }
-                    }
-                }
-            }
-        }
+        options: chartOptions
     });
 }
 
@@ -230,28 +217,34 @@ function populateDataTable() {
 }
 
 function downloadData() {
-    const filteredData = getFilteredData();
-    let csv = 'Date,GDP (% Change),CPI-U (1-Month % Change)\n';
+    try {
+        const filteredData = getFilteredData();
+        let csv = 'Date,GDP (% Change),CPI-U (1-Month % Change)\n';
 
-    const cpiMap = {};
-    filteredData.cpi.forEach(d => {
-        cpiMap[d.date] = d.value;
-    });
+        const cpiMap = {};
+        filteredData.cpi.forEach(d => {
+            cpiMap[d.date] = d.value;
+        });
 
-    filteredData.gdp.forEach(gdpItem => {
-        const cpiValue = cpiMap[gdpItem.date] || '';
-        csv += `${formatDateDisplay(gdpItem.date)},${gdpItem.value.toFixed(2)},${cpiValue ? cpiValue.toFixed(2) : ''}\n`;
-    });
+        filteredData.gdp.forEach(gdpItem => {
+            const cpiValue = cpiMap[gdpItem.date] || '';
+            csv += `${formatDateDisplay(gdpItem.date)},${gdpItem.value.toFixed(2)},${cpiValue ? cpiValue.toFixed(2) : ''}\n`;
+        });
 
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `gdp_cpi_dashboard_${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `gdp_cpi_dashboard_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Error downloading data:', error);
+        alert('Failed to download data. Please try again.');
+    }
 }
 
 function formatDateLabel(dateString) {
