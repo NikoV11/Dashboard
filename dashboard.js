@@ -76,7 +76,8 @@ async function fetchFREDData() {
         setupEventListeners();
     } catch (error) {
         console.error('Error fetching FRED data:', error);
-        showErrorMessage('Failed to load FRED data. Please check your API connection and try again.');
+            showErrorMessage('Failed to load FRED data. Showing sample data instead.');
+            useSampleData();
     }
 }
 
