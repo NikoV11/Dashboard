@@ -11,6 +11,9 @@ let cachedData = null;
 let lastFetchTime = null;
 let dataSource = 'sample'; // 'live' or 'sample'
 
+// Register Chart.js datalabels plugin
+Chart.register(ChartDataLabels);
+
 function initializeApp() {
     try {
         fetchFREDData();
@@ -273,6 +276,20 @@ function initializeCharts() {
                     label: function(context) {
                         return context.parsed.y.toFixed(2) + '%';
                     }
+                }
+            },
+            datalabels: {
+                display: true,
+                anchor: 'end',
+                align: 'end',
+                offset: 6,
+                font: {
+                    size: 11,
+                    weight: '600'
+                },
+                color: '#333',
+                formatter: function(value) {
+                    return value.toFixed(1);
                 }
             }
         },
