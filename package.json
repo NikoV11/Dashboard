@@ -1,0 +1,8 @@
+{
+  "name": "fred-dashboard",
+  "version": "1.0.0",
+  "description": "FRED Data Dashboard",
+  "scripts": {
+    "build": "echo 'Static site with serverless functions - no build needed'"
+  }
+}
