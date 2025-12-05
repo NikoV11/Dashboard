@@ -18,8 +18,7 @@ exports.handler = async (event) => {
     // Extract seriesId from query params
     let seriesId = event.queryStringParameters?.seriesId;
     
-    console.log(`[fred-proxy] Received request for seriesId: ${seriesId}`);
-    console.log(`[fred-proxy] Query params:`, event.queryStringParameters);
+    console.log(`[fred-proxy] Request received for seriesId: ${seriesId}`);
 
     if (!seriesId) {
       return {
@@ -29,38 +28,89 @@ exports.handler = async (event) => {
       };
     }
 
-    // Fetch from FRED API
-    const apiUrl = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
+    // Build FRED API URL
+    const apiUrl = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000`;
     
-    console.log(`[fred-proxy] Calling FRED API with series_id=${seriesId}`);
-    console.log(`[fred-proxy] Full URL: ${FRED_URL}?series_id=${seriesId}&api_key=***&file_type=json`);
+    console.log(`[fred-proxy] Calling FRED API endpoint: ${FRED_URL}`);
+    console.log(`[fred-proxy] Parameters: series_id=${seriesId}, api_key=***`);
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
+    // Fetch with explicit timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    
+    let response;
+    try {
+      response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: { 
+          'Accept': 'application/json',
+          'User-Agent': 'FRED-Dashboard/1.0'
+        },
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      console.error(`[fred-proxy] Fetch error:`, fetchError.message);
+      return {
+        statusCode: 503,
+        headers,
+        body: JSON.stringify({
+          error: 'Failed to reach FRED API',
+          details: fetchError.message
+        }),
+      };
+    }
     
     console.log(`[fred-proxy] FRED API response status: ${response.status}`);
     
+    // Read response body
+    const responseText = await response.text();
+    
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error(`[fred-proxy] FRED API error: ${response.status} ${response.statusText}`);
-      console.error(`[fred-proxy] Response body:`, errorBody);
+      console.error(`[fred-proxy] FRED API error ${response.status}:`);
+      console.error(`[fred-proxy] Response body:`, responseText.substring(0, 200));
+      
+      // Try to parse as JSON for error details
+      let errorDetails = responseText;
+      try {
+        const errorJson = JSON.parse(responseText);
+        errorDetails = errorJson.error_message || responseText;
+      } catch (e) {
+        // Not JSON, use raw text
+      }
       
       return {
         statusCode: response.status,
         headers,
         body: JSON.stringify({ 
           error: `FRED API returned ${response.status}`,
-          details: response.statusText,
+          details: errorDetails,
           seriesId: seriesId
         }),
       };
     }
 
-    const data = await response.json();
+    // Parse response
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error(`[fred-proxy] JSON parse error:`, parseError.message);
+      console.error(`[fred-proxy] Response text:`, responseText.substring(0, 200));
+      
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          error: 'Failed to parse FRED API response',
+          details: parseError.message
+        }),
+      };
+    }
     
-    console.log(`[fred-proxy] ✓ Successfully fetched ${seriesId}: ${data.observations?.length || 0} observations`);
+    const obsCount = data.observations?.length || 0;
+    console.log(`[fred-proxy] ✓ Successfully fetched ${seriesId}: ${obsCount} observations`);
     
     return {
       statusCode: 200,
@@ -68,12 +118,13 @@ exports.handler = async (event) => {
       body: JSON.stringify(data),
     };
   } catch (error) {
-    console.error('[fred-proxy] Error:', error);
+    console.error('[fred-proxy] Unexpected error:', error.message);
+    console.error('[fred-proxy] Stack:', error.stack);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        error: 'Failed to fetch FRED data',
+        error: 'Unexpected error',
         details: error.message,
       }),
     };
