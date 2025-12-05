@@ -19,60 +19,10 @@ function initializeApp() {
     }
 }
 
-async function fetchFREDData() {
-    try {
-        // Check cache (5 minute cache)
-        if (cachedData && lastFetchTime && Date.now() - lastFetchTime < 5 * 60 * 1000) {
-            console.log('Using cached data');
-            initializeCharts();
-            populateDataTable();
-            setupEventListeners();
-            return;
-        }
-
-        // Show loading indicator
-        const loadingDiv = document.createElement('div');
-        loadingDiv.id = 'loading-indicator';
-        loadingDiv.className = 'loading-indicator';
-        loadingDiv.textContent = 'Fetching live data from FRED...';
-        loadingDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: #CB6015; color: white; padding: 10px 20px; border-radius: 4px; z-index: 1000; font-size: 14px;';
-        document.body.appendChild(loadingDiv);
-        console.log('Loading indicator shown');
-
-        console.log('Fetching FRED data...');
-        const [gdpData, cpiData] = await Promise.all([
-            fetchFREDSeries(GDPC1_ID),
-            fetchFREDSeries(CPIAUCSL_ID)
-        ]);
-
-        console.log('Data fetched successfully, calculating percent changes...');
-        cachedData = {
-            gdp: calculatePercentChange(gdpData, 'quarterly'),
-            cpi: calculatePercentChange(cpiData, 'monthly')
-        };
-
-        lastFetchTime = Date.now();
-        
-        // Remove loading indicator
-        const loader = document.getElementById('loading-indicator');
-        if (loader && document.body.contains(loader)) {
-            document.body.removeChild(loader);
-        }
-
-        console.log('Live data loaded successfully');
-        dataSource = 'live';
-        initializeCharts();
-        populateDataTable();
-        setupEventListeners();
-    } catch (error) {
-        console.error('Error fetching FRED data:', error);
-        const loader = document.getElementById('loading-indicator');
-        if (loader && document.body.contains(loader)) {
-            document.body.removeChild(loader);
-        }
-        showErrorMessage('Failed to load live data. Check console for details. Using sample data instead.');
-        useSampleData();
-    }
+function fetchFREDData() {
+    // Load sample data (live FRED API integration requires valid API key)
+    console.log('Loading dashboard data...');
+    useSampleData();
 }
 
 async function fetchFREDSeries(seriesId) {
