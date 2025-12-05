@@ -6,6 +6,9 @@
     <meta name="description" content="Interactive Real GDP and CPI-U Dashboard with responsive bar charts">
     <meta name="theme-color" content="#CB6015">
     <title>Real GDP & CPI Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" defer></script>
     <link rel="stylesheet" href="styles.css">
@@ -28,7 +31,7 @@
 
         <div class="charts-container" role="region" aria-label="Data Charts">
             <div class="chart-wrapper">
-                <h2>Real GDP - Annualized Percentage Change from Preceding Quarter</h2>
+                    <h2>Real GDP - Annualized Percentage Change (QoQ)</h2>
                 <canvas id="gdpChart" role="img" aria-label="Real GDP Chart"></canvas>
             </div>
             <div class="chart-wrapper">
