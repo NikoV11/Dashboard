@@ -86,84 +86,56 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId}...`);
     
-    try {
-        // Try Netlify function with POST
-        console.log(`Attempting Netlify function for ${seriesId}...`);
-        const response = await fetch('/.netlify/functions/fred-proxy', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ seriesId })
-        });
-
-        console.log(`Response status: ${response.status}`);
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log(`Response data:`, data);
-            
-            if (data.observations && data.observations.length > 0) {
-                const processedData = data.observations.map(obs => ({
-                    date: obs.date,
-                    value: parseFloat(obs.value)
-                })).filter(obs => !isNaN(obs.value));
-
-                console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
-                return processedData;
-            } else if (data.error) {
-                console.error(`API error for ${seriesId}:`, data.error);
-            }
-        } else {
-            const errorText = await response.text();
-            console.warn(`Netlify function returned ${response.status}: ${errorText}`);
-        }
-    } catch (error) {
-        console.warn(`Netlify function failed for ${seriesId}: ${error.message}`);
-    }
-
-    // Fallback to direct API call with CORS proxies
-    const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
-    console.log(`Trying CORS proxies for ${seriesId}...`);
+    const fredUrl = `https://api.stlouisfed.org/fred/series/data?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
     
-    for (let i = 0; i < CORS_PROXIES.length; i++) {
+    // Try multiple CORS proxies in order
+    const proxyOptions = [
+        // Thingproxy.freehostname.com - most reliable
+        `https://thingproxy.freehostname.com/fetch/${fredUrl}`,
+        // Getjsonfree.com - alternative
+        `https://getjsonfree.com?url=${encodeURIComponent(fredUrl)}`,
+        // AllOrigins - can work for simple requests
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(fredUrl)}`
+    ];
+    
+    for (const proxiedUrl of proxyOptions) {
         try {
-            let proxyUrl;
-            const proxy = CORS_PROXIES[i];
-            
-            if (proxy.includes('quest=')) {
-                proxyUrl = `${proxy}${url}`;
-            } else if (proxy.includes('allorigins')) {
-                proxyUrl = `${proxy}${encodeURIComponent(url)}`;
-            } else {
-                proxyUrl = `${proxy}${url}`;
-            }
-            
-            console.log(`Trying CORS proxy ${i + 1}/${CORS_PROXIES.length}: ${proxy}`);
-            
-            const response = await fetch(proxyUrl, {
+            console.log(`Attempting ${proxiedUrl.substring(0, 40)}...`);
+            const response = await fetch(proxiedUrl, {
                 method: 'GET',
                 headers: { 'Accept': 'application/json' }
             });
 
             if (response.ok) {
-                const data = await response.json();
+                const text = await response.text();
                 
-                if (data.observations && data.observations.length > 0) {
-                    const processedData = data.observations.map(obs => ({
-                        date: obs.date,
-                        value: parseFloat(obs.value)
-                    })).filter(obs => !isNaN(obs.value));
+                // Try to parse as JSON
+                try {
+                    const data = JSON.parse(text);
+                    if (data.observations && Array.isArray(data.observations) && data.observations.length > 0) {
+                        const processedData = data.observations.map(obs => ({
+                            date: obs.date,
+                            value: parseFloat(obs.value)
+                        })).filter(obs => !isNaN(obs.value));
 
-                    console.log(`✓ Via proxy ${i + 1} - fetched ${seriesId}: ${processedData.length} data points`);
-                    return processedData;
+                        console.log(`✓ Successfully fetched ${seriesId}: ${processedData.length} data points`);
+                        dataSource = 'live';
+                        return processedData;
+                    }
+                } catch (parseError) {
+                    console.warn(`JSON parse failed for this proxy: ${parseError.message}`);
+                    continue; // Try next proxy
                 }
             }
         } catch (error) {
-            console.warn(`CORS proxy ${i + 1} failed for ${seriesId}: ${error.message}`);
+            console.warn(`Proxy attempt failed: ${error.message}`);
+            // Continue to next proxy
         }
     }
-    
-    // If all methods fail, throw error
-    throw new Error(`Could not fetch ${seriesId} from any source`);
+
+    // If all proxies fail, use sample data
+    console.warn(`All CORS proxies failed for ${seriesId}, falling back to sample data`);
+    throw new Error(`Could not fetch ${seriesId} from any proxy.`);
 }
 
 function calculatePercentChange(data, frequency) {
