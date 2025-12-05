@@ -1,49 +1,153 @@
-// Sample data structure (replace with real FRED API calls or local data source)
-const sampleData = {
-    gdp: [
-        { date: '2023-01-01', value: 1.6 },
-        { date: '2023-04-01', value: 0.8 },
-        { date: '2023-07-01', value: 2.1 },
-        { date: '2023-10-01', value: 1.2 },
-        { date: '2024-01-01', value: 2.5 },
-        { date: '2024-04-01', value: 0.6 },
-        { date: '2024-07-01', value: 1.4 },
-        { date: '2024-10-01', value: 0.9 }
-    ],
-    cpi: [
-        { date: '2023-01-01', value: 0.5 },
-        { date: '2023-02-01', value: -0.1 },
-        { date: '2023-03-01', value: 0.4 },
-        { date: '2023-04-01', value: 0.2 },
-        { date: '2023-05-01', value: 0.0 },
-        { date: '2023-06-01', value: 0.1 },
-        { date: '2024-01-01', value: 0.3 },
-        { date: '2024-02-01', value: 0.2 },
-        { date: '2024-03-01', value: 0.4 },
-        { date: '2024-04-01', value: 0.0 },
-        { date: '2024-05-01', value: 0.1 },
-        { date: '2024-06-01', value: 0.1 }
-    ]
-};
+// FRED API Configuration
+const FRED_API_KEY = '60702495b0f5bcf665cfe1db3ae9dbe0';
+const FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/data';
+
+// FRED Series IDs
+const GDPC1_ID = 'GDPC1';      // Real GDP (quarterly)
+const CPIAUCSL_ID = 'CPIAUCSL'; // CPI-U (monthly)
 
 let gdpChart = null;
 let cpiChart = null;
-
-// Initialize charts on page load
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeApp);
-} else {
-    initializeApp();
-}
+let cachedData = null;
+let lastFetchTime = null;
 
 function initializeApp() {
     try {
+        fetchFREDData();
+    } catch (error) {
+        console.error('Error initializing dashboard:', error);
+    }
+}
+
+async function fetchFREDData() {
+    try {
+        // Check cache (5 minute cache)
+        if (cachedData && lastFetchTime && Date.now() - lastFetchTime < 5 * 60 * 1000) {
+            initializeCharts();
+            populateDataTable();
+            setupEventListeners();
+            return;
+        }
+
+        // Show loading indicator
+        const container = document.querySelector('.container');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'loading-indicator';
+        loadingDiv.textContent = 'Loading live data from FRED...';
+        loadingDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: #CB6015; color: white; padding: 10px 20px; border-radius: 4px; z-index: 1000;';
+        document.body.appendChild(loadingDiv);
+
+        const [gdpData, cpiData] = await Promise.all([
+            fetchFREDSeries(GDPC1_ID),
+            fetchFREDSeries(CPIAUCSL_ID)
+        ]);
+
+        cachedData = {
+            gdp: calculatePercentChange(gdpData, 'quarterly'),
+            cpi: calculatePercentChange(cpiData, 'monthly')
+        };
+
+        lastFetchTime = Date.now();
+        document.body.removeChild(loadingDiv);
+
         initializeCharts();
         populateDataTable();
         setupEventListeners();
     } catch (error) {
-        console.error('Error initializing dashboard:', error);
+        console.error('Error fetching FRED data:', error);
+        showErrorMessage('Failed to load live data. Using sample data instead.');
+        useSampleData();
     }
+}
+
+async function fetchFREDSeries(seriesId) {
+    try {
+        const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`FRED API error: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (!data.observations) {
+            throw new Error('No data returned from FRED');
+        }
+
+        return data.observations.map(obs => ({
+            date: obs.date,
+            value: parseFloat(obs.value)
+        })).filter(obs => !isNaN(obs.value));
+    } catch (error) {
+        console.error(`Error fetching ${seriesId}:`, error);
+        throw error;
+    }
+}
+
+function calculatePercentChange(data, frequency) {
+    const result = [];
+
+    for (let i = 1; i < data.length; i++) {
+        const current = data[i].value;
+        const previous = data[i - 1].value;
+
+        if (current !== null && previous !== null && previous !== 0) {
+            const percentChange = 100 * (current / previous - 1);
+            result.push({
+                date: data[i].date,
+                value: parseFloat(percentChange.toFixed(2))
+            });
+        }
+    }
+
+    return result;
+}
+
+function useSampleData() {
+    cachedData = {
+        gdp: [
+            { date: '2023-01-01', value: 1.6 },
+            { date: '2023-04-01', value: 0.8 },
+            { date: '2023-07-01', value: 2.1 },
+            { date: '2023-10-01', value: 1.2 },
+            { date: '2024-01-01', value: 2.5 },
+            { date: '2024-04-01', value: 0.6 },
+            { date: '2024-07-01', value: 1.4 },
+            { date: '2024-10-01', value: 0.9 }
+        ],
+        cpi: [
+            { date: '2023-01-01', value: 0.5 },
+            { date: '2023-02-01', value: -0.1 },
+            { date: '2023-03-01', value: 0.4 },
+            { date: '2023-04-01', value: 0.2 },
+            { date: '2023-05-01', value: 0.0 },
+            { date: '2023-06-01', value: 0.1 },
+            { date: '2024-01-01', value: 0.3 },
+            { date: '2024-02-01', value: 0.2 },
+            { date: '2024-03-01', value: 0.4 },
+            { date: '2024-04-01', value: 0.0 },
+            { date: '2024-05-01', value: 0.1 },
+            { date: '2024-06-01', value: 0.1 }
+        ]
+    };
+
+    initializeCharts();
+    populateDataTable();
+    setupEventListeners();
+}
+
+function showErrorMessage(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    errorDiv.style.cssText = 'position: fixed; top: 50px; right: 10px; background: #d32f2f; color: white; padding: 15px 20px; border-radius: 4px; z-index: 1000; max-width: 300px;';
+    document.body.appendChild(errorDiv);
+
+    setTimeout(() => {
+        if (document.body.contains(errorDiv)) {
+            document.body.removeChild(errorDiv);
+        }
+    }, 5000);
 }
 
 function setupEventListeners() {
@@ -178,12 +282,16 @@ function getFilteredData() {
     const startYear = parseInt(document.getElementById('startYear').value);
     const endYear = parseInt(document.getElementById('endYear').value);
 
-    const gdpFiltered = sampleData.gdp.filter(d => {
+    if (!cachedData) {
+        return { gdp: [], cpi: [] };
+    }
+
+    const gdpFiltered = cachedData.gdp.filter(d => {
         const year = new Date(d.date).getFullYear();
         return year >= startYear && year <= endYear;
     });
 
-    const cpiFiltered = sampleData.cpi.filter(d => {
+    const cpiFiltered = cachedData.cpi.filter(d => {
         const year = new Date(d.date).getFullYear();
         return year >= startYear && year <= endYear;
     });
@@ -257,4 +365,11 @@ function formatDateLabel(dateString) {
 function formatDateDisplay(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Initialize charts on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
 }
