@@ -82,11 +82,11 @@ async function fetchFREDSeries(seriesId) {
     // Use CORS proxy to bypass browser restrictions
     const apiKey = '313359708686770c608dab3d05c3077f';
     const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&limit=10000`;
-    const corsProxy = 'https://cors-anywhere.herokuapp.com/';
+    const corsProxy = 'https://api.allorigins.win/raw?url=';
     
     try {
         console.log(`Calling FRED API for ${seriesId}...`);
-        const response = await fetch(corsProxy + fredUrl);
+        const response = await fetch(corsProxy + encodeURIComponent(fredUrl));
 
         console.log(`Response status: ${response.status}`);
         
