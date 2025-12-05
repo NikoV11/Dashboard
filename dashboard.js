@@ -1,6 +1,6 @@
 // FRED API Configuration
 const FRED_API_KEY = '60702495b0f5bcf665cfe1db3ae9dbe0';
-const FRED_API_URL = 'http://localhost:3000/api/fred'; // Local server endpoint
+const FRED_API_URL = '/.netlify/functions/fred-proxy'; // Netlify serverless function
 
 // FRED Series IDs
 const GDPC1_ID = 'GDPC1';      // Real GDP (quarterly)
@@ -79,12 +79,12 @@ async function fetchFREDData() {
 async function fetchFREDSeries(seriesId) {
     console.log(`Fetching ${seriesId}...`);
     
-    // Use local server endpoint
-    const localEndpoint = `${FRED_API_URL}/${seriesId}`;
+    // Use Netlify function endpoint with query parameter
+    const endpoint = `${FRED_API_URL}?seriesId=${seriesId}`;
     
     try {
-        console.log(`Attempting to fetch from local server: ${localEndpoint}...`);
-        const response = await fetch(localEndpoint, {
+        console.log(`Attempting to fetch from Netlify function: ${endpoint}...`);
+        const response = await fetch(endpoint, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
         });
@@ -112,7 +112,6 @@ async function fetchFREDSeries(seriesId) {
         }
     } catch (error) {
         console.warn(`Failed to fetch ${seriesId}: ${error.message}`);
-        console.warn(`Make sure the server is running: npm start`);
     }
 
     // Fallback to sample data
