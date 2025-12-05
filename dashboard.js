@@ -1,5 +1,4 @@
 // FRED API Configuration
-const FRED_API_KEY = '60702495b0f5bcf665cfe1db3ae9dbe0';
 const FRED_API_URL = '/.netlify/functions/fred-proxy'; // Netlify serverless function
 
 // FRED Series IDs
