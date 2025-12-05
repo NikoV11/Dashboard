@@ -2,7 +2,7 @@
 // API endpoint: /.netlify/functions/fred-proxy (handles API key server-side)
 
 // FRED Series IDs
-const GDPC1_ID = 'GDPC1';      // Real GDP (quarterly)
+const GDPC1_ID = 'A191RL1Q225SBEA'; // Real GDP - Annualized QoQ % Change
 const CPIAUCSL_ID = 'CPIAUCSL'; // CPI-U (monthly)
 
 let gdpChart = null;
@@ -32,18 +32,14 @@ async function fetchFREDData() {
         console.log('Data fetched, calculating percent changes...');
         
         // Calculate annualized quarter-over-quarter % change for GDP
+        // GDP data is already annualized QoQ % from FRED
         const gdpProcessed = [];
-        for (let i = 1; i < gdpData.length; i++) {
-            const current = parseFloat(gdpData[i].value);
-            const previous = parseFloat(gdpData[i - 1].value);
-            if (!isNaN(current) && !isNaN(previous)) {
-                // Calculate QoQ % change first
-                const qoqChange = ((current - previous) / previous);
-                // Annualize: (1 + qoq)^4 - 1
-                const annualizedChange = (Math.pow(1 + qoqChange, 4) - 1) * 100;
+        for (let i = 0; i < gdpData.length; i++) {
+            const value = parseFloat(gdpData[i].value);
+            if (!isNaN(value)) {
                 gdpProcessed.push({
                     date: gdpData[i].date,
-                    value: parseFloat(annualizedChange.toFixed(2))
+                    value: parseFloat(value.toFixed(2))
                 });
             }
         }
