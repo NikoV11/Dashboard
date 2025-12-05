@@ -17,6 +17,11 @@ function initializeApp() {
         if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
             Chart.register(ChartDataLabels);
         }
+        // Ensure default year range (2020-2025)
+        const startYearInput = document.getElementById('startYear');
+        const endYearInput = document.getElementById('endYear');
+        if (startYearInput && !startYearInput.value) startYearInput.value = 2020;
+        if (endYearInput && !endYearInput.value) endYearInput.value = 2025;
         fetchFREDData();
     } catch (error) {
         console.error('Error initializing dashboard:', error);
