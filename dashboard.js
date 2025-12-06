@@ -6,16 +6,16 @@ const FRED_URL = 'https://api.stlouisfed.org/fred/series/observations';
 
 const SAMPLE_DATA = {
     gdp: [
-        { date: '2023-01-01', value: 2.4 },
-        { date: '2023-04-01', value: 2.5 },
-        { date: '2023-07-01', value: 4.1 },
-        { date: '2023-10-01', value: 3.2 },
-        { date: '2024-01-01', value: 1.8 },
-        { date: '2024-04-01', value: 2.0 },
-        { date: '2024-07-01', value: 3.0 },
-        { date: '2024-10-01', value: 2.6 },
-        { date: '2025-01-01', value: 2.3 },
-        { date: '2025-04-01', value: 1.3 }
+        { date: '2023-01-01', value: 2.2 },
+        { date: '2023-04-01', value: 2.1 },
+        { date: '2023-07-01', value: 4.9 },
+        { date: '2023-10-01', value: 3.5 },
+        { date: '2024-01-01', value: 1.4 },
+        { date: '2024-04-01', value: 3.6 },
+        { date: '2024-07-01', value: 3.3 },
+        { date: '2024-10-01', value: 1.9 },
+        { date: '2025-01-01', value: -0.6 },
+        { date: '2025-04-01', value: 3.8 }
     ],
     cpi: [
         { date: '2024-01-01', value: 0.3 },
@@ -97,7 +97,7 @@ async function fetchSeries(seriesId) {
     }
 
     // Fallback proxies
-    const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000&sort_order=desc`;
+    const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000`;
     const proxies = [
         'https://api.allorigins.win/raw?url=',
         'https://cors.isomorphic-git.org/',
