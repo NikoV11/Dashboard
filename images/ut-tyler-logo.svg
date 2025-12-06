@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100">
+  <!-- UT Tyler Shield/Badge -->
+  <g transform="translate(10, 10)">
+    <path d="M40 5 L60 15 L60 45 Q60 60 40 70 Q20 60 20 45 L20 15 Z" fill="#BF5700" stroke="#333" stroke-width="1"/>
+    <rect x="30" y="22" width="20" height="15" fill="#fff" opacity="0.9"/>
+    <path d="M30 25 L35 30 L40 25 M45 25 L45 35 M50 25 L50 35" stroke="#BF5700" stroke-width="2" fill="none"/>
+  </g>
+  
+  <!-- UT Tyler Text -->
+  <text x="85" y="40" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#BF5700">UT</text>
+  <text x="120" y="40" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#003366">Tyler</text>
+  
+  <!-- Subtitle -->
+  <text x="85" y="58" font-family="Arial, sans-serif" font-size="9" fill="#003366" letter-spacing="1">THE UNIVERSITY OF TEXAS AT TYLER</text>
+</svg>
