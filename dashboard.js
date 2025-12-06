@@ -304,6 +304,16 @@ function renderEmploymentChart() {
             animation: { duration: 400 },
             plugins: {
                 legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 14, weight: '600' },
+                        color: '#0f172a'
+                    }
+                },
+                datalabels: {
                     display: false
                 },
                 tooltip: {
@@ -322,13 +332,17 @@ function renderEmploymentChart() {
                         maxRotation: 45,
                         minRotation: 45,
                         autoSkip: true,
-                        maxTicksLimit: 20
+                        maxTicksLimit: 20,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
                     }
                 },
                 y: {
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
-                        callback: (value) => `${value}%`
+                        callback: (value) => `${value}%`,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
                     }
                 }
             }
