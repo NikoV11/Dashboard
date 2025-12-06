@@ -88,7 +88,7 @@ async function fetchSeries(seriesId) {
     }
 
     // Fallback proxies
-    const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000`;
+    const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000&sort_order=desc`;
     const proxies = [
         'https://api.allorigins.win/raw?url=',
         'https://cors.isomorphic-git.org/',
@@ -121,22 +121,40 @@ async function loadData() {
             fetchSeries(CPI_ID)
         ]);
 
+        // Sort GDP data by date and parse
         const gdp = (gdpRaw || [])
             .map(o => ({ date: o.date, value: parseFloat(o.value) }))
-            .filter(d => !Number.isNaN(d.value));
+            .filter(d => !Number.isNaN(d.value))
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
 
+        // Sort CPI data by date first
+        const sortedCpiRaw = (cpiRaw || [])
+            .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+            .filter(d => !Number.isNaN(d.value))
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // Calculate month-over-month % change
         const cpi = [];
-        for (let i = 1; i < cpiRaw.length; i++) {
-            const curr = parseFloat(cpiRaw[i].value);
-            const prev = parseFloat(cpiRaw[i - 1].value);
-            if (!Number.isNaN(curr) && !Number.isNaN(prev) && prev !== 0) {
+        for (let i = 1; i < sortedCpiRaw.length; i++) {
+            const curr = sortedCpiRaw[i].value;
+            const prev = sortedCpiRaw[i - 1].value;
+            if (prev !== 0) {
                 const pct = ((curr - prev) / prev) * 100;
-                cpi.push({ date: cpiRaw[i].date, value: parseFloat(pct.toFixed(3)) });
+                cpi.push({ date: sortedCpiRaw[i].date, value: parseFloat(pct.toFixed(3)) });
             }
         }
 
         cachedData = { gdp, cpi };
         dataSource = 'live';
+        
+        // Log the latest data points
+        if (gdp.length > 0) {
+            console.log('Latest GDP data:', gdp[gdp.length - 1]);
+        }
+        if (cpi.length > 0) {
+            console.log('Latest CPI data:', cpi[cpi.length - 1]);
+        }
+        
         setStatus('Live FRED data loaded.', 'success');
     } catch (error) {
         console.warn('Falling back to sample data:', error.message);
