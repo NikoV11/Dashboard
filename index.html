@@ -65,30 +65,58 @@
                 </div>
             </section>
 
-            <section class="charts" aria-label="Charts">
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <div>
-                            <p class="eyebrow">Real GDP</p>
-                            <h3>Quarterly percent change</h3>
-                        </div>
-                        <span class="chip gdp">A191RL1Q225SBEA</span>
-                    </div>
-                    <canvas id="gdpChart" role="img" aria-label="Real GDP Chart"></canvas>
-                </div>
-                <div class="chart-card">
-                    <div class="chart-header">
-                        <div>
-                            <p class="eyebrow">CPI-U</p>
-                            <h3>Monthly percent change</h3>
-                        </div>
-                        <span class="chip cpi">CPIAUCSL</span>
-                    </div>
-                    <canvas id="cpiChart" role="img" aria-label="CPI-U Chart"></canvas>
-                </div>
-            </section>
+            <!-- Tab Navigation -->
+            <nav class="tab-nav" aria-label="Dashboard sections">
+                <button class="tab-btn active" data-tab="gdp-cpi">GDP & CPI-U</button>
+                <button class="tab-btn" data-tab="employment">Employment</button>
+                <button class="tab-btn" data-tab="data-table">Data Table</button>
+            </nav>
 
-            <section class="table-section" aria-label="Data table">
+            <!-- GDP & CPI Tab -->
+            <div class="tab-content active" id="gdp-cpi">
+                <section class="charts" aria-label="GDP and CPI Charts">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div>
+                                <p class="eyebrow">Real GDP</p>
+                                <h3>Quarterly percent change</h3>
+                            </div>
+                            <span class="chip gdp">A191RL1Q225SBEA</span>
+                        </div>
+                        <canvas id="gdpChart" role="img" aria-label="Real GDP Chart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <div>
+                                <p class="eyebrow">CPI-U</p>
+                                <h3>Monthly percent change</h3>
+                            </div>
+                            <span class="chip cpi">CPIAUCSL</span>
+                        </div>
+                        <canvas id="cpiChart" role="img" aria-label="CPI-U Chart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Employment Tab -->
+            <div class="tab-content" id="employment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Employment Growth</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Tyler & Texas Non-Farm Payroll</p>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Employment Change (%)</h3>
+                        <canvas id="employmentChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Data Table Tab -->
+            <div class="tab-content" id="data-table">
+                <section class="table-section card" aria-label="Data table">
                 <div class="table-header">
                     <div>
                         <p class="eyebrow">Data preview</p>
@@ -108,24 +136,9 @@
                         <tbody id="tableBody"></tbody>
                     </table>
                 </div>
-                <p class="source-note">Data Source: Federal Reserve Economic Data (FRED). Live API with automatic sample fallback.</p>
-            </section>
-
-            <!-- Employment Section -->
-            <section class="card" style="margin-top: 40px;">
-                <div class="section-header">
-                    <div>
-                        <h2>Employment Growth</h2>
-                        <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Tyler & Texas Non-Farm Payroll</p>
-                    </div>
-                </div>
-                <div class="charts-grid" style="grid-template-columns: 1fr;">
-                    <div class="card">
-                        <h3>Monthly Employment Change (%)</h3>
-                        <canvas id="employmentChart"></canvas>
-                    </div>
-                </div>
-            </section>
+                    <p class="source-note">Data Source: Federal Reserve Economic Data (FRED). Live API with automatic sample fallback.</p>
+                </section>
+            </div>
         </main>
 
         <footer>
