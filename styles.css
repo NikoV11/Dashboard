@@ -53,13 +53,16 @@ body {
 }
 
 .logo {
-    width: 54px;
+    width: 180px;
     height: 54px;
-    border-radius: 14px;
+    border-radius: 8px;
     overflow: hidden;
     box-shadow: var(--shadow);
     background: var(--panel);
-    padding: 6px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .eyebrow {
