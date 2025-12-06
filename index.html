@@ -3,63 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="Interactive Real GDP and CPI-U Dashboard with responsive bar charts">
+    <meta name="description" content="Real GDP and CPI-U dashboard with FRED data">
     <meta name="theme-color" content="#CB6015">
-    <title>Real GDP & CPI Dashboard</title>
+    <title>Real GDP & CPI-U Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" defer></script>
-    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Real GDP & CPI-U Interactive Dashboard</h1>
-            <p>Quarterly GDP percentage change & Monthly CPI-U percent change</p>
+    <div class="page">
+        <header class="topbar">
+            <div class="brand">
+                <div class="logo" aria-hidden="true">
+                    <svg viewBox="0 0 64 64" role="img" aria-label="Dashboard logo">
+                        <rect x="6" y="10" width="52" height="44" rx="10" fill="#002F6C"/>
+                        <path d="M14 42 L26 30 L36 38 L50 22" stroke="#CB6015" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="26" cy="30" r="4" fill="#CB6015"/>
+                        <circle cx="36" cy="38" r="4" fill="#CB6015"/>
+                        <circle cx="50" cy="22" r="4" fill="#CB6015"/>
+                    </svg>
+                </div>
+                <div>
+                    <p class="eyebrow">Federal Reserve Data</p>
+                    <h1>Real GDP & CPI-U</h1>
+                </div>
+            </div>
+            <div class="top-actions">
+                <button id="downloadBtn" class="ghost">Download CSV</button>
+                <a class="link" href="https://fred.stlouisfed.org/" target="_blank" rel="noreferrer">FRED</a>
+            </div>
         </header>
 
-        <div class="controls">
-            <label for="startYear">Year Range:</label>
-            <input type="number" id="startYear" min="1947" max="2025" value="2015" placeholder="Start Year" aria-label="Start Year">
-            <span aria-hidden="true">to</span>
-            <input type="number" id="endYear" min="1947" max="2025" value="2025" placeholder="End Year" aria-label="End Year">
-            <button id="updateBtn" aria-label="Update Charts">Update Charts</button>
-            <button id="downloadBtn" aria-label="Download Data as CSV">Download Data</button>
-        </div>
+        <main>
+            <section class="hero">
+                <div>
+                    <p class="eyebrow">Interactive macro dashboard</p>
+                    <h2>Track Real GDP and CPI-U trends with live FRED data</h2>
+                    <p class="lede">Quarterly GDP percentage change and monthly CPI-U percentage change with responsive charts, range filtering, and export.</p>
+                    <div class="controls" aria-label="Year range controls">
+                        <label for="startYear">From</label>
+                        <input type="number" id="startYear" min="1947" max="2099" value="2015" aria-label="Start Year">
+                        <label for="endYear">to</label>
+                        <input type="number" id="endYear" min="1947" max="2099" value="2025" aria-label="End Year">
+                        <button id="updateBtn" class="primary">Update</button>
+                    </div>
+                    <p class="status" id="statusText" role="status" aria-live="polite">Loading data...</p>
+                </div>
+                <div class="stat-cards">
+                    <div class="card">
+                        <p class="eyebrow">Data Source</p>
+                        <h3>FRED API</h3>
+                        <p class="muted">A191RL1Q225SBEA (GDP) & CPIAUCSL (CPI-U)</p>
+                    </div>
+                    <div class="card">
+                        <p class="eyebrow">Refresh</p>
+                        <h3>Live with fallback</h3>
+                        <p class="muted">Automatic sample data if API is blocked</p>
+                    </div>
+                    <div class="card">
+                        <p class="eyebrow">Exports</p>
+                        <h3>CSV download</h3>
+                        <p class="muted">Filtered GDP & CPI-U series</p>
+                    </div>
+                </div>
+            </section>
 
-        <div class="charts-container" role="region" aria-label="Data Charts">
-            <div class="chart-wrapper">
-                    <h2>Real GDP - Annualized Percentage Change (QoQ)</h2>
-                <canvas id="gdpChart" role="img" aria-label="Real GDP Chart"></canvas>
-            </div>
-            <div class="chart-wrapper">
-                <h2>CPI-U - One-Month Percent Change</h2>
-                <canvas id="cpiChart" role="img" aria-label="CPI-U Chart"></canvas>
-            </div>
-        </div>
+            <section class="charts" aria-label="Charts">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <p class="eyebrow">Real GDP</p>
+                            <h3>Quarterly percent change</h3>
+                        </div>
+                        <span class="chip gdp">A191RL1Q225SBEA</span>
+                    </div>
+                    <canvas id="gdpChart" role="img" aria-label="Real GDP Chart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div>
+                            <p class="eyebrow">CPI-U</p>
+                            <h3>Monthly percent change</h3>
+                        </div>
+                        <span class="chip cpi">CPIAUCSL</span>
+                    </div>
+                    <canvas id="cpiChart" role="img" aria-label="CPI-U Chart"></canvas>
+                </div>
+            </section>
 
-        <div class="data-section" role="region" aria-label="Data Table">
-            <h2>Data Preview</h2>
-            <div class="table-wrapper">
-                <table id="dataTable" role="table" aria-label="Filtered GDP and CPI-U Data">
-                    <thead>
-                        <tr>
-                            <th scope="col">Date</th>
-                            <th scope="col">GDP (% Change)</th>
-                            <th scope="col">CPI-U (% Change)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                    </tbody>
-                </table>
-            </div>
-            <p class="source-note">Data Source: Federal Reserve Economic Data (FRED) - Series: A191RL1Q225SBEA (Real GDP QoQ), CPIAUCSL (CPI-U)</p>
-        </div>
+            <section class="table-section" aria-label="Data table">
+                <div class="table-header">
+                    <div>
+                        <p class="eyebrow">Data preview</p>
+                        <h3>Filtered GDP & CPI-U</h3>
+                    </div>
+                    <button id="downloadBtnTable" class="ghost">Download CSV</button>
+                </div>
+                <div class="table-wrapper">
+                    <table aria-label="Filtered GDP and CPI-U data">
+                        <thead>
+                            <tr>
+                                <th scope="col">Date</th>
+                                <th scope="col">GDP (% QoQ)</th>
+                                <th scope="col">CPI-U (% MoM)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <p class="source-note">Data Source: Federal Reserve Economic Data (FRED). Live API with automatic sample fallback.</p>
+            </section>
+        </main>
+
+        <footer>
+            <p>Built for insight — GDP in burnt orange (#CB6015) and CPI-U in navy (#002F6C).</p>
+        </footer>
     </div>
 
-    <script src="dashboard.js?v=5"></script>
+    <script src="dashboard.js?v=6"></script>
 </body>
 </html>
 

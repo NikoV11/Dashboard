@@ -1,252 +1,187 @@
-﻿// FRED API Configuration
-// API endpoint: /.netlify/functions/fred-proxy (handles API key server-side)
+﻿const GDP_ID = 'A191RL1Q225SBEA';
+const CPI_ID = 'CPIAUCSL';
+const FRED_FUNCTION = '/.netlify/functions/fred-proxy';
+const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
+const FRED_URL = 'https://api.stlouisfed.org/fred/series/observations';
 
-// FRED Series IDs
-const GDPC1_ID = 'A191RL1Q225SBEA'; // Real GDP - Annualized QoQ % Change
-const CPIAUCSL_ID = 'CPIAUCSL'; // CPI-U (monthly)
+const SAMPLE_DATA = {
+    gdp: [
+        { date: '2023-01-01', value: 2.4 },
+        { date: '2023-04-01', value: 2.5 },
+        { date: '2023-07-01', value: 4.1 },
+        { date: '2023-10-01', value: 3.2 },
+        { date: '2024-01-01', value: 1.8 },
+        { date: '2024-04-01', value: 2.0 },
+        { date: '2024-07-01', value: 3.0 },
+        { date: '2024-10-01', value: 2.6 }
+    ],
+    cpi: [
+        { date: '2023-09-01', value: 0.3 },
+        { date: '2023-10-01', value: 0.2 },
+        { date: '2023-11-01', value: 0.1 },
+        { date: '2023-12-01', value: 0.2 },
+        { date: '2024-01-01', value: 0.3 },
+        { date: '2024-02-01', value: 0.4 },
+        { date: '2024-03-01', value: 0.3 },
+        { date: '2024-04-01', value: 0.2 },
+        { date: '2024-05-01', value: 0.1 },
+        { date: '2024-06-01', value: 0.2 },
+        { date: '2024-07-01', value: 0.2 },
+        { date: '2024-08-01', value: 0.2 },
+        { date: '2024-09-01', value: 0.2 },
+        { date: '2024-10-01', value: 0.3 }
+    ]
+};
 
 let gdpChart = null;
 let cpiChart = null;
 let cachedData = null;
-let lastFetchTime = null;
-let dataSource = 'sample'; // 'live' or 'sample'
+let dataSource = 'sample';
 
-function initializeApp() {
-    try {
-        // Register Chart.js datalabels plugin when DOM is ready
-        if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
-            Chart.register(ChartDataLabels);
-        }
-        // Ensure default year range (2020-2025)
-        const startYearInput = document.getElementById('startYear');
-        const endYearInput = document.getElementById('endYear');
-        if (startYearInput && !startYearInput.value) startYearInput.value = 2020;
-        if (endYearInput && !endYearInput.value) endYearInput.value = 2025;
-        fetchFREDData();
-    } catch (error) {
-        console.error('Error initializing dashboard:', error);
+function setStatus(text, tone = 'muted') {
+    const statusEl = document.getElementById('statusText');
+    if (statusEl) {
+        statusEl.textContent = text;
+        statusEl.className = `status ${tone}`;
     }
 }
 
-async function fetchFREDData() {
-    try {
-        console.log('Fetching FRED data...');
-        const gdpData = await fetchFREDSeries(GDPC1_ID);
-        const cpiData = await fetchFREDSeries(CPIAUCSL_ID);
+function ensureDefaults() {
+    const start = document.getElementById('startYear');
+    const end = document.getElementById('endYear');
+    if (start && !start.value) start.value = 2015;
+    if (end && !end.value) end.value = 2025;
+}
 
-        console.log('Data fetched, calculating percent changes...');
-        
-        // Calculate annualized quarter-over-quarter % change for GDP
-        // GDP data is already annualized QoQ % from FRED
-        const gdpProcessed = [];
-        for (let i = 0; i < gdpData.length; i++) {
-            const value = parseFloat(gdpData[i].value);
-            if (!isNaN(value)) {
-                gdpProcessed.push({
-                    date: gdpData[i].date,
-                    value: parseFloat(value.toFixed(2))
-                });
-            }
-        }
-
-        // Calculate month-over-month % change for CPI
-        const cpiProcessed = [];
-        for (let i = 1; i < cpiData.length; i++) {
-            const current = parseFloat(cpiData[i].value);
-            const previous = parseFloat(cpiData[i - 1].value);
-            if (!isNaN(current) && !isNaN(previous)) {
-                const percentChange = ((current - previous) / previous) * 100;
-                cpiProcessed.push({
-                    date: cpiData[i].date,
-                    value: parseFloat(percentChange.toFixed(4))
-                });
-            }
-        }
-
-        cachedData = {
-            gdp: gdpProcessed,
-            cpi: cpiProcessed
-        };
-
-        lastFetchTime = Date.now();
-        dataSource = 'live';
-        console.log('Live data loaded successfully');
-        initializeCharts();
-        populateDataTable();
-        setupEventListeners();
-    } catch (error) {
-        console.error('Error fetching FRED data:', error);
-            showErrorMessage('Failed to load FRED data. Showing sample data instead.');
-            useSampleData();
+function registerPlugins() {
+    if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+        Chart.register(ChartDataLabels);
     }
 }
 
-async function fetchFREDSeries(seriesId) {
-    console.log(`Fetching ${seriesId} from FRED API...`);
-    
-    const apiKey = '313359708686770c608dab3d05c3077f';
-    const fredUrl = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&limit=10000`;
-    
-    // Multiple CORS proxies for redundancy
-    const corsProxies = [
+async function withTimeout(promise, ms) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+        const response = await promise(controller.signal);
+        clearTimeout(timer);
+        return response;
+    } catch (error) {
+        clearTimeout(timer);
+        throw error;
+    }
+}
+
+async function fetchSeries(seriesId) {
+    // Try Netlify function first
+    try {
+        const url = `${FRED_FUNCTION}?seriesId=${seriesId}`;
+        const res = await withTimeout(signal => fetch(url, { signal }), 9000);
+        if (res.ok) {
+            const data = await res.json();
+            return data.observations || [];
+        }
+        throw new Error(`Function returned ${res.status}`);
+    } catch (err) {
+        console.warn(`[${seriesId}] Netlify function failed: ${err.message}`);
+    }
+
+    // Fallback proxies
+    const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000`;
+    const proxies = [
         'https://api.allorigins.win/raw?url=',
-        'https://cors-anywhere.herokuapp.com/',
+        'https://cors.isomorphic-git.org/',
         'https://thingproxy.freeboard.io/fetch/'
     ];
-    
-    for (let proxyIndex = 0; proxyIndex < corsProxies.length; proxyIndex++) {
-        const corsProxy = corsProxies[proxyIndex];
-        const proxyUrl = corsProxy === corsProxies[2] 
-            ? corsProxy + fredUrl 
-            : corsProxy + encodeURIComponent(fredUrl);
-        
+
+    for (let i = 0; i < proxies.length; i++) {
+        const proxyUrl = proxies[i] + encodeURIComponent(url);
         try {
-            console.log(`Calling FRED API for ${seriesId} (proxy ${proxyIndex + 1}/${corsProxies.length})...`);
-            const response = await fetch(proxyUrl);
-
-            console.log(`Response status: ${response.status}`);
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.observations && Array.isArray(data.observations) && data.observations.length > 0) {
-                    const processedData = data.observations.map(obs => ({
-                        date: obs.date,
-                        value: parseFloat(obs.value)
-                    })).filter(obs => !isNaN(obs.value));
-
-                    console.log(` Successfully fetched ${seriesId}: ${processedData.length} data points`);
-                    return processedData;
-                } else {
-                    console.warn(`No observations found for ${seriesId}`);
-                    throw new Error('No data in response');
-                }
-            } else {
-                console.warn(`Server returned status ${response.status}`);
-                throw new Error(`HTTP ${response.status}`);
+            const res = await withTimeout(signal => fetch(proxyUrl, { signal }), 9000);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data.observations && data.observations.length) {
+                return data.observations;
             }
-        } catch (error) {
-            console.warn(`Proxy ${proxyIndex + 1} failed for ${seriesId}: ${error.message}`);
-            if (proxyIndex === corsProxies.length - 1) {
-                // All proxies exhausted
-                throw new Error(`Could not fetch ${seriesId} from any proxy. Using sample data.`);
+            throw new Error('No observations');
+        } catch (err) {
+            console.warn(`[${seriesId}] Proxy ${i + 1} failed: ${err.message}`);
+        }
+    }
+
+    throw new Error(`All fetch attempts failed for ${seriesId}`);
+}
+
+async function loadData() {
+    setStatus('Loading live data from FRED...', 'muted');
+    try {
+        const [gdpRaw, cpiRaw] = await Promise.all([
+            fetchSeries(GDP_ID),
+            fetchSeries(CPI_ID)
+        ]);
+
+        const gdp = (gdpRaw || [])
+            .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+            .filter(d => !Number.isNaN(d.value));
+
+        const cpi = [];
+        for (let i = 1; i < cpiRaw.length; i++) {
+            const curr = parseFloat(cpiRaw[i].value);
+            const prev = parseFloat(cpiRaw[i - 1].value);
+            if (!Number.isNaN(curr) && !Number.isNaN(prev) && prev !== 0) {
+                const pct = ((curr - prev) / prev) * 100;
+                cpi.push({ date: cpiRaw[i].date, value: parseFloat(pct.toFixed(3)) });
             }
-            // Try next proxy
-            await new Promise(resolve => setTimeout(resolve, 500));
         }
-    }
-    
-    throw new Error(`Could not fetch ${seriesId}. Using sample data.`);
-}
 
-function calculatePercentChange(data, frequency) {
-    const result = [];
-
-    for (let i = 1; i < data.length; i++) {
-        const current = data[i].value;
-        const previous = data[i - 1].value;
-
-        if (current !== null && previous !== null && previous !== 0) {
-            const percentChange = 100 * (current / previous - 1);
-            result.push({
-                date: data[i].date,
-                value: parseFloat(percentChange.toFixed(2))
-            });
-        }
+        cachedData = { gdp, cpi };
+        dataSource = 'live';
+        setStatus('Live FRED data loaded.', 'success');
+    } catch (error) {
+        console.warn('Falling back to sample data:', error.message);
+        cachedData = { ...SAMPLE_DATA };
+        dataSource = 'sample';
+        setStatus('Sample data displayed (API unavailable).', 'warn');
     }
 
-    return result;
+    renderAll();
 }
 
-function showErrorMessage(message) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-message';
-    errorDiv.textContent = message;
-    errorDiv.style.cssText = 'position: fixed; top: 50px; right: 10px; background: #d32f2f; color: white; padding: 15px 20px; border-radius: 4px; z-index: 1000; max-width: 300px; font-size: 14px;';
-    document.body.appendChild(errorDiv);
-    
-    console.warn('User notification:', message);
-
-    setTimeout(() => {
-        if (document.body.contains(errorDiv)) {
-            document.body.removeChild(errorDiv);
-        }
-    }, 5000);
+function filterData() {
+    const start = parseInt(document.getElementById('startYear').value, 10) || 2015;
+    const end = parseInt(document.getElementById('endYear').value, 10) || 2025;
+    const gdp = cachedData.gdp.filter(d => {
+        const y = new Date(d.date).getFullYear();
+        return y >= start && y <= end;
+    });
+    const cpi = cachedData.cpi.filter(d => {
+        const y = new Date(d.date).getFullYear();
+        return y >= start && y <= end;
+    });
+    return { gdp, cpi };
 }
 
-function setupEventListeners() {
-    document.getElementById('updateBtn').addEventListener('click', updateCharts);
-    document.getElementById('downloadBtn').addEventListener('click', downloadData);
-}
+function renderCharts(filtered) {
+    const gdpCtx = document.getElementById('gdpChart')?.getContext('2d');
+    const cpiCtx = document.getElementById('cpiChart')?.getContext('2d');
+    if (!gdpCtx || !cpiCtx) return;
 
-function initializeCharts() {
-    const gdpCanvas = document.getElementById('gdpChart');
-    const cpiCanvas = document.getElementById('cpiChart');
-
-    if (!gdpCanvas || !cpiCanvas) {
-        console.error('Canvas elements not found');
-        return;
-    }
-
-    const gdpCtx = gdpCanvas.getContext('2d');
-    const cpiCtx = cpiCanvas.getContext('2d');
-
-    if (!gdpCtx || !cpiCtx) {
-        console.error('Failed to get canvas context');
-        return;
-    }
-
-    const filteredData = getFilteredData();
-
-    const chartOptions = {
+    const sharedOptions = {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         plugins: {
-            legend: {
-                display: true,
-                labels: {
-                    font: { size: 12, weight: '600' },
-                    padding: 15,
-                    usePointStyle: true
-                }
-            },
+            legend: { display: false },
             tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                padding: 10,
-                titleFont: { size: 12, weight: '600' },
-                bodyFont: { size: 11 },
-                displayColors: false,
                 callbacks: {
-                    label: function(context) {
-                        return context.parsed.y.toFixed(2) + '%';
-                    }
+                    label: ctx => `${ctx.parsed.y.toFixed(2)}%`
                 }
             },
-            datalabels: {
-                // Hide labels on top of bars
-                display: false
-            }
+            datalabels: { display: false }
         },
         scales: {
             y: {
                 beginAtZero: true,
-                ticks: {
-                    callback: function(value) {
-                        return value.toFixed(1) + '%';
-                    },
-                    font: { size: 11 }
-                },
-                title: {
-                    display: true,
-                    text: 'Percent Change (%)',
-                    font: { size: 12, weight: '600' }
-                }
-            },
-            x: {
-                ticks: {
-                    font: { size: 10 },
-                    maxRotation: 45,
-                    minRotation: 0
-                }
+                ticks: { callback: v => `${v}%` }
             }
         }
     };
@@ -255,164 +190,117 @@ function initializeCharts() {
     gdpChart = new Chart(gdpCtx, {
         type: 'bar',
         data: {
-            labels: filteredData.gdp.map(d => formatQuarterLabel(d.date)),
+            labels: filtered.gdp.map(d => formatQuarterLabel(d.date)),
             datasets: [{
-                label: 'GDP % Change',
-                data: filteredData.gdp.map(d => d.value),
+                label: 'GDP % QoQ',
+                data: filtered.gdp.map(d => d.value),
                 backgroundColor: '#CB6015',
-                borderColor: '#a84d0f',
-                borderWidth: 1,
-                borderRadius: 4,
-                hoverBackgroundColor: '#a84d0f'
+                borderRadius: 6
             }]
         },
-        options: chartOptions
+        options: sharedOptions
     });
 
     if (cpiChart) cpiChart.destroy();
     cpiChart = new Chart(cpiCtx, {
         type: 'bar',
         data: {
-            labels: filteredData.cpi.map(d => formatDateLabel(d.date)),
+            labels: filtered.cpi.map(d => formatMonthLabel(d.date)),
             datasets: [{
-                label: 'CPI-U 1-Month % Change',
-                data: filteredData.cpi.map(d => d.value),
+                label: 'CPI-U % MoM',
+                data: filtered.cpi.map(d => d.value),
                 backgroundColor: '#002F6C',
-                borderColor: '#001d42',
-                borderWidth: 1,
-                borderRadius: 4,
-                hoverBackgroundColor: '#001d42'
+                borderRadius: 6
             }]
         },
-        options: chartOptions
+        options: sharedOptions
     });
 }
 
-function updateCharts() {
-    const filteredData = getFilteredData();
+function renderTable(filtered) {
+    const body = document.getElementById('tableBody');
+    if (!body) return;
+    body.innerHTML = '';
 
-    // Update GDP chart
-    gdpChart.data.labels = filteredData.gdp.map(d => formatQuarterLabel(d.date));
-    gdpChart.data.datasets[0].data = filteredData.gdp.map(d => d.value);
-    gdpChart.update();
-
-    // Update CPI chart
-    cpiChart.data.labels = filteredData.cpi.map(d => formatDateLabel(d.date));
-    cpiChart.data.datasets[0].data = filteredData.cpi.map(d => d.value);
-    cpiChart.update();
-
-    // Refresh table
-    populateDataTable();
-}
-
-function getFilteredData() {
-    const startYear = parseInt(document.getElementById('startYear').value);
-    const endYear = parseInt(document.getElementById('endYear').value);
-
-    if (!cachedData) {
-        return { gdp: [], cpi: [] };
-    }
-
-    const gdpFiltered = cachedData.gdp.filter(d => {
-        const year = new Date(d.date).getFullYear();
-        return year >= startYear && year <= endYear;
-    });
-
-    const cpiFiltered = cachedData.cpi.filter(d => {
-        const year = new Date(d.date).getFullYear();
-        return year >= startYear && year <= endYear;
-    });
-
-    return { gdp: gdpFiltered, cpi: cpiFiltered };
-}
-
-function populateDataTable() {
-    const filteredData = getFilteredData();
-    const tableBody = document.getElementById('tableBody');
-    const sourceNote = document.querySelector('.source-note');
-    
-    tableBody.innerHTML = '';
-
-    // Create a map for quick CPI lookup by date
-    const cpiMap = {};
-    filteredData.cpi.forEach(d => {
-        cpiMap[d.date] = d.value;
-    });
-
-    filteredData.gdp.forEach(gdpItem => {
-        const row = document.createElement('tr');
-        const cpiValue = cpiMap[gdpItem.date] || 'N/A';
-        const cpiText = typeof cpiValue === 'number' ? cpiValue.toFixed(2) + '%' : cpiValue;
-
-        row.innerHTML = `
-            <td>${formatDateDisplay(gdpItem.date)}</td>
-            <td><strong style="color: #CB6015;">${gdpItem.value.toFixed(2)}%</strong></td>
-            <td><strong style="color: #002F6C;">${cpiText}</strong></td>
+    const cpiMap = new Map(filtered.cpi.map(d => [d.date, d.value]));
+    filtered.gdp.forEach(row => {
+        const tr = document.createElement('tr');
+        const cpi = cpiMap.has(row.date) ? `${cpiMap.get(row.date).toFixed(2)}%` : '—';
+        tr.innerHTML = `
+            <td>${formatDateDisplay(row.date)}</td>
+            <td style="color:#CB6015;font-weight:600;">${row.value.toFixed(2)}%</td>
+            <td style="color:#002F6C;font-weight:600;">${cpi}</td>
         `;
-        tableBody.appendChild(row);
+        body.appendChild(tr);
     });
+}
 
-    // Update source note
-    if (sourceNote) {
-        const sourceText = dataSource === 'live' 
-            ? 'Data Source: Federal Reserve Economic Data (FRED) - Live API - Series: GDPC1 (Real GDP), CPIAUCSL (CPI-U)' 
-            : 'Data Source: Sample Data (FRED API unavailable) - Series: GDPC1 (Real GDP), CPIAUCSL (CPI-U)';
-        sourceNote.textContent = sourceText;
+function renderAll() {
+    if (!cachedData) return;
+    const filtered = filterData();
+    renderCharts(filtered);
+    renderTable(filtered);
+    const note = document.querySelector('.source-note');
+    if (note) {
+        note.textContent = dataSource === 'live'
+            ? 'Data Source: FRED API (live) — GDP: A191RL1Q225SBEA, CPI-U: CPIAUCSL'
+            : 'Data Source: Sample fallback — GDP: A191RL1Q225SBEA, CPI-U: CPIAUCSL';
     }
 }
 
-function downloadData() {
-    try {
-        const filteredData = getFilteredData();
-        let csv = 'Date,GDP (% Change),CPI-U (1-Month % Change)\n';
-
-        const cpiMap = {};
-        filteredData.cpi.forEach(d => {
-            cpiMap[d.date] = d.value;
-        });
-
-        filteredData.gdp.forEach(gdpItem => {
-            const cpiValue = cpiMap[gdpItem.date] || '';
-            csv += `${formatDateDisplay(gdpItem.date)},${gdpItem.value.toFixed(2)},${cpiValue ? cpiValue.toFixed(2) : ''}\n`;
-        });
-
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `gdp_cpi_dashboard_${new Date().toISOString().split('T')[0]}.csv`);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    } catch (error) {
-        console.error('Error downloading data:', error);
-        alert('Failed to download data. Please try again.');
-    }
+function handleDownload() {
+    if (!cachedData) return;
+    const filtered = filterData();
+    const cpiMap = new Map(filtered.cpi.map(d => [d.date, d.value]));
+    let csv = 'Date,GDP (% QoQ),CPI-U (% MoM)\n';
+    filtered.gdp.forEach(row => {
+        const cpi = cpiMap.get(row.date);
+        csv += `${formatDateDisplay(row.date)},${row.value.toFixed(3)},${cpi !== undefined ? cpi.toFixed(3) : ''}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `gdp_cpi_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 
-function formatDateLabel(dateString) {
-    const date = new Date(dateString);
-    const month = date.toLocaleString('en-US', { month: 'short' });
-    const year = date.getFullYear();
-    return `${month} '${year.toString().slice(-2)}`;
+function formatQuarterLabel(dateStr) {
+    const d = new Date(dateStr);
+    const q = Math.floor(d.getMonth() / 3) + 1;
+    return `Q${q} ${d.getFullYear()}`;
 }
 
-function formatDateDisplay(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}`r
+function formatMonthLabel(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
 
-// Expose helpers globally to avoid ReferenceError when deferred scripts execute out of order
-window.formatQuarterLabel = formatQuarterLabel;
-window.useSampleData = useSampleData;
+function formatDateDisplay(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
-// Initialize charts on page load
+function wireEvents() {
+    document.getElementById('updateBtn')?.addEventListener('click', renderAll);
+    document.getElementById('downloadBtn')?.addEventListener('click', handleDownload);
+    document.getElementById('downloadBtnTable')?.addEventListener('click', handleDownload);
+}
+
+function init() {
+    registerPlugins();
+    ensureDefaults();
+    wireEvents();
+    loadData();
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeApp);
+    document.addEventListener('DOMContentLoaded', init);
 } else {
-    initializeApp();
+    init();
 }
 
 
