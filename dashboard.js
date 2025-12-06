@@ -248,31 +248,21 @@ function renderEmploymentChart() {
     if (employmentChart) employmentChart.destroy();
     
     employmentChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: filteredTyler.map(d => formatMonthLabel(d.date)),
             datasets: [
                 {
                     label: 'Tyler',
                     data: filteredTyler.map(d => d.value),
-                    borderColor: '#CB6015',
-                    backgroundColor: 'rgba(203, 96, 21, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    tension: 0.1,
-                    fill: true
+                    backgroundColor: '#CB6015',
+                    borderRadius: 6
                 },
                 {
                     label: 'Texas',
                     data: filteredTexas.map(d => d.value),
-                    borderColor: '#002F6C',
-                    backgroundColor: 'rgba(0, 47, 108, 0.1)',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    tension: 0.1,
-                    fill: true
+                    backgroundColor: '#002F6C',
+                    borderRadius: 6
                 }
             ]
         },
