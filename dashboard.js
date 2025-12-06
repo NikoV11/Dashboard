@@ -13,13 +13,11 @@ const SAMPLE_DATA = {
         { date: '2024-01-01', value: 1.8 },
         { date: '2024-04-01', value: 2.0 },
         { date: '2024-07-01', value: 3.0 },
-        { date: '2024-10-01', value: 2.6 }
+        { date: '2024-10-01', value: 2.6 },
+        { date: '2025-01-01', value: 2.3 },
+        { date: '2025-04-01', value: 1.3 }
     ],
     cpi: [
-        { date: '2023-09-01', value: 0.3 },
-        { date: '2023-10-01', value: 0.2 },
-        { date: '2023-11-01', value: 0.1 },
-        { date: '2023-12-01', value: 0.2 },
         { date: '2024-01-01', value: 0.3 },
         { date: '2024-02-01', value: 0.4 },
         { date: '2024-03-01', value: 0.3 },
@@ -29,7 +27,18 @@ const SAMPLE_DATA = {
         { date: '2024-07-01', value: 0.2 },
         { date: '2024-08-01', value: 0.2 },
         { date: '2024-09-01', value: 0.2 },
-        { date: '2024-10-01', value: 0.3 }
+        { date: '2024-10-01', value: 0.3 },
+        { date: '2024-11-01', value: 0.3 },
+        { date: '2024-12-01', value: 0.4 },
+        { date: '2025-01-01', value: 0.3 },
+        { date: '2025-02-01', value: 0.2 },
+        { date: '2025-03-01', value: 0.3 },
+        { date: '2025-04-01', value: 0.2 },
+        { date: '2025-05-01', value: 0.3 },
+        { date: '2025-06-01', value: 0.2 },
+        { date: '2025-07-01', value: 0.2 },
+        { date: '2025-08-01', value: 0.3 },
+        { date: '2025-09-01', value: 0.2 }
     ]
 };
 
@@ -147,15 +156,20 @@ async function loadData() {
         cachedData = { gdp, cpi };
         dataSource = 'live';
         
-        // Log the latest data points
+        // Log the data information
+        console.log(`GDP data points: ${gdp.length}`);
         if (gdp.length > 0) {
-            console.log('Latest GDP data:', gdp[gdp.length - 1]);
-        }
-        if (cpi.length > 0) {
-            console.log('Latest CPI data:', cpi[cpi.length - 1]);
+            console.log('First GDP:', gdp[0]);
+            console.log('Latest GDP:', gdp[gdp.length - 1]);
         }
         
-        setStatus('Live FRED data loaded.', 'success');
+        console.log(`CPI data points: ${cpi.length}`);
+        if (cpi.length > 0) {
+            console.log('First CPI:', cpi[0]);
+            console.log('Latest CPI:', cpi[cpi.length - 1]);
+        }
+        
+        setStatus(`Live FRED data loaded. GDP: ${gdp.length} points, CPI: ${cpi.length} points`, 'success');
     } catch (error) {
         console.warn('Falling back to sample data:', error.message);
         cachedData = { ...SAMPLE_DATA };
