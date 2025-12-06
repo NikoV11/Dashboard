@@ -442,9 +442,13 @@ function setupTabs() {
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     
+    console.log('Setting up tabs. Found', tabBtns.length, 'buttons and', tabContents.length, 'content areas');
+    
     tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
             const tabId = btn.dataset.tab;
+            console.log('Tab clicked:', tabId);
             
             // Remove active class from all buttons and contents
             tabBtns.forEach(b => b.classList.remove('active'));
@@ -455,6 +459,9 @@ function setupTabs() {
             const targetContent = document.getElementById(tabId);
             if (targetContent) {
                 targetContent.classList.add('active');
+                console.log('Activated tab:', tabId);
+            } else {
+                console.error('Could not find tab content with id:', tabId);
             }
         });
     });
