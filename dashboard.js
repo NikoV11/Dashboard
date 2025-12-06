@@ -35,6 +35,7 @@ const SAMPLE_DATA = {
 
 let gdpChart = null;
 let cpiChart = null;
+let employmentChart = null;
 let cachedData = null;
 let dataSource = 'sample';
 
@@ -218,6 +219,105 @@ function renderCharts(filtered) {
         },
         options: sharedOptions
     });
+
+    // Employment Chart
+    renderEmploymentChart();
+}
+
+function renderEmploymentChart() {
+    const canvas = document.getElementById('employmentChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    const empData = parseEmploymentData();
+    
+    // Filter by year range
+    const startYear = parseInt(document.getElementById('startYear')?.value || 2015);
+    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    
+    const filteredTyler = empData.tyler.filter(d => {
+        const year = new Date(d.date).getFullYear();
+        return year >= startYear && year <= endYear;
+    });
+    
+    const filteredTexas = empData.texas.filter(d => {
+        const year = new Date(d.date).getFullYear();
+        return year >= startYear && year <= endYear;
+    });
+
+    if (employmentChart) employmentChart.destroy();
+    
+    employmentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: filteredTyler.map(d => formatMonthLabel(d.date)),
+            datasets: [
+                {
+                    label: 'Tyler',
+                    data: filteredTyler.map(d => d.value),
+                    borderColor: '#CB6015',
+                    backgroundColor: 'rgba(203, 96, 21, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.1,
+                    fill: true
+                },
+                {
+                    label: 'Texas',
+                    data: filteredTexas.map(d => d.value),
+                    borderColor: '#002F6C',
+                    backgroundColor: 'rgba(0, 47, 108, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.1,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: { size: 13, weight: '500' }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 20
+                    }
+                },
+                y: {
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        callback: (value) => `${value}%`
+                    }
+                }
+            }
+        }
+    });
 }
 
 function renderTable(filtered) {
@@ -255,16 +355,61 @@ function handleDownload() {
     if (!cachedData) return;
     const filtered = filterData();
     const cpiMap = new Map(filtered.cpi.map(d => [d.date, d.value]));
-    let csv = 'Date,GDP (% QoQ),CPI-U (% MoM)\n';
-    filtered.gdp.forEach(row => {
-        const cpi = cpiMap.get(row.date);
-        csv += `${formatDateDisplay(row.date)},${row.value.toFixed(3)},${cpi !== undefined ? cpi.toFixed(3) : ''}\n`;
+    
+    // Get employment data
+    const empData = parseEmploymentData();
+    const startYear = parseInt(document.getElementById('startYear')?.value || 2015);
+    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    
+    const tylerMap = new Map(
+        empData.tyler
+            .filter(d => {
+                const year = new Date(d.date).getFullYear();
+                return year >= startYear && year <= endYear;
+            })
+            .map(d => [d.date, d.value])
+    );
+    
+    const texasMap = new Map(
+        empData.texas
+            .filter(d => {
+                const year = new Date(d.date).getFullYear();
+                return year >= startYear && year <= endYear;
+            })
+            .map(d => [d.date, d.value])
+    );
+    
+    let csv = 'Date,GDP (% QoQ),CPI-U (% MoM),Tyler Employment (%),Texas Employment (%)\n';
+    
+    // Create set of all unique dates
+    const allDates = new Set([
+        ...filtered.gdp.map(d => d.date),
+        ...filtered.cpi.map(d => d.date),
+        ...empData.tyler.map(d => d.date),
+        ...empData.texas.map(d => d.date)
+    ]);
+    
+    // Sort dates
+    const sortedDates = Array.from(allDates).sort();
+    
+    sortedDates.forEach(date => {
+        const gdpData = filtered.gdp.find(d => d.date === date);
+        const cpi = cpiMap.get(date);
+        const tyler = tylerMap.get(date);
+        const texas = texasMap.get(date);
+        
+        csv += `${formatDateDisplay(date)},`;
+        csv += `${gdpData ? gdpData.value.toFixed(3) : ''},`;
+        csv += `${cpi !== undefined ? cpi.toFixed(3) : ''},`;
+        csv += `${tyler !== undefined ? tyler.toFixed(1) : ''},`;
+        csv += `${texas !== undefined ? texas.toFixed(1) : ''}\n`;
     });
+    
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `gdp_cpi_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `economic_dashboard_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

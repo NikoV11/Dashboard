@@ -110,6 +110,22 @@
                 </div>
                 <p class="source-note">Data Source: Federal Reserve Economic Data (FRED). Live API with automatic sample fallback.</p>
             </section>
+
+            <!-- Employment Section -->
+            <section class="card" style="margin-top: 40px;">
+                <div class="section-header">
+                    <div>
+                        <h2>Employment Growth</h2>
+                        <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Tyler & Texas Non-Farm Payroll</p>
+                    </div>
+                </div>
+                <div class="charts-grid" style="grid-template-columns: 1fr;">
+                    <div class="card">
+                        <h3>Monthly Employment Change (%)</h3>
+                        <canvas id="employmentChart"></canvas>
+                    </div>
+                </div>
+            </section>
         </main>
 
         <footer>
@@ -117,7 +133,8 @@
         </footer>
     </div>
 
-    <script src="dashboard.js?v=6"></script>
+    <script src="employment-data.js"></script>
+    <script src="dashboard.js?v=7"></script>
 </body>
 </html>
 
