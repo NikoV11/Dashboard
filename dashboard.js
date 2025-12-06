@@ -169,6 +169,9 @@ function renderCharts(filtered) {
     const sharedOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+            duration: 400
+        },
         plugins: {
             legend: { display: false },
             tooltip: {
