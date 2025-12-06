@@ -402,7 +402,11 @@ function formatDateLabel(dateString) {
 function formatDateDisplay(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
+}`r
+
+// Expose helpers globally to avoid ReferenceError when deferred scripts execute out of order
+window.formatQuarterLabel = formatQuarterLabel;
+window.useSampleData = useSampleData;
 
 // Initialize charts on page load
 if (document.readyState === 'loading') {
@@ -410,6 +414,7 @@ if (document.readyState === 'loading') {
 } else {
     initializeApp();
 }
+
 
 
 
