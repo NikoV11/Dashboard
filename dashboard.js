@@ -59,8 +59,8 @@ function setStatus(text, tone = 'muted') {
 function ensureDefaults() {
     const start = document.getElementById('startYear');
     const end = document.getElementById('endYear');
-    if (start && !start.value) start.value = 2015;
-    if (end && !end.value) end.value = 2025;
+    if (start && !start.value) start.value = '2023';
+    if (end && !end.value) end.value = '2025';
 }
 
 function registerPlugins() {
@@ -181,7 +181,7 @@ async function loadData() {
 }
 
 function filterData() {
-    const start = parseInt(document.getElementById('startYear').value, 10) || 2015;
+    const start = parseInt(document.getElementById('startYear').value, 10) || 2023;
     const end = parseInt(document.getElementById('endYear').value, 10) || 2025;
     const gdp = cachedData.gdp.filter(d => {
         const y = new Date(d.date).getFullYear();
@@ -264,7 +264,7 @@ function renderEmploymentChart() {
     const empData = parseEmploymentData();
     
     // Filter by year range
-    const startYear = parseInt(document.getElementById('startYear')?.value || 2015);
+    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
     const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
     
     const filteredTyler = empData.tyler.filter(d => {
@@ -304,13 +304,7 @@ function renderEmploymentChart() {
             animation: { duration: 400 },
             plugins: {
                 legend: {
-                    display: true,
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 15,
-                        font: { size: 13, weight: '500' }
-                    }
+                    display: false
                 },
                 tooltip: {
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
