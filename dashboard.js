@@ -767,12 +767,33 @@ function renderRevenueChart() {
         }
     });
     
+    // Calculate total for percentage calculation
+    const grandTotal = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
+    
     // Sort by value descending
     const sortedCategories = Object.entries(categoryTotals)
         .sort((a, b) => b[1] - a[1]);
     
-    const labels = sortedCategories.map(([cat, val]) => cat);
-    const values = sortedCategories.map(([cat, val]) => val);
+    // Group categories under 1% into "Others"
+    const finalCategories = [];
+    let othersTotal = 0;
+    
+    sortedCategories.forEach(([cat, val]) => {
+        const percentage = (val / grandTotal) * 100;
+        if (percentage >= 1.0) {
+            finalCategories.push([cat, val]);
+        } else {
+            othersTotal += val;
+        }
+    });
+    
+    // Add "Others" category if there are any small categories
+    if (othersTotal > 0) {
+        finalCategories.push(['Others', othersTotal]);
+    }
+    
+    const labels = finalCategories.map(([cat, val]) => cat);
+    const values = finalCategories.map(([cat, val]) => val);
     
     // Color palette
     const colors = [
