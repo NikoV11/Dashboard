@@ -45,7 +45,9 @@ const SAMPLE_DATA = {
 let gdpChart = null;
 let cpiChart = null;
 let employmentChart = null;
+let salesTaxChart = null;
 let cachedData = null;
+let salesTaxData = [];
 let dataSource = 'sample';
 
 function setStatus(text, tone = 'muted') {
@@ -178,6 +180,52 @@ async function loadData() {
     }
 
     renderAll();
+}
+
+async function loadSalesTaxData() {
+    const API_URL = 'https://data.texas.gov/resource/53pa-m7sm.json';
+    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
+    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    
+    try {
+        // Query Tyler data with year filtering
+        const query = `?city=Tyler&$order=report_year,report_month&$limit=5000`;
+        const response = await fetch(API_URL + query);
+        
+        if (!response.ok) {
+            throw new Error(`API returned ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Filter by year range and format
+        salesTaxData = data
+            .filter(d => {
+                const year = parseInt(d.report_year);
+                return year >= startYear && year <= endYear;
+            })
+            .map(d => ({
+                date: `${d.report_year}-${String(d.report_month).padStart(2, '0')}-01`,
+                value: parseFloat(d.net_payment_this_period),
+                periodChange: parseFloat(d.period_percent_change),
+                yoyChange: parseFloat(d.year_percent_change),
+                year: parseInt(d.report_year),
+                month: parseInt(d.report_month)
+            }))
+            .filter(d => !isNaN(d.value));
+        
+        console.log(`Sales Tax data points: ${salesTaxData.length}`);
+        if (salesTaxData.length > 0) {
+            console.log('First Sales Tax:', salesTaxData[0]);
+            console.log('Latest Sales Tax:', salesTaxData[salesTaxData.length - 1]);
+        }
+        
+        return salesTaxData;
+    } catch (error) {
+        console.error('Sales tax fetch failed:', error);
+        salesTaxData = [];
+        return [];
+    }
 }
 
 function filterData() {
@@ -350,6 +398,85 @@ function renderEmploymentChart() {
     });
 }
 
+function renderSalesTaxChart() {
+    const canvas = document.getElementById('salesTaxChart');
+    if (!canvas || !salesTaxData || salesTaxData.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+
+    if (salesTaxChart) salesTaxChart.destroy();
+    
+    salesTaxChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: salesTaxData.map(d => formatMonthLabel(d.date)),
+            datasets: [{
+                label: 'Net Collections',
+                data: salesTaxData.map(d => d.value),
+                backgroundColor: '#CB6015',
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        title: (items) => {
+                            const idx = items[0].dataIndex;
+                            const data = salesTaxData[idx];
+                            return formatMonthLabel(data.date);
+                        },
+                        label: (context) => {
+                            const value = context.parsed.y;
+                            return `Net Payment: $${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+                        },
+                        afterLabel: (context) => {
+                            const idx = context.dataIndex;
+                            const data = salesTaxData[idx];
+                            return [
+                                `MoM Change: ${data.periodChange.toFixed(2)}%`,
+                                `YoY Change: ${data.yoyChange.toFixed(2)}%`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 20,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                },
+                y: {
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        callback: (value) => {
+                            // Format as millions
+                            return `$${(value / 1000000).toFixed(1)}M`;
+                        },
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                }
+            }
+        }
+    });
+}
+
 function renderTable(filtered) {
     const body = document.getElementById('tableBody');
     if (!body) return;
@@ -368,11 +495,16 @@ function renderTable(filtered) {
     });
 }
 
-function renderAll() {
+async function renderAll() {
     if (!cachedData) return;
     const filtered = filterData();
     renderCharts(filtered);
     renderTable(filtered);
+    
+    // Load and render sales tax data
+    await loadSalesTaxData();
+    renderSalesTaxChart();
+    
     const note = document.querySelector('.source-note');
     if (note) {
         note.textContent = dataSource === 'live'
@@ -497,11 +629,38 @@ function handleEmploymentDownload() {
     URL.revokeObjectURL(url);
 }
 
+function handleSalesTaxDownload() {
+    if (!salesTaxData || salesTaxData.length === 0) {
+        alert('No sales tax data available to download.');
+        return;
+    }
+    
+    let csv = 'Date,Net Payment ($),Period Change (%),Year-over-Year Change (%)\n';
+    
+    salesTaxData.forEach(item => {
+        csv += `${formatMonthLabel(item.date)},`;
+        csv += `${item.value.toFixed(2)},`;
+        csv += `${item.periodChange.toFixed(2)},`;
+        csv += `${item.yoyChange.toFixed(2)}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tyler_sales_tax_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 function wireEvents() {
     document.getElementById('updateBtn')?.addEventListener('click', renderAll);
     document.getElementById('downloadBtn')?.addEventListener('click', handleDownload);
     document.getElementById('downloadBtnTable')?.addEventListener('click', handleDownload);
     document.getElementById('downloadEmploymentBtn')?.addEventListener('click', handleEmploymentDownload);
+    document.getElementById('downloadSalesTaxBtn')?.addEventListener('click', handleSalesTaxDownload);
 }
 
 function setupTabs() {

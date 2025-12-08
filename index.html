@@ -69,6 +69,7 @@
             <nav class="tab-nav" aria-label="Dashboard sections">
                 <button class="tab-btn active" data-tab="gdp-cpi">GDP & CPI-U</button>
                 <button class="tab-btn" data-tab="employment">Employment</button>
+                <button class="tab-btn" data-tab="sales-tax">Sales Tax</button>
                 <button class="tab-btn" data-tab="data-table">Data Table</button>
             </nav>
 
@@ -115,6 +116,23 @@
                 </section>
             </div>
 
+            <!-- Sales Tax Tab -->
+            <div class="tab-content" id="sales-tax">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Tyler Sales Tax Collections</h2>
+                            <p class="chip" style="background: var(--gdp); color: white;">Texas Comptroller Data</p>
+                        </div>
+                        <button id="downloadSalesTaxBtn" class="ghost">Download CSV</button>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Sales Tax Collections ($)</h3>
+                        <canvas id="salesTaxChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
             <!-- Data Table Tab -->
             <div class="tab-content" id="data-table">
                 <section class="table-section card" aria-label="Data table">
@@ -148,7 +166,7 @@
     </div>
 
     <script src="employment-data.js"></script>
-    <script src="dashboard.js?v=16"></script>
+    <script src="dashboard.js?v=17"></script>
 </body>
 </html>
 
