@@ -84,6 +84,7 @@
                 <nav class="sub-tab-nav" aria-label="Regional Indicators sections">
                     <button class="sub-tab-btn active" data-tab="employment">Employment</button>
                     <button class="sub-tab-btn" data-tab="sales-tax">Sales Tax</button>
+                    <button class="sub-tab-btn" data-tab="state-revenue">State Revenue</button>
                 </nav>
             </div>
 
@@ -156,6 +157,38 @@
                 </section>
             </div>
 
+            <!-- State Revenue Tab -->
+            <div class="tab-content" id="state-revenue">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas State Revenue by Category</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">All Funds (Excluding Trusts) FY 2003-2025</p>
+                        </div>
+                        <button id="downloadRevenueBtn" class="ghost">Download CSV</button>
+                    </div>
+                    <div class="revenue-controls" style="margin: 20px 0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <label for="revenueYear" style="font-weight: 600; margin-right: 8px;">Fiscal Year:</label>
+                            <select id="revenueYear" style="padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: white; font-weight: 600; font-family: inherit; font-size: 14px;">
+                                <!-- Years will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div>
+                            <label for="revenueMonth" style="font-weight: 600; margin-right: 8px;">Month:</label>
+                            <select id="revenueMonth" style="padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: white; font-weight: 600; font-family: inherit; font-size: 14px;">
+                                <!-- Months will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <button id="updateRevenueBtn" class="primary" style="padding: 10px 20px;">Update Chart</button>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3 id="revenueChartTitle">Revenue Distribution by Category</h3>
+                        <canvas id="revenueChart" style="max-height: 500px;"></canvas>
+                    </div>
+                </section>
+            </div>
+
             <!-- Mortgage Rates Tab -->
             <div class="tab-content" id="mortgage-rates">
                 <section class="card">
@@ -188,7 +221,8 @@
 
     <script src="employment-data.js"></script>
     <script src="mortgage-data.js?v=2"></script>
-    <script src="dashboard.js?v=26"></script>
+    <script src="revenue-data.js"></script>
+    <script src="dashboard.js?v=27"></script>
 </body>
 </html>
 

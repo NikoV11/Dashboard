@@ -48,9 +48,11 @@ let employmentChart = null;
 let salesTaxChart = null;
 let mortgage30Chart = null;
 let mortgage15Chart = null;
+let revenueChart = null;
 let cachedData = null;
 let salesTaxData = [];
 let mortgageData = [];
+let revenueData = [];
 let dataSource = 'sample';
 
 function setStatus(text, tone = 'muted') {
@@ -691,6 +693,195 @@ function renderMortgageCharts() {
     });
 }
 
+function loadRevenueData() {
+    try {
+        if (typeof REVENUE_DATA === 'undefined') {
+            console.error('REVENUE_DATA not loaded');
+            return;
+        }
+        
+        revenueData = REVENUE_DATA;
+        console.log(`Revenue data loaded: ${revenueData.length} records`);
+        
+        // Populate year dropdown
+        const years = [...new Set(revenueData.map(d => d.year))].sort((a, b) => b - a);
+        const yearSelect = document.getElementById('revenueYear');
+        if (yearSelect) {
+            yearSelect.innerHTML = years.map(y => 
+                `<option value="${y}" ${y === 2024 ? 'selected' : ''}>${y}</option>`
+            ).join('');
+        }
+        
+        // Populate month dropdown (in fiscal year order: Sep-Aug)
+        const monthOrder = ['September', 'October', 'November', 'December', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August'];
+        const monthSelect = document.getElementById('revenueMonth');
+        if (monthSelect) {
+            monthSelect.innerHTML = monthOrder.map((m, i) => 
+                `<option value="${m}" ${m === 'September' ? 'selected' : ''}>${m}</option>`
+            ).join('');
+        }
+        
+        renderRevenueChart();
+    } catch (error) {
+        console.error('Revenue data load failed:', error);
+    }
+}
+
+function renderRevenueChart() {
+    const canvas = document.getElementById('revenueChart');
+    if (!canvas || !revenueData || revenueData.length === 0) return;
+    
+    const yearSelect = document.getElementById('revenueYear');
+    const monthSelect = document.getElementById('revenueMonth');
+    
+    if (!yearSelect || !monthSelect) return;
+    
+    const selectedYear = parseInt(yearSelect.value);
+    const selectedMonth = monthSelect.value;
+    
+    // Filter data for selected year and month
+    const filteredData = revenueData.filter(d => 
+        d.year === selectedYear && 
+        d.month === selectedMonth &&
+        !['Tax Collections', 'Total Tax Collections', 'Total Net Revenue'].includes(d.category)
+    );
+    
+    if (filteredData.length === 0) {
+        console.log('No data for selected month/year');
+        return;
+    }
+    
+    // Group by category and sum values
+    const categoryTotals = {};
+    filteredData.forEach(d => {
+        // Normalize category names
+        let category = d.category;
+        if (category.includes('Motor Fuel')) category = 'Motor Fuels Taxes';
+        if (category.includes('Alcoholic Beverage')) category = 'Alcoholic Beverage Taxes';
+        if (category.includes('Natural Gas')) category = 'Natural Gas Production Tax';
+        
+        if (categoryTotals[category]) {
+            categoryTotals[category] += d.value;
+        } else {
+            categoryTotals[category] = d.value;
+        }
+    });
+    
+    // Sort by value descending
+    const sortedCategories = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1]);
+    
+    const labels = sortedCategories.map(([cat, val]) => cat);
+    const values = sortedCategories.map(([cat, val]) => val);
+    
+    // Color palette
+    const colors = [
+        '#CB6015', '#002F6C', '#E07A3C', '#1A4D8F', '#F4A460',
+        '#4169E1', '#FF8C42', '#6495ED', '#D2691E', '#5B9BD5',
+        '#C65D21', '#003A70', '#F2994A', '#2E5C99', '#FFB366'
+    ];
+    
+    const ctx = canvas.getContext('2d');
+    
+    if (revenueChart) revenueChart.destroy();
+    
+    revenueChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'right',
+                    labels: {
+                        padding: 15,
+                        font: { size: 12, weight: '500' },
+                        color: '#0f172a',
+                        generateLabels: (chart) => {
+                            const data = chart.data;
+                            const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            return data.labels.map((label, i) => {
+                                const value = data.datasets[0].data[i];
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return {
+                                    text: `${label}: $${(value / 1000).toFixed(0)}K (${percentage}%)`,
+                                    fillStyle: data.datasets[0].backgroundColor[i],
+                                    hidden: false,
+                                    index: i
+                                };
+                            });
+                        }
+                    }
+                },
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: (context) => {
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${context.label}: $${value.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Update chart title
+    const titleEl = document.getElementById('revenueChartTitle');
+    if (titleEl) {
+        const total = values.reduce((a, b) => a + b, 0);
+        titleEl.textContent = `Texas State Revenue - ${selectedMonth} ${selectedYear} (Total: $${(total / 1000000).toFixed(1)}M)`;
+    }
+}
+
+function handleRevenueDownload() {
+    const yearSelect = document.getElementById('revenueYear');
+    const monthSelect = document.getElementById('revenueMonth');
+    
+    if (!yearSelect || !monthSelect || !revenueData || revenueData.length === 0) {
+        alert('No revenue data available to download.');
+        return;
+    }
+    
+    const selectedYear = parseInt(yearSelect.value);
+    const selectedMonth = monthSelect.value;
+    
+    const filteredData = revenueData.filter(d => 
+        d.year === selectedYear && d.month === selectedMonth
+    );
+    
+    let csv = 'Category,Value ($)\n';
+    
+    filteredData.forEach(item => {
+        csv += `${item.category},${item.value.toFixed(2)}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `texas_revenue_${selectedMonth}_${selectedYear}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 async function renderAll() {
     if (!cachedData) return;
     const filtered = filterData();
@@ -854,6 +1045,8 @@ function wireEvents() {
     document.getElementById('downloadEmploymentBtn')?.addEventListener('click', handleEmploymentDownload);
     document.getElementById('downloadSalesTaxBtn')?.addEventListener('click', handleSalesTaxDownload);
     document.getElementById('downloadMortgageBtn')?.addEventListener('click', handleMortgageDownload);
+    document.getElementById('updateRevenueBtn')?.addEventListener('click', renderRevenueChart);
+    document.getElementById('downloadRevenueBtn')?.addEventListener('click', handleRevenueDownload);
 }
 
 function setupTabs() {
@@ -930,6 +1123,7 @@ function init() {
     wireEvents();
     setupTabs();
     loadData();
+    loadRevenueData();
 }
 
 if (document.readyState === 'loading') {
