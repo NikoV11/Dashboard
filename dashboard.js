@@ -188,7 +188,7 @@ async function loadSalesTaxData() {
     const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
     
     // Tyler MSA cities
-    const msaCities = ['Tyler', 'Lindale', 'Whitehouse', 'Bullard', 'Troup', 'Noonday', 'Arp', 'Winona'];
+    const msaCities = ['Tyler', 'Lindale', 'Whitehouse', 'Bullard', 'Troup', 'Noonday', 'Arp', 'Winona', 'New Chapel Hill'];
     
     try {
         // Fetch data for all MSA cities
