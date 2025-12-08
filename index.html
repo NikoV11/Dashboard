@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="Real GDP and CPI-U dashboard with FRED data">
+    <meta name="description" content="Interactive economic dashboard for East Texas and US - GDP, CPI-U, Employment, and Sales Tax data">
     <meta name="theme-color" content="#CB6015">
-    <title>Real GDP & CPI-U Dashboard</title>
+    <title>Hibbs Monitor - East Texas Economic Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -34,9 +34,9 @@
         <main>
             <section class="hero">
                 <div>
-                    <p class="eyebrow">Interactive macro dashboard</p>
-                    <h2>Track Real GDP and CPI-U trends with live FRED data</h2>
-                    <p class="lede">Quarterly GDP percentage change and monthly CPI-U percentage change with responsive charts, range filtering, and export.</p>
+                    <p class="eyebrow">East Texas & US Economic Dashboard</p>
+                    <h2>Monitor Economic Indicators for Tyler MSA and the United States</h2>
+                    <p class="lede">Track national GDP and inflation trends alongside Tyler MSA employment growth and sales tax collections with live data, interactive charts, and CSV exports.</p>
                     <div class="controls" aria-label="Year range controls">
                         <label for="startYear">From</label>
                         <input type="number" id="startYear" min="1947" max="2099" value="2023" aria-label="Start Year">
@@ -48,29 +48,29 @@
                 </div>
                 <div class="stat-cards">
                     <div class="card">
-                        <p class="eyebrow">Data Source</p>
-                        <h3>FRED API</h3>
-                        <p class="muted">A191RL1Q225SBEA (GDP) & CPIAUCSL (CPI-U)</p>
+                        <p class="eyebrow">Data Sources</p>
+                        <h3>Multi-Source</h3>
+                        <p class="muted">FRED, Texas Comptroller, Employment Data</p>
                     </div>
                     <div class="card">
-                        <p class="eyebrow">Refresh</p>
-                        <h3>Live with fallback</h3>
-                        <p class="muted">Automatic sample data if API is blocked</p>
+                        <p class="eyebrow">Coverage</p>
+                        <h3>Regional & National</h3>
+                        <p class="muted">Tyler MSA (9 cities) and US economy</p>
                     </div>
                     <div class="card">
-                        <p class="eyebrow">Exports</p>
-                        <h3>CSV download</h3>
-                        <p class="muted">Filtered GDP & CPI-U series</p>
+                        <p class="eyebrow">Features</p>
+                        <h3>Interactive</h3>
+                        <p class="muted">Live data, filtering, CSV exports</p>
                     </div>
                 </div>
             </section>
 
             <!-- Tab Navigation -->
             <nav class="tab-nav" aria-label="Dashboard sections">
-                <button class="tab-btn active" data-tab="gdp-cpi">GDP & CPI-U</button>
-                <button class="tab-btn" data-tab="employment">Employment</button>
-                <button class="tab-btn" data-tab="sales-tax">Sales Tax</button>
-                <button class="tab-btn" data-tab="data-table">Data Table</button>
+                <button class="tab-btn active" data-tab="gdp-cpi">US Economy</button>
+                <button class="tab-btn" data-tab="employment">Regional Employment</button>
+                <button class="tab-btn" data-tab="sales-tax">Tyler MSA Sales Tax</button>
+                <button class="tab-btn" data-tab="data-table">Data Export</button>
             </nav>
 
             <!-- GDP & CPI Tab -->
@@ -79,20 +79,20 @@
                     <div class="chart-card">
                         <div class="chart-header">
                             <div>
-                                <p class="eyebrow">Real GDP</p>
-                                <h3>Quarterly percent change</h3>
+                                <p class="eyebrow">US Real GDP</p>
+                                <h3>Quarterly growth rate (%)</h3>
                             </div>
-                            <span class="chip gdp">A191RL1Q225SBEA</span>
+                            <span class="chip gdp">FRED: A191RL1Q225SBEA</span>
                         </div>
                         <canvas id="gdpChart" role="img" aria-label="Real GDP Chart"></canvas>
                     </div>
                     <div class="chart-card">
                         <div class="chart-header">
                             <div>
-                                <p class="eyebrow">CPI-U</p>
-                                <h3>Monthly percent change</h3>
+                                <p class="eyebrow">US Inflation (CPI-U)</p>
+                                <h3>Monthly change (%)</h3>
                             </div>
-                            <span class="chip cpi">CPIAUCSL</span>
+                            <span class="chip cpi">FRED: CPIAUCSL</span>
                         </div>
                         <canvas id="cpiChart" role="img" aria-label="CPI-U Chart"></canvas>
                     </div>
@@ -104,13 +104,13 @@
                 <section class="card">
                     <div class="section-header">
                         <div>
-                            <h2>Employment Growth</h2>
-                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Tyler & Texas Non-Farm Payroll</p>
+                            <h2>Regional Employment Trends</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Tyler MSA & Texas Non-Farm Payroll</p>
                         </div>
                         <button id="downloadEmploymentBtn" class="ghost">Download CSV</button>
                     </div>
                     <div class="chart-card" style="margin-top: 20px;">
-                        <h3>Monthly Employment Change (%)</h3>
+                        <h3>Monthly Employment Growth Rate (%) - Tyler vs. Texas</h3>
                         <canvas id="employmentChart"></canvas>
                     </div>
                 </section>
@@ -139,8 +139,8 @@
                 <section class="table-section card" aria-label="Data table">
                 <div class="table-header">
                     <div>
-                        <p class="eyebrow">Data preview</p>
-                        <h3>Filtered GDP & CPI-U</h3>
+                        <h2>Economic Data Export</h2>
+                        <p class="eyebrow">GDP, CPI-U, Employment, and Sales Tax</p>
                     </div>
                     <button id="downloadBtnTable" class="ghost">Download CSV</button>
                 </div>
@@ -162,12 +162,12 @@
         </main>
 
         <footer>
-            <p>Built for insight — GDP in burnt orange (#CB6015) and CPI-U in navy (#002F6C).</p>
+            <p>Hibbs Monitor — Comprehensive economic analysis for East Texas and the United States. Data sources: Federal Reserve Economic Data (FRED), Texas Comptroller, and regional employment statistics.</p>
         </footer>
     </div>
 
     <script src="employment-data.js"></script>
-    <script src="dashboard.js?v=19"></script>
+    <script src="dashboard.js?v=20"></script>
 </body>
 </html>
 

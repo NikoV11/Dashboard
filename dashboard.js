@@ -125,7 +125,7 @@ async function fetchSeries(seriesId) {
 }
 
 async function loadData() {
-    setStatus('Loading live data from FRED...', 'muted');
+    setStatus('Loading US economic data...', 'muted');
     try {
         const [gdpRaw, cpiRaw] = await Promise.all([
             fetchSeries(GDP_ID),
@@ -171,12 +171,12 @@ async function loadData() {
             console.log('Latest CPI:', cpi[cpi.length - 1]);
         }
         
-        setStatus(`Live FRED data loaded. GDP: ${gdp.length} points, CPI: ${cpi.length} points`, 'success');
+        setStatus(`US economic data loaded successfully. GDP: ${gdp.length} quarters, CPI: ${cpi.length} months`, 'success');
     } catch (error) {
         console.warn('Falling back to sample data:', error.message);
         cachedData = { ...SAMPLE_DATA };
         dataSource = 'sample';
-        setStatus('Sample data displayed (API unavailable).', 'warn');
+        setStatus('Displaying sample data (live API temporarily unavailable).', 'warn');
     }
 
     renderAll();
@@ -562,8 +562,8 @@ async function renderAll() {
     const note = document.querySelector('.source-note');
     if (note) {
         note.textContent = dataSource === 'live'
-            ? 'Data Source: FRED API (live) — GDP: A191RL1Q225SBEA, CPI-U: CPIAUCSL'
-            : 'Data Source: Sample fallback — GDP: A191RL1Q225SBEA, CPI-U: CPIAUCSL';
+            ? 'US Data: Federal Reserve Economic Data (FRED) | Regional Data: Texas Comptroller & Employment Statistics'
+            : 'US Data: Sample fallback | Regional Data: Texas Comptroller & Employment Statistics';
     }
 }
 
