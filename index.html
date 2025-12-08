@@ -85,6 +85,7 @@
                 <nav class="sub-tab-nav" aria-label="Regional Indicators sections">
                     <button class="sub-tab-btn active" data-tab="employment">Employment</button>
                     <button class="sub-tab-btn" data-tab="sales-tax">Sales Tax</button>
+                    <button class="sub-tab-btn" data-tab="median-home-price">Median Home Price</button>
                     <button class="sub-tab-btn" data-tab="state-revenue">State Revenue</button>
                 </nav>
             </div>
@@ -175,6 +176,23 @@
                 </section>
             </div>
 
+            <!-- Median Home Price Tab -->
+            <div class="tab-content" id="median-home-price">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Tyler MSA Median Home Listing Price</h2>
+                            <p class="chip" style="background: var(--cpi); color: white;">FRED: MEDLISPRIMM46340</p>
+                        </div>
+                        <button id="downloadMedianPriceBtn" class="ghost">Download CSV</button>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Median Listing Price ($)</h3>
+                        <canvas id="medianPriceChart" role="img" aria-label="Median Home Price Chart"></canvas>
+                    </div>
+                </section>
+            </div>
+
             <!-- State Revenue Tab -->
             <div class="tab-content" id="state-revenue">
                 <section class="card">
@@ -240,7 +258,7 @@
     <script src="employment-data.js"></script>
     <script src="mortgage-data.js?v=2"></script>
     <script src="revenue-data.js"></script>
-    <script src="dashboard.js?v=28"></script>
+    <script src="dashboard.js?v=29"></script>
 </body>
 </html>
 
