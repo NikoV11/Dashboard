@@ -2,6 +2,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
 :root {
@@ -16,6 +17,12 @@
     --border: #e4e7ec;
     --shadow: 0 10px 40px rgba(15, 23, 42, 0.12);
     --radius: 14px;
+}
+
+@media (max-width: 640px) {
+    :root {
+        --radius: 10px;
+    }
 }
 
 html, body {
@@ -35,7 +42,13 @@ body {
 .page {
     max-width: 1280px;
     margin: 0 auto;
-    padding: 28px clamp(16px, 4vw, 32px) 40px;
+    padding: 28px clamp(12px, 4vw, 32px) 40px;
+}
+
+@media (max-width: 640px) {
+    .page {
+        padding: 16px 12px 32px;
+    }
 }
 
 .topbar {
@@ -63,6 +76,28 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+@media (max-width: 640px) {
+    .topbar {
+        margin-bottom: 16px;
+    }
+    
+    .logo {
+        width: 140px;
+        height: 63px;
+        padding: 8px;
+    }
+    
+    .logo img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    
+    .brand {
+        gap: 10px;
+    }
 }
 
 .eyebrow {
@@ -97,6 +132,15 @@ button {
     padding: 10px 14px;
     font-weight: 600;
     transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+    min-height: 44px;
+    touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+    button {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
 }
 
 /* Main Tab Navigation */
@@ -428,43 +472,216 @@ footer {
 }
 
 @media (max-width: 900px) {
-    .hero { grid-template-columns: 1fr; }
-    .topbar { flex-direction: column; align-items: flex-start; }
-    .top-actions { align-self: flex-end; }
-    canvas { height: 260px; }
+    .hero { 
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    
+    .topbar { 
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .top-actions { 
+        align-self: flex-end;
+        flex-wrap: wrap;
+    }
+    
+    canvas { 
+        height: 280px;
+    }
+    
+    .main-tab-nav {
+        gap: 10px;
+    }
+    
+    .main-tab-btn {
+        padding: 14px 24px;
+        font-size: 15px;
+    }
 }
 
 @media (max-width: 640px) {
-    .controls input { width: 100px; }
-    .section-header,
-    .table-header { 
-        flex-direction: column; 
-        align-items: flex-start; 
-        gap: 12px; 
+    /* Typography */
+    .brand h1 {
+        font-size: 1.25rem;
     }
-    .section-header button,
-    .table-header button {
-        align-self: stretch;
-        width: 100%;
+    
+    .eyebrow {
+        font-size: 10px;
     }
-    canvas { height: 240px; }
-    .chart-card,
-    .table-section {
+    
+    .lede {
+        font-size: 0.95rem;
+    }
+    
+    /* Hero section */
+    .hero {
+        gap: 12px;
+    }
+    
+    .card {
         padding: 16px;
     }
     
-    /* Two-level tab responsive */
+    .card h3 {
+        font-size: 1.1rem;
+    }
+    
+    /* Controls */
+    .controls {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+    
+    .controls input {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+    }
+    
+    .controls button {
+        width: 100%;
+    }
+    
+    /* Section headers and buttons */
+    .section-header,
+    .table-header { 
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .section-header > div[style*="flex"],
+    .table-header > div[style*="flex"] {
+        width: 100%;
+        display: flex !important;
+        gap: 8px;
+    }
+    
+    .section-header button,
+    .table-header button {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+        padding: 10px 12px;
+    }
+    
+    /* Charts */
+    canvas { 
+        height: 300px !important;
+        max-height: 300px;
+    }
+    
+    .chart-card,
+    .table-section {
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    /* Navigation tabs */
     .main-tab-nav {
+        flex-direction: column;
         gap: 8px;
     }
     
     .main-tab-btn {
-        padding: 12px 20px;
-        font-size: 14px;
+        width: 100%;
+        padding: 14px 20px;
+        font-size: 15px;
+        text-align: left;
+        justify-content: flex-start;
+    }
+    
+    .sub-tab-nav {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 8px;
     }
     
     .sub-tab-btn {
-        padding: 8px 16px;
+        padding: 10px 12px;
         font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Revenue controls */
+    .revenue-controls {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .revenue-controls label {
+        width: 100%;
+    }
+    
+    .revenue-controls select {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+    }
+    
+    /* Tables */
+    table {
+        font-size: 0.85rem;
+    }
+    
+    th, td {
+        padding: 8px 6px;
+    }
+    
+    /* Footer */
+    footer {
+        font-size: 0.85rem;
+        padding: 0 8px;
+    }
+    
+    footer p {
+        text-align: left;
+    }
+    
+    /* Social links */
+    .top-actions .social-links {
+        gap: 10px;
+    }
+    
+    .top-actions .social-links a {
+        font-size: 18px;
+    }
+    
+    .top-actions .link {
+        font-size: 14px;
+        padding: 8px 12px;
+    }
+    
+    /* Chips */
+    .chip {
+        font-size: 10px;
+        padding: 4px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .page {
+        padding: 12px 8px 24px;
+    }
+    
+    .brand h1 {
+        font-size: 1.1rem;
+    }
+    
+    canvas {
+        height: 250px !important;
+    }
+    
+    .sub-tab-nav {
+        grid-template-columns: 1fr;
+    }
+    
+    .sub-tab-btn {
+        text-align: center;
     }
 }
