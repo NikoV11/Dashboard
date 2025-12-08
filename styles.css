@@ -53,13 +53,13 @@ body {
 }
 
 .logo {
-    width: 180px;
-    height: 54px;
+    width: 200px;
+    height: 90px;
     border-radius: 8px;
     overflow: hidden;
     box-shadow: var(--shadow);
     background: var(--panel);
-    padding: 8px 12px;
+    padding: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
