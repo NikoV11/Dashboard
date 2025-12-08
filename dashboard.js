@@ -464,10 +464,44 @@ function formatDateDisplay(dateStr) {
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function handleEmploymentDownload() {
+    const empData = parseEmploymentData();
+    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
+    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    
+    const filteredTyler = empData.tyler.filter(d => {
+        const year = new Date(d.date).getFullYear();
+        return year >= startYear && year <= endYear;
+    });
+    
+    const filteredTexas = empData.texas.filter(d => {
+        const year = new Date(d.date).getFullYear();
+        return year >= startYear && year <= endYear;
+    });
+    
+    let csv = 'Date,Tyler Employment (% Change),Texas Employment (% Change)\n';
+    
+    filteredTyler.forEach((item, index) => {
+        const texasValue = filteredTexas[index]?.value;
+        csv += `${formatMonthLabel(item.date)},${item.value.toFixed(1)},${texasValue !== undefined ? texasValue.toFixed(1) : ''}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `employment_data_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 function wireEvents() {
     document.getElementById('updateBtn')?.addEventListener('click', renderAll);
     document.getElementById('downloadBtn')?.addEventListener('click', handleDownload);
     document.getElementById('downloadBtnTable')?.addEventListener('click', handleDownload);
+    document.getElementById('downloadEmploymentBtn')?.addEventListener('click', handleEmploymentDownload);
 }
 
 function setupTabs() {
