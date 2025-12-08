@@ -1,5 +1,6 @@
 ﻿const GDP_ID = 'A191RL1Q225SBEA';
 const CPI_ID = 'CPIAUCSL';
+const UNEMPLOYMENT_ID = 'UNRATE';
 const FRED_FUNCTION = '/.netlify/functions/fred-proxy';
 const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
 const FRED_URL = 'https://api.stlouisfed.org/fred/series/observations';
@@ -39,11 +40,42 @@ const SAMPLE_DATA = {
         { date: '2025-07-01', value: 0.2 },
         { date: '2025-08-01', value: 0.3 },
         { date: '2025-09-01', value: 0.2 }
+    ],
+    unemployment: [
+        { date: '2023-01-01', value: 3.4 },
+        { date: '2023-02-01', value: 3.6 },
+        { date: '2023-03-01', value: 3.5 },
+        { date: '2023-04-01', value: 3.4 },
+        { date: '2023-05-01', value: 3.7 },
+        { date: '2023-06-01', value: 3.6 },
+        { date: '2023-07-01', value: 3.5 },
+        { date: '2023-08-01', value: 3.8 },
+        { date: '2023-09-01', value: 3.8 },
+        { date: '2023-10-01', value: 3.9 },
+        { date: '2023-11-01', value: 3.7 },
+        { date: '2023-12-01', value: 3.7 },
+        { date: '2024-01-01', value: 3.7 },
+        { date: '2024-02-01', value: 3.9 },
+        { date: '2024-03-01', value: 3.8 },
+        { date: '2024-04-01', value: 3.9 },
+        { date: '2024-05-01', value: 4.0 },
+        { date: '2024-06-01', value: 4.0 },
+        { date: '2024-07-01', value: 4.3 },
+        { date: '2024-08-01', value: 4.2 },
+        { date: '2024-09-01', value: 4.1 },
+        { date: '2024-10-01', value: 4.1 },
+        { date: '2024-11-01', value: 4.2 },
+        { date: '2025-01-01', value: 4.0 },
+        { date: '2025-02-01', value: 4.1 },
+        { date: '2025-03-01', value: 4.2 },
+        { date: '2025-04-01', value: 3.9 },
+        { date: '2025-05-01', value: 4.0 }
     ]
 };
 
 let gdpChart = null;
 let cpiChart = null;
+let unemploymentChart = null;
 let employmentChart = null;
 let salesTaxChart = null;
 let mortgage30Chart = null;
@@ -132,13 +164,20 @@ async function fetchSeries(seriesId) {
 async function loadData() {
     setStatus('Loading US economic data...', 'muted');
     try {
-        const [gdpRaw, cpiRaw] = await Promise.all([
+        const [gdpRaw, cpiRaw, unemploymentRaw] = await Promise.all([
             fetchSeries(GDP_ID),
-            fetchSeries(CPI_ID)
+            fetchSeries(CPI_ID),
+            fetchSeries(UNEMPLOYMENT_ID)
         ]);
 
         // Sort GDP data by date and parse
         const gdp = (gdpRaw || [])
+            .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+            .filter(d => !Number.isNaN(d.value))
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Parse unemployment data
+        const unemployment = (unemploymentRaw || [])
             .map(o => ({ date: o.date, value: parseFloat(o.value) }))
             .filter(d => !Number.isNaN(d.value))
             .sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -160,7 +199,7 @@ async function loadData() {
             }
         }
 
-        cachedData = { gdp, cpi };
+        cachedData = { gdp, cpi, unemployment };
         dataSource = 'live';
         
         // Log the data information
@@ -176,7 +215,13 @@ async function loadData() {
             console.log('Latest CPI:', cpi[cpi.length - 1]);
         }
         
-        setStatus(`US economic data loaded successfully. GDP: ${gdp.length} quarters, CPI: ${cpi.length} months`, 'success');
+        console.log(`Unemployment data points: ${unemployment.length}`);
+        if (unemployment.length > 0) {
+            console.log('First Unemployment:', unemployment[0]);
+            console.log('Latest Unemployment:', unemployment[unemployment.length - 1]);
+        }
+        
+        setStatus(`US economic data loaded successfully. GDP: ${gdp.length} quarters, CPI: ${cpi.length} months, Unemployment: ${unemployment.length} months`, 'success');
     } catch (error) {
         console.warn('Falling back to sample data:', error.message);
         cachedData = { ...SAMPLE_DATA };
@@ -298,7 +343,11 @@ function filterData() {
         const y = new Date(d.date).getFullYear();
         return y >= start && y <= end;
     });
-    return { gdp, cpi };
+    const unemployment = cachedData.unemployment.filter(d => {
+        const y = new Date(d.date).getFullYear();
+        return y >= start && y <= end;
+    });
+    return { gdp, cpi, unemployment };
 }
 
 function renderCharts(filtered) {
@@ -359,8 +408,77 @@ function renderCharts(filtered) {
         options: sharedOptions
     });
 
+    // Unemployment Chart
+    renderUnemploymentChart(filtered);
+    
     // Employment Chart
     renderEmploymentChart();
+}
+
+function renderUnemploymentChart(filtered) {
+    const canvas = document.getElementById('unemploymentChart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    if (unemploymentChart) unemploymentChart.destroy();
+    
+    unemploymentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: filtered.unemployment.map(d => formatMonthLabel(d.date)),
+            datasets: [{
+                label: 'Unemployment Rate',
+                data: filtered.unemployment.map(d => d.value),
+                borderColor: '#CB6015',
+                backgroundColor: 'rgba(203, 96, 21, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: (context) => `${context.parsed.y.toFixed(1)}%`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 15,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        callback: (value) => `${value}%`,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                }
+            }
+        }
+    });
 }
 
 function renderEmploymentChart() {
@@ -958,6 +1076,26 @@ function handleCPIDownload() {
     URL.revokeObjectURL(url);
 }
 
+function handleUnemploymentDownload() {
+    if (!cachedData) return;
+    const filtered = filterData();
+    
+    let csv = 'Date,Unemployment Rate (%)\n';
+    filtered.unemployment.forEach(d => {
+        csv += `${formatMonthLabel(d.date)},${d.value.toFixed(1)}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `us_unemployment_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 function formatQuarterLabel(dateStr) {
     const d = new Date(dateStr);
     const month = d.getUTCMonth(); // Use UTC to avoid timezone issues
@@ -1064,6 +1202,7 @@ function wireEvents() {
     document.getElementById('updateBtn')?.addEventListener('click', renderAll);
     document.getElementById('downloadGDPBtn')?.addEventListener('click', handleGDPDownload);
     document.getElementById('downloadCPIBtn')?.addEventListener('click', handleCPIDownload);
+    document.getElementById('downloadUnemploymentBtn')?.addEventListener('click', handleUnemploymentDownload);
     document.getElementById('downloadEmploymentBtn')?.addEventListener('click', handleEmploymentDownload);
     document.getElementById('downloadSalesTaxBtn')?.addEventListener('click', handleSalesTaxDownload);
     document.getElementById('downloadMortgageBtn')?.addEventListener('click', handleMortgageDownload);

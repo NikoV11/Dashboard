@@ -75,6 +75,7 @@
                 <nav class="sub-tab-nav" aria-label="US Indicators sections">
                     <button class="sub-tab-btn active" data-tab="gdp">GDP</button>
                     <button class="sub-tab-btn" data-tab="cpi">CPI-U</button>
+                    <button class="sub-tab-btn" data-tab="unemployment">Unemployment</button>
                     <button class="sub-tab-btn" data-tab="mortgage-rates">Mortgage Rates</button>
                 </nav>
             </div>
@@ -118,6 +119,23 @@
                     <div class="chart-card" style="margin-top: 20px;">
                         <h3>Monthly Change (%)</h3>
                         <canvas id="cpiChart" role="img" aria-label="CPI-U Chart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Unemployment Tab -->
+            <div class="tab-content" id="unemployment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>US Unemployment Rate</h2>
+                            <p class="chip" style="background: #CB6015; color: white;">FRED: UNRATE</p>
+                        </div>
+                        <button id="downloadUnemploymentBtn" class="ghost">Download CSV</button>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Unemployment Rate (%)</h3>
+                        <canvas id="unemploymentChart" role="img" aria-label="Unemployment Rate Chart"></canvas>
                     </div>
                 </section>
             </div>
@@ -222,7 +240,7 @@
     <script src="employment-data.js"></script>
     <script src="mortgage-data.js?v=2"></script>
     <script src="revenue-data.js"></script>
-    <script src="dashboard.js?v=27"></script>
+    <script src="dashboard.js?v=28"></script>
 </body>
 </html>
 
