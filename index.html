@@ -64,41 +64,58 @@
                 </div>
             </section>
 
-            <!-- Tab Navigation -->
-            <nav class="tab-nav" aria-label="Dashboard sections">
-                <button class="tab-btn active" data-tab="gdp-cpi">US Economy</button>
-                <button class="tab-btn" data-tab="employment">Regional Employment</button>
-                <button class="tab-btn" data-tab="sales-tax">Tyler MSA Sales Tax</button>
-                <button class="tab-btn" data-tab="mortgage-rates">Mortgage Rates</button>
+            <!-- Main Tab Navigation -->
+            <nav class="main-tab-nav" aria-label="Main dashboard sections">
+                <button class="main-tab-btn active" data-main-tab="us-indicators">US Indicators</button>
+                <button class="main-tab-btn" data-main-tab="regional-indicators">Regional Indicators</button>
             </nav>
 
-            <!-- GDP & CPI Tab -->
-            <div class="tab-content active" id="gdp-cpi">
-                <section class="charts" aria-label="GDP and CPI Charts">
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <div>
-                                <p class="eyebrow">US Real GDP</p>
-                                <h3>Quarterly growth rate (%)</h3>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="chip gdp">FRED: A191RL1Q225SBEA</span>
-                                <button id="downloadGDPBtn" class="ghost" style="font-size: 13px; padding: 8px 12px;">Download CSV</button>
-                            </div>
+            <!-- US Indicators Sub-tabs -->
+            <div class="sub-tabs-container active" id="us-indicators-tabs">
+                <nav class="sub-tab-nav" aria-label="US Indicators sections">
+                    <button class="sub-tab-btn active" data-tab="gdp">GDP</button>
+                    <button class="sub-tab-btn" data-tab="cpi">CPI-U</button>
+                    <button class="sub-tab-btn" data-tab="mortgage-rates">Mortgage Rates</button>
+                </nav>
+            </div>
+
+            <!-- Regional Indicators Sub-tabs -->
+            <div class="sub-tabs-container" id="regional-indicators-tabs">
+                <nav class="sub-tab-nav" aria-label="Regional Indicators sections">
+                    <button class="sub-tab-btn active" data-tab="employment">Employment</button>
+                    <button class="sub-tab-btn" data-tab="sales-tax">Sales Tax</button>
+                </nav>
+            </div>
+
+            <!-- GDP Tab -->
+            <div class="tab-content active" id="gdp">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>US Real GDP</h2>
+                            <p class="chip gdp">FRED: A191RL1Q225SBEA</p>
                         </div>
+                        <button id="downloadGDPBtn" class="ghost">Download CSV</button>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Quarterly Growth Rate (%)</h3>
                         <canvas id="gdpChart" role="img" aria-label="Real GDP Chart"></canvas>
                     </div>
-                    <div class="chart-card">
-                        <div class="chart-header">
-                            <div>
-                                <p class="eyebrow">US Inflation (CPI-U)</p>
-                                <h3>Monthly change (%)</h3>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="chip cpi">FRED: CPIAUCSL</span>
-                                <button id="downloadCPIBtn" class="ghost" style="font-size: 13px; padding: 8px 12px;">Download CSV</button>
-                            </div>
+                </section>
+            </div>
+
+            <!-- CPI Tab -->
+            <div class="tab-content" id="cpi">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>US Inflation (CPI-U)</h2>
+                            <p class="chip cpi">FRED: CPIAUCSL</p>
                         </div>
+                        <button id="downloadCPIBtn" class="ghost">Download CSV</button>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Change (%)</h3>
                         <canvas id="cpiChart" role="img" aria-label="CPI-U Chart"></canvas>
                     </div>
                 </section>
@@ -171,7 +188,7 @@
 
     <script src="employment-data.js"></script>
     <script src="mortgage-data.js?v=2"></script>
-    <script src="dashboard.js?v=25"></script>
+    <script src="dashboard.js?v=26"></script>
 </body>
 </html>
 

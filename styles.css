@@ -99,35 +99,78 @@ button {
     transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
 }
 
-/* Tab Navigation */
-.tab-nav {
+/* Main Tab Navigation */
+.main-tab-nav {
+    display: flex;
+    gap: 12px;
+    margin: 30px 0 16px;
+    justify-content: center;
+}
+
+.main-tab-btn {
+    padding: 14px 32px;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 16px;
+    color: #64748b;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.main-tab-btn:hover {
+    color: #334155;
+    border-color: var(--gdp);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(203, 96, 21, 0.15);
+}
+
+.main-tab-btn.active {
+    background: linear-gradient(135deg, var(--gdp), #d67025);
+    color: white;
+    border-color: var(--gdp);
+    box-shadow: 0 4px 16px rgba(203, 96, 21, 0.3);
+}
+
+/* Sub-tabs Container */
+.sub-tabs-container {
+    display: none;
+    margin-bottom: 20px;
+}
+
+.sub-tabs-container.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.sub-tab-nav {
     display: flex;
     gap: 8px;
-    margin: 30px 0 20px;
     padding: 6px;
     background: rgba(255, 255, 255, 0.6);
     border-radius: 14px;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    justify-content: center;
 }
 
-.tab-btn {
-    flex: 1;
-    padding: 12px 20px;
+.sub-tab-btn {
+    padding: 10px 24px;
     background: transparent;
     border: none;
     border-radius: 10px;
     font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
     color: #64748b;
     transition: all 0.2s ease;
 }
 
-.tab-btn:hover {
+.sub-tab-btn:hover {
     color: #334155;
     background: rgba(255, 255, 255, 0.5);
 }
 
-.tab-btn.active {
+.sub-tab-btn.active {
     background: white;
     color: #0f172a;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
@@ -408,5 +451,20 @@ footer {
     .chart-card,
     .table-section {
         padding: 16px;
+    }
+    
+    /* Two-level tab responsive */
+    .main-tab-nav {
+        gap: 8px;
+    }
+    
+    .main-tab-btn {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+    
+    .sub-tab-btn {
+        padding: 8px 16px;
+        font-size: 13px;
     }
 }

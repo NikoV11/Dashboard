@@ -857,22 +857,61 @@ function wireEvents() {
 }
 
 function setupTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
+    // Main tab handling
+    const mainTabBtns = document.querySelectorAll('.main-tab-btn');
+    const subTabsContainers = document.querySelectorAll('.sub-tabs-container');
+    
+    console.log('Setting up main tabs. Found', mainTabBtns.length, 'main tab buttons');
+    
+    mainTabBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const mainTabId = btn.dataset.mainTab;
+            console.log('Main tab clicked:', mainTabId);
+            
+            // Remove active from all main tabs
+            mainTabBtns.forEach(b => b.classList.remove('active'));
+            
+            // Hide all sub-tab containers
+            subTabsContainers.forEach(c => c.classList.remove('active'));
+            
+            // Activate clicked main tab
+            btn.classList.add('active');
+            
+            // Show corresponding sub-tabs
+            const targetSubTabs = document.getElementById(`${mainTabId}-tabs`);
+            if (targetSubTabs) {
+                targetSubTabs.classList.add('active');
+                
+                // Trigger click on first active sub-tab to show content
+                const activeSubTab = targetSubTabs.querySelector('.sub-tab-btn.active');
+                if (activeSubTab) {
+                    activeSubTab.click();
+                }
+            }
+        });
+    });
+    
+    // Sub-tab handling
+    const subTabBtns = document.querySelectorAll('.sub-tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     
-    console.log('Setting up tabs. Found', tabBtns.length, 'buttons and', tabContents.length, 'content areas');
+    console.log('Setting up sub tabs. Found', subTabBtns.length, 'sub tab buttons and', tabContents.length, 'content areas');
     
-    tabBtns.forEach(btn => {
+    subTabBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const tabId = btn.dataset.tab;
-            console.log('Tab clicked:', tabId);
+            console.log('Sub tab clicked:', tabId);
             
-            // Remove active class from all buttons and contents
-            tabBtns.forEach(b => b.classList.remove('active'));
+            // Remove active from all sub-tabs in this container
+            const parentNav = btn.closest('.sub-tab-nav');
+            parentNav.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+            
+            // Hide all tab contents
             tabContents.forEach(c => c.classList.remove('active'));
             
-            // Add active class to clicked button and corresponding content
+            // Activate clicked sub-tab and content
             btn.classList.add('active');
             const targetContent = document.getElementById(tabId);
             if (targetContent) {
