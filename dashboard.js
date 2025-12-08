@@ -448,8 +448,10 @@ function handleDownload() {
 
 function formatQuarterLabel(dateStr) {
     const d = new Date(dateStr);
-    const q = Math.floor(d.getMonth() / 3) + 1;
-    return `Q${q} ${d.getFullYear()}`;
+    const month = d.getUTCMonth(); // Use UTC to avoid timezone issues
+    const year = d.getUTCFullYear();
+    const q = Math.floor(month / 3) + 1;
+    return `Q${q} ${year}`;
 }
 
 function formatMonthLabel(dateStr) {
