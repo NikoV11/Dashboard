@@ -712,12 +712,12 @@ function loadRevenueData() {
             ).join('');
         }
         
-        // Populate month dropdown (in fiscal year order: Sep-Aug)
-        const monthOrder = ['September', 'October', 'November', 'December', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August'];
+        // Populate month dropdown (calendar year order: Jan-Dec)
+        const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         const monthSelect = document.getElementById('revenueMonth');
         if (monthSelect) {
             monthSelect.innerHTML = monthOrder.map((m, i) => 
-                `<option value="${m}" ${m === 'September' ? 'selected' : ''}>${m}</option>`
+                `<option value="${m}" ${m === 'January' ? 'selected' : ''}>${m}</option>`
             ).join('');
         }
         
