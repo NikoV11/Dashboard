@@ -754,7 +754,7 @@ function renderMedianPriceChart() {
                     padding: 12,
                     cornerRadius: 8,
                     callbacks: {
-                        label: (context) => `$${context.parsed.y.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+                        label: (context) => `${context.parsed.y.toFixed(2)}%`
                     }
                 }
             },
@@ -771,11 +771,10 @@ function renderMedianPriceChart() {
                     }
                 },
                 y: {
+                    beginAtZero: true,
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
-                        callback: (value) => {
-                            return `$${(value / 1000).toFixed(0)}K`;
-                        },
+                        callback: (value) => `${value}%`,
                         font: { size: 12, weight: '500' },
                         color: '#475569'
                     }
@@ -1314,7 +1313,7 @@ function handleMedianPriceDownload() {
         return;
     }
     
-    let csv = 'Date,Median Listing Price ($)\n';
+    let csv = 'Date,Month-Over-Month Change (%)\n';
     
     medianPriceData.forEach(item => {
         csv += `${formatMonthLabel(item.date)},${item.value.toFixed(2)}\n`;
