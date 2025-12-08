@@ -691,29 +691,10 @@ function renderMortgageCharts() {
     });
 }
 
-function renderTable(filtered) {
-    const body = document.getElementById('tableBody');
-    if (!body) return;
-    body.innerHTML = '';
-
-    const cpiMap = new Map(filtered.cpi.map(d => [d.date, d.value]));
-    filtered.gdp.forEach(row => {
-        const tr = document.createElement('tr');
-        const cpi = cpiMap.has(row.date) ? `${cpiMap.get(row.date).toFixed(2)}%` : '—';
-        tr.innerHTML = `
-            <td>${formatDateDisplay(row.date)}</td>
-            <td style="color:#CB6015;font-weight:600;">${row.value.toFixed(2)}%</td>
-            <td style="color:#002F6C;font-weight:600;">${cpi}</td>
-        `;
-        body.appendChild(tr);
-    });
-}
-
 async function renderAll() {
     if (!cachedData) return;
     const filtered = filterData();
     renderCharts(filtered);
-    renderTable(filtered);
     
     // Load and render sales tax data
     await loadSalesTaxData();
@@ -722,74 +703,42 @@ async function renderAll() {
     // Load and render mortgage rates
     loadMortgageData();
     renderMortgageCharts();
-    
-    const note = document.querySelector('.source-note');
-    if (note) {
-        note.textContent = dataSource === 'live'
-            ? 'US Data: Federal Reserve Economic Data (FRED) | Regional Data: Texas Comptroller & Employment Statistics'
-            : 'US Data: Sample fallback | Regional Data: Texas Comptroller & Employment Statistics';
-    }
 }
 
-function handleDownload() {
+function handleGDPDownload() {
     if (!cachedData) return;
     const filtered = filterData();
-    const cpiMap = new Map(filtered.cpi.map(d => [d.date, d.value]));
     
-    // Get employment data
-    const empData = parseEmploymentData();
-    const startYear = parseInt(document.getElementById('startYear')?.value || 2015);
-    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
-    
-    const tylerMap = new Map(
-        empData.tyler
-            .filter(d => {
-                const year = new Date(d.date).getFullYear();
-                return year >= startYear && year <= endYear;
-            })
-            .map(d => [d.date, d.value])
-    );
-    
-    const texasMap = new Map(
-        empData.texas
-            .filter(d => {
-                const year = new Date(d.date).getFullYear();
-                return year >= startYear && year <= endYear;
-            })
-            .map(d => [d.date, d.value])
-    );
-    
-    let csv = 'Date,GDP (% QoQ),CPI-U (% MoM),Tyler Employment (%),Texas Employment (%)\n';
-    
-    // Create set of all unique dates
-    const allDates = new Set([
-        ...filtered.gdp.map(d => d.date),
-        ...filtered.cpi.map(d => d.date),
-        ...empData.tyler.map(d => d.date),
-        ...empData.texas.map(d => d.date)
-    ]);
-    
-    // Sort dates
-    const sortedDates = Array.from(allDates).sort();
-    
-    sortedDates.forEach(date => {
-        const gdpData = filtered.gdp.find(d => d.date === date);
-        const cpi = cpiMap.get(date);
-        const tyler = tylerMap.get(date);
-        const texas = texasMap.get(date);
-        
-        csv += `${formatDateDisplay(date)},`;
-        csv += `${gdpData ? gdpData.value.toFixed(3) : ''},`;
-        csv += `${cpi !== undefined ? cpi.toFixed(3) : ''},`;
-        csv += `${tyler !== undefined ? tyler.toFixed(1) : ''},`;
-        csv += `${texas !== undefined ? texas.toFixed(1) : ''}\n`;
+    let csv = 'Date,GDP (% QoQ)\n';
+    filtered.gdp.forEach(d => {
+        csv += `${formatQuarterLabel(d.date)},${d.value.toFixed(2)}\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `economic_dashboard_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `us_gdp_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function handleCPIDownload() {
+    if (!cachedData) return;
+    const filtered = filterData();
+    
+    let csv = 'Date,CPI-U (% MoM)\n';
+    filtered.cpi.forEach(d => {
+        csv += `${formatMonthLabel(d.date)},${d.value.toFixed(2)}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `us_cpi_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -900,8 +849,8 @@ function handleMortgageDownload() {
 
 function wireEvents() {
     document.getElementById('updateBtn')?.addEventListener('click', renderAll);
-    document.getElementById('downloadBtn')?.addEventListener('click', handleDownload);
-    document.getElementById('downloadBtnTable')?.addEventListener('click', handleDownload);
+    document.getElementById('downloadGDPBtn')?.addEventListener('click', handleGDPDownload);
+    document.getElementById('downloadCPIBtn')?.addEventListener('click', handleCPIDownload);
     document.getElementById('downloadEmploymentBtn')?.addEventListener('click', handleEmploymentDownload);
     document.getElementById('downloadSalesTaxBtn')?.addEventListener('click', handleSalesTaxDownload);
     document.getElementById('downloadMortgageBtn')?.addEventListener('click', handleMortgageDownload);
