@@ -46,8 +46,11 @@ let gdpChart = null;
 let cpiChart = null;
 let employmentChart = null;
 let salesTaxChart = null;
+let mortgage30Chart = null;
+let mortgage15Chart = null;
 let cachedData = null;
 let salesTaxData = [];
+let mortgageData = [];
 let dataSource = 'sample';
 
 function setStatus(text, tone = 'muted') {
@@ -531,6 +534,163 @@ function renderSalesTaxChart() {
     });
 }
 
+function loadMortgageData() {
+    try {
+        const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
+        const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+        
+        mortgageData = MORTGAGE_RATES_DATA
+            .filter(d => {
+                const year = new Date(d.date).getFullYear();
+                return year >= startYear && year <= endYear;
+            });
+        
+        console.log(`Mortgage rates data points: ${mortgageData.length}`);
+        if (mortgageData.length > 0) {
+            console.log('First Mortgage Rate:', mortgageData[0]);
+            console.log('Latest Mortgage Rate:', mortgageData[mortgageData.length - 1]);
+        }
+        
+        return mortgageData;
+    } catch (error) {
+        console.error('Mortgage data load failed:', error);
+        mortgageData = [];
+        return [];
+    }
+}
+
+function renderMortgageCharts() {
+    const canvas30 = document.getElementById('mortgage30Chart');
+    const canvas15 = document.getElementById('mortgage15Chart');
+    
+    if (!canvas30 || !canvas15 || !mortgageData || mortgageData.length === 0) return;
+    
+    const ctx30 = canvas30.getContext('2d');
+    const ctx15 = canvas15.getContext('2d');
+    
+    // Filter data for each chart
+    const data30 = mortgageData.filter(d => d.rate30yr !== null);
+    const data15 = mortgageData.filter(d => d.rate15yr !== null);
+    
+    // 30-Year Chart
+    if (mortgage30Chart) mortgage30Chart.destroy();
+    
+    mortgage30Chart = new Chart(ctx30, {
+        type: 'line',
+        data: {
+            labels: data30.map(d => formatMonthLabel(d.date)),
+            datasets: [{
+                label: '30-Year Fixed Rate',
+                data: data30.map(d => d.rate30yr),
+                borderColor: '#CB6015',
+                backgroundColor: 'rgba(203, 96, 21, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: (context) => `${context.parsed.y.toFixed(2)}%`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 15,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                },
+                y: {
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        callback: (value) => `${value}%`,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                }
+            }
+        }
+    });
+    
+    // 15-Year Chart
+    if (mortgage15Chart) mortgage15Chart.destroy();
+    
+    mortgage15Chart = new Chart(ctx15, {
+        type: 'line',
+        data: {
+            labels: data15.map(d => formatMonthLabel(d.date)),
+            datasets: [{
+                label: '15-Year Fixed Rate',
+                data: data15.map(d => d.rate15yr),
+                borderColor: '#002F6C',
+                backgroundColor: 'rgba(0, 47, 108, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: (context) => `${context.parsed.y.toFixed(2)}%`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 15,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                },
+                y: {
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        callback: (value) => `${value}%`,
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                }
+            }
+        }
+    });
+}
+
 function renderTable(filtered) {
     const body = document.getElementById('tableBody');
     if (!body) return;
@@ -558,6 +718,10 @@ async function renderAll() {
     // Load and render sales tax data
     await loadSalesTaxData();
     renderSalesTaxChart();
+    
+    // Load and render mortgage rates
+    loadMortgageData();
+    renderMortgageCharts();
     
     const note = document.querySelector('.source-note');
     if (note) {
@@ -709,12 +873,38 @@ function handleSalesTaxDownload() {
     URL.revokeObjectURL(url);
 }
 
+function handleMortgageDownload() {
+    if (!mortgageData || mortgageData.length === 0) {
+        alert('No mortgage rates data available to download.');
+        return;
+    }
+    
+    let csv = 'Date,30-Year Fixed Rate (%),15-Year Fixed Rate (%)\n';
+    
+    mortgageData.forEach(item => {
+        csv += `${formatMonthLabel(item.date)},`;
+        csv += `${item.rate30yr !== null ? item.rate30yr.toFixed(2) : ''},`;
+        csv += `${item.rate15yr !== null ? item.rate15yr.toFixed(2) : ''}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `us_mortgage_rates_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 function wireEvents() {
     document.getElementById('updateBtn')?.addEventListener('click', renderAll);
     document.getElementById('downloadBtn')?.addEventListener('click', handleDownload);
     document.getElementById('downloadBtnTable')?.addEventListener('click', handleDownload);
     document.getElementById('downloadEmploymentBtn')?.addEventListener('click', handleEmploymentDownload);
     document.getElementById('downloadSalesTaxBtn')?.addEventListener('click', handleSalesTaxDownload);
+    document.getElementById('downloadMortgageBtn')?.addEventListener('click', handleMortgageDownload);
 }
 
 function setupTabs() {
