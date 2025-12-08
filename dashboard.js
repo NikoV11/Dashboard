@@ -1368,6 +1368,173 @@ function wireEvents() {
     document.getElementById('downloadRevenueBtn')?.addEventListener('click', handleRevenueDownload);
 }
 
+// ========== Share Functionality ==========
+
+function setupShareButtons() {
+    const shareButtons = [
+        { id: 'shareGDPBtn', chart: () => gdpChart, name: 'Real GDP Growth' },
+        { id: 'shareCPIBtn', chart: () => cpiChart, name: 'CPI-U Inflation' },
+        { id: 'shareUnemploymentBtn', chart: () => unemploymentChart, name: 'Unemployment Rate' },
+        { id: 'shareEmploymentBtn', chart: () => employmentChart, name: 'Employment Trends' },
+        { id: 'shareSalesTaxBtn', chart: () => salesTaxChart, name: 'Tyler MSA Sales Tax' },
+        { id: 'shareMedianPriceBtn', chart: () => medianPriceChart, name: 'Tyler Median Home Price' },
+        { id: 'shareMortgageBtn', chart: () => mortgage30Chart, name: 'Mortgage Rates' },
+        { id: 'shareRevenueBtn', chart: () => revenueChart, name: 'Texas Tax Collections' }
+    ];
+
+    shareButtons.forEach(({ id, chart, name }) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.addEventListener('click', () => shareChart(chart(), name));
+        }
+    });
+}
+
+function shareChart(chartInstance, chartName) {
+    if (!chartInstance) {
+        alert('Chart not yet loaded. Please wait for data to load.');
+        return;
+    }
+
+    try {
+        // Get chart as base64 image
+        const imageUrl = chartInstance.toBase64Image('image/png', 1);
+        
+        // Create share URL
+        const dashboardUrl = window.location.href.split('?')[0];
+        const shareText = `${chartName} - Hibbs Monitor Dashboard`;
+        
+        // Check if Web Share API is available (mobile devices)
+        if (navigator.share && navigator.canShare) {
+            // Convert base64 to blob for sharing
+            fetch(imageUrl)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], `${chartName.replace(/\s+/g, '_')}.png`, { type: 'image/png' });
+                    
+                    navigator.share({
+                        title: shareText,
+                        text: `Check out this chart from UT Tyler Hibbs Institute Economic Dashboard`,
+                        url: dashboardUrl,
+                        files: [file]
+                    }).catch(err => {
+                        if (err.name !== 'AbortError') {
+                            console.error('Share failed:', err);
+                            fallbackShare(imageUrl, shareText, dashboardUrl);
+                        }
+                    });
+                })
+                .catch(() => {
+                    // If file sharing fails, try without file
+                    navigator.share({
+                        title: shareText,
+                        text: `Check out this chart from UT Tyler Hibbs Institute Economic Dashboard`,
+                        url: dashboardUrl
+                    }).catch(() => fallbackShare(imageUrl, shareText, dashboardUrl));
+                });
+        } else {
+            fallbackShare(imageUrl, shareText, dashboardUrl);
+        }
+    } catch (error) {
+        console.error('Error sharing chart:', error);
+        alert('Unable to share chart. Please try downloading the data instead.');
+    }
+}
+
+function fallbackShare(imageUrl, shareText, dashboardUrl) {
+    // Create modal for share options
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 20px;
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+        background: white;
+        border-radius: 14px;
+        padding: 24px;
+        max-width: 500px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    `;
+    
+    content.innerHTML = `
+        <h3 style="margin: 0 0 16px 0; color: #0f172a;">Share Chart</h3>
+        <div style="margin-bottom: 20px;">
+            <img src="${imageUrl}" style="width: 100%; border-radius: 8px; border: 1px solid #e2e8f0;" alt="Chart preview">
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button id="shareTwitter" style="flex: 1; min-width: 140px; padding: 10px 16px; background: #1DA1F2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                Share on Twitter
+            </button>
+            <button id="shareFacebook" style="flex: 1; min-width: 140px; padding: 10px 16px; background: #1877F2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                Share on Facebook
+            </button>
+            <button id="shareLinkedIn" style="flex: 1; min-width: 140px; padding: 10px 16px; background: #0A66C2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                Share on LinkedIn
+            </button>
+            <button id="downloadImage" style="flex: 1; min-width: 140px; padding: 10px 16px; background: #CB6015; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+                Download Image
+            </button>
+        </div>
+        <button id="closeModal" style="margin-top: 16px; width: 100%; padding: 10px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+            Close
+        </button>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Close modal on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+    
+    // Close button
+    content.querySelector('#closeModal').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    // Twitter share
+    content.querySelector('#shareTwitter').addEventListener('click', () => {
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText + ' - Check out this economic data visualization from UT Tyler Hibbs Institute')}&url=${encodeURIComponent(dashboardUrl)}`;
+        window.open(twitterUrl, '_blank', 'width=550,height=420');
+    });
+    
+    // Facebook share
+    content.querySelector('#shareFacebook').addEventListener('click', () => {
+        const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(dashboardUrl)}`;
+        window.open(facebookUrl, '_blank', 'width=550,height=420');
+    });
+    
+    // LinkedIn share
+    content.querySelector('#shareLinkedIn').addEventListener('click', () => {
+        const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(dashboardUrl)}`;
+        window.open(linkedInUrl, '_blank', 'width=550,height=420');
+    });
+    
+    // Download image
+    content.querySelector('#downloadImage').addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = imageUrl;
+        a.download = `${shareText.replace(/\s+/g, '_')}.png`;
+        a.click();
+        document.body.removeChild(modal);
+    });
+}
+
 function setupTabs() {
     // Main tab handling
     const mainTabBtns = document.querySelectorAll('.main-tab-btn');
@@ -1441,6 +1608,7 @@ function init() {
     ensureDefaults();
     wireEvents();
     setupTabs();
+    setupShareButtons();
     loadData();
     loadRevenueData();
 }
