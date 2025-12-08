@@ -867,7 +867,7 @@ function renderRevenueChart() {
     const titleEl = document.getElementById('revenueChartTitle');
     if (titleEl) {
         const total = values.reduce((a, b) => a + b, 0);
-        titleEl.textContent = `Texas Tax Collections - ${selectedMonth} ${selectedYear} (Total: $${(total / 1000000).toFixed(1)}M)`;
+        titleEl.textContent = `Texas Tax Collections - ${selectedMonth} FY${selectedYear} (Total: $${(total / 1000000).toFixed(1)}M)`;
     }
 }
 
