@@ -1,4 +1,4 @@
-const MORTGAGE_RATES_DATA = `[
+const MORTGAGE_RATES_DATA = [
   { date: '1971-04-02', rate30yr: 7.33, rate15yr: null },
   { date: '1971-04-09', rate30yr: 7.31, rate15yr: null },
   { date: '1971-04-16', rate30yr: 7.31, rate15yr: null },
@@ -2853,4 +2853,4 @@ const MORTGAGE_RATES_DATA = `[
   { date: '2025-11-20', rate30yr: 6.26, rate15yr: 5.54 },
   { date: '2025-11-26', rate30yr: 6.23, rate15yr: 5.51 },
   { date: '2025-12-04', rate30yr: 6.19, rate15yr: 5.44 },
-`];
+];
