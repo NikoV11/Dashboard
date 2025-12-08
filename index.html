@@ -35,7 +35,7 @@
                 <div>
                     <p class="eyebrow">East Texas & US Economic Dashboard</p>
                     <h2>Monitor Economic Indicators for Tyler MSA and the United States</h2>
-                    <p class="lede">Track national GDP and inflation trends alongside Tyler MSA employment growth and sales tax collections with live data, interactive charts, and CSV exports.</p>
+                    <p class="lede">Track national economic indicators (GDP, inflation, unemployment, mortgage rates) alongside Tyler MSA regional data (employment, sales tax, median home prices) and Texas state tax collections. All data sourced from Federal Reserve Economic Data (FRED), Texas Comptroller, and Freddie Mac.</p>
                     <div class="controls" aria-label="Year range controls">
                         <label for="startYear">From</label>
                         <input type="number" id="startYear" min="1947" max="2099" value="2023" aria-label="Start Year">
@@ -48,8 +48,8 @@
                 <div class="stat-cards">
                     <div class="card">
                         <p class="eyebrow">Data Sources</p>
-                        <h3>Multi-Source</h3>
-                        <p class="muted">FRED, Texas Comptroller, Employment Data</p>
+                        <h3>Official Sources</h3>
+                        <p class="muted">Federal Reserve, Texas Comptroller, Freddie Mac</p>
                     </div>
                     <div class="card">
                         <p class="eyebrow">Coverage</p>
@@ -251,7 +251,9 @@
         </main>
 
         <footer>
-            <p>Hibbs Monitor — Comprehensive economic analysis for East Texas and the United States. Data sources: Federal Reserve Economic Data (FRED), Texas Comptroller, and regional employment statistics.</p>
+            <p><strong>Hibbs Monitor</strong> — East Texas & US Economic Dashboard by UT Tyler Hibbs Institute</p>
+            <p style="margin-top: 8px; font-size: 0.9rem;"><strong>Data Sources:</strong> Federal Reserve Economic Data (FRED) - GDP (A191RL1Q225SBEA), CPI-U (CPIAUCSL), Unemployment Rate (UNRATE), Median Home Price MoM (MEDLISPRIMM46340); Texas Comptroller of Public Accounts - State Tax Collections & Tyler MSA Sales Tax; Freddie Mac - Primary Mortgage Market Survey (30-year & 15-year rates); Bureau of Labor Statistics - Tyler MSA & Texas Employment Data</p>
+            <p style="margin-top: 8px; font-size: 0.85rem; color: #64748b;">Tyler MSA includes: Tyler, Lindale, Whitehouse, Bullard, Troup, Noonday, Arp, Winona, and New Chapel Hill. Texas fiscal year runs September through August.</p>
         </footer>
     </div>
 
