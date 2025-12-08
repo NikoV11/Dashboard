@@ -187,37 +187,91 @@ async function loadSalesTaxData() {
     const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
     const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
     
+    // Tyler MSA cities
+    const msaCities = ['Tyler', 'Lindale', 'Whitehouse', 'Bullard', 'Troup', 'Noonday', 'Arp', 'Winona'];
+    
     try {
-        // Query Tyler data with year filtering
-        const query = `?city=Tyler&$order=report_year,report_month&$limit=5000`;
-        const response = await fetch(API_URL + query);
-        
-        if (!response.ok) {
-            throw new Error(`API returned ${response.status}`);
+        // Fetch data for all MSA cities
+        const allData = [];
+        for (const city of msaCities) {
+            const query = `?city=${city}&$order=report_year,report_month&$limit=5000`;
+            const response = await fetch(API_URL + query);
+            
+            if (!response.ok) {
+                console.warn(`Failed to fetch data for ${city}: ${response.status}`);
+                continue;
+            }
+            
+            const cityData = await response.json();
+            allData.push(...cityData);
         }
         
-        const data = await response.json();
+        console.log(`Fetched ${allData.length} total records from ${msaCities.length} cities`);
         
-        // Filter by year range and format
-        salesTaxData = data
-            .filter(d => {
-                const year = parseInt(d.report_year);
-                return year >= startYear && year <= endYear;
-            })
-            .map(d => ({
-                date: `${d.report_year}-${String(d.report_month).padStart(2, '0')}-01`,
-                value: parseFloat(d.net_payment_this_period),
-                periodChange: parseFloat(d.period_percent_change),
-                yoyChange: parseFloat(d.year_percent_change),
-                year: parseInt(d.report_year),
-                month: parseInt(d.report_month)
-            }))
-            .filter(d => !isNaN(d.value));
+        // Group by year and month, summing net payments
+        const grouped = new Map();
         
-        console.log(`Sales Tax data points: ${salesTaxData.length}`);
+        allData.forEach(d => {
+            const year = parseInt(d.report_year);
+            const month = parseInt(d.report_month);
+            
+            // Filter by year range
+            if (year < startYear || year > endYear) return;
+            
+            const key = `${year}-${String(month).padStart(2, '0')}`;
+            const value = parseFloat(d.net_payment_this_period) || 0;
+            
+            if (grouped.has(key)) {
+                grouped.get(key).value += value;
+                grouped.get(key).count += 1;
+            } else {
+                grouped.set(key, {
+                    year,
+                    month,
+                    value,
+                    count: 1,
+                    date: `${year}-${String(month).padStart(2, '0')}-01`
+                });
+            }
+        });
+        
+        // Convert to array and calculate changes
+        salesTaxData = Array.from(grouped.values())
+            .sort((a, b) => a.year - b.year || a.month - b.month)
+            .map((item, idx, arr) => {
+                // Calculate month-over-month change
+                let periodChange = 0;
+                if (idx > 0) {
+                    const prevValue = arr[idx - 1].value;
+                    if (prevValue !== 0) {
+                        periodChange = ((item.value - prevValue) / prevValue) * 100;
+                    }
+                }
+                
+                // Calculate year-over-year change
+                let yoyChange = 0;
+                const prevYearIdx = arr.findIndex(d => d.year === item.year - 1 && d.month === item.month);
+                if (prevYearIdx !== -1) {
+                    const prevYearValue = arr[prevYearIdx].value;
+                    if (prevYearValue !== 0) {
+                        yoyChange = ((item.value - prevYearValue) / prevYearValue) * 100;
+                    }
+                }
+                
+                return {
+                    date: item.date,
+                    value: item.value,
+                    periodChange,
+                    yoyChange,
+                    year: item.year,
+                    month: item.month
+                };
+            });
+        
+        console.log(`Tyler MSA Sales Tax data points: ${salesTaxData.length}`);
         if (salesTaxData.length > 0) {
-            console.log('First Sales Tax:', salesTaxData[0]);
-            console.log('Latest Sales Tax:', salesTaxData[salesTaxData.length - 1]);
+            console.log('First MSA Sales Tax:', salesTaxData[0]);
+            console.log('Latest MSA Sales Tax:', salesTaxData[salesTaxData.length - 1]);
         }
         
         return salesTaxData;
