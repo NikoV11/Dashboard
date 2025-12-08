@@ -739,10 +739,11 @@ function renderRevenueChart() {
     const selectedYear = parseInt(yearSelect.value);
     const selectedMonth = monthSelect.value;
     
-    // Filter data for selected year and month
+    // Filter data for selected year and month - only tax categories
     const filteredData = revenueData.filter(d => 
         d.year === selectedYear && 
         d.month === selectedMonth &&
+        (d.category.includes('Tax') || d.category.includes('Taxes')) &&
         !['Tax Collections', 'Total Tax Collections', 'Total Net Revenue'].includes(d.category)
     );
     
@@ -866,7 +867,7 @@ function renderRevenueChart() {
     const titleEl = document.getElementById('revenueChartTitle');
     if (titleEl) {
         const total = values.reduce((a, b) => a + b, 0);
-        titleEl.textContent = `Texas State Revenue - ${selectedMonth} ${selectedYear} (Total: $${(total / 1000000).toFixed(1)}M)`;
+        titleEl.textContent = `Texas Tax Collections - ${selectedMonth} ${selectedYear} (Total: $${(total / 1000000).toFixed(1)}M)`;
     }
 }
 
