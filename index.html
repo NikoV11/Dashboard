@@ -50,6 +50,7 @@
                         <label for="endYear">to</label>
                         <input type="number" id="endYear" min="1947" max="2099" value="2025" aria-label="End Year">
                         <button id="updateBtn" class="primary">Update</button>
+                        <button id="generateReportBtn" class="primary" style="background: linear-gradient(135deg, #CB6015, #002F6C); margin-left: 8px;" title="Generate monthly report">📄 Monthly Report</button>
                     </div>
                     <p class="status" id="statusText" role="status" aria-live="polite">Loading data...</p>
                 </div>
@@ -67,7 +68,7 @@
                     <div class="card">
                         <p class="eyebrow">Features</p>
                         <h3>Interactive</h3>
-                        <p class="muted">Live data, filtering, CSV exports</p>
+                        <p class="muted">Live data, filtering, CSV exports, Monthly Reports</p>
                     </div>
                 </div>
             </section>
@@ -324,7 +325,8 @@
     <script src="employment-data.js"></script>
     <script src="mortgage-data.js?v=2"></script>
     <script src="revenue-data.js"></script>
-    <script src="dashboard.js?v=33"></script>
+    <script src="report-generator.js"></script>
+    <script src="dashboard.js?v=34"></script>
 </body>
 </html>
 
