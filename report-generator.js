@@ -113,12 +113,14 @@ class MonthlyReportGenerator {
     }
 
     /**
-     * Generate professional HTML report
+     * Generate professional HTML report in exact Hibbs Monitor format
      */
     generateHTMLReport() {
         const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                           'July', 'August', 'September', 'October', 'November', 'December'];
         const monthName = monthNames[this.reportMonth - 1];
+        const today = new Date();
+        const dateStr = `${today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`;
 
         return `
 <!DOCTYPE html>
@@ -126,7 +128,7 @@ class MonthlyReportGenerator {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hibbs Monitor - ${monthName} ${this.reportYear}</title>
+    <title>The Hibbs Monitor - ${monthName} ${this.reportYear}</title>
     <style>
         * {
             margin: 0;
@@ -135,199 +137,164 @@ class MonthlyReportGenerator {
         }
         
         body {
-            font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            line-height: 1.6;
-            color: #0f172a;
-            background: white;
+            font-family: 'Calibri', 'Georgia', 'Times New Roman', serif;
+            line-height: 1.4;
+            color: #000;
+            background: #f5f5f5;
         }
         
-        @media print {
-            body { background: white; }
-            .page-break { page-break-after: always; }
-        }
-        
-        .report-container {
-            max-width: 8.5in;
+        .page {
+            width: 8.5in;
             height: 11in;
-            margin: 0 auto;
-            padding: 0.5in;
+            margin: 20px auto;
+            padding: 0;
             background: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            page-break-after: always;
         }
         
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 3px solid #CB6015;
-            padding-bottom: 16px;
-            margin-bottom: 20px;
-        }
-        
-        .header-title {
+        .page-container {
+            width: 100%;
+            height: 100%;
+            padding: 0.5in;
             display: flex;
             flex-direction: column;
-            gap: 8px;
         }
         
-        .header-title h1 {
-            font-size: 32px;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 0;
-        }
-        
-        .header-title .subtitle {
-            font-size: 14px;
-            color: #4b5563;
-            font-weight: 500;
-        }
-        
-        .header-date {
-            text-align: right;
-            font-size: 14px;
-            color: #4b5563;
-        }
-        
-        .executive-summary {
-            background: #f6f7fb;
-            border-left: 4px solid #CB6015;
-            padding: 16px;
-            margin-bottom: 20px;
-            border-radius: 4px;
-        }
-        
-        .executive-summary h2 {
-            font-size: 16px;
-            color: #0f172a;
-            margin-bottom: 12px;
-        }
-        
-        .summary-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            font-size: 12px;
-        }
-        
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px;
-        }
-        
-        .summary-label {
-            color: #4b5563;
-            font-weight: 500;
-        }
-        
-        .summary-value {
-            color: #0f172a;
-            font-weight: 600;
-        }
-        
-        .section {
-            margin-bottom: 20px;
-            page-break-inside: avoid;
-        }
-        
-        .section-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #0f172a;
-            border-bottom: 2px solid #CB6015;
-            padding-bottom: 8px;
-            margin-bottom: 12px;
-        }
-        
-        .indicator-card {
-            background: #f9fafb;
-            border: 1px solid #e4e7ec;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-            font-size: 12px;
-        }
-        
-        .indicator-header {
-            display: flex;
-            justify-content: space-between;
+        /* Cover Page */
+        .cover-page .page-container {
+            justify-content: center;
             align-items: center;
-            margin-bottom: 8px;
-            font-weight: 600;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
         }
         
-        .indicator-label {
-            color: #0f172a;
-        }
-        
-        .indicator-value {
-            color: #CB6015;
-            font-size: 16px;
-            font-weight: 700;
-        }
-        
-        .indicator-change {
-            font-size: 10px;
-            color: #4b5563;
-        }
-        
-        .mini-chart {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #e4e7ec;
-        }
-        
-        .chart-bar {
-            height: 4px;
-            background: linear-gradient(90deg, #CB6015, #002F6C);
-            border-radius: 2px;
-            margin-bottom: 4px;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 11px;
-            margin-top: 12px;
-        }
-        
-        th {
-            background: linear-gradient(120deg, rgba(203, 96, 21, 0.9), rgba(0, 47, 108, 0.92));
-            color: white;
-            padding: 8px;
-            text-align: left;
-            font-weight: 600;
-        }
-        
-        td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #e4e7ec;
-        }
-        
-        tr:nth-child(even) {
-            background: #f9fafb;
-        }
-        
-        .footer {
-            margin-top: 24px;
-            padding-top: 16px;
-            border-top: 1px solid #e4e7ec;
-            font-size: 10px;
-            color: #4b5563;
+        .cover-title {
             text-align: center;
         }
         
+        .cover-title .month-year {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 30px;
+            font-weight: 500;
+        }
+        
+        .cover-title h1 {
+            font-size: 56px;
+            font-weight: 700;
+            color: #000;
+            letter-spacing: 3px;
+            margin: 0;
+            line-height: 1.2;
+        }
+        
+        .cover-title .subtitle {
+            font-size: 18px;
+            color: #666;
+            margin-top: 20px;
+            letter-spacing: 2px;
+            font-weight: 500;
+        }
+        
+        .cover-title .institution {
+            font-size: 12px;
+            color: #999;
+            margin-top: 40px;
+        }
+        
+        /* Data Pages */
+        .header-text {
+            font-size: 28pt;
+            font-weight: 700;
+            color: #000;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+        
+        .metric-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .metric-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .metric-subtitle {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 12px;
+            font-style: italic;
+        }
+        
+        .metric-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #CA5F15;
+            margin: 12px 0;
+        }
+        
+        .metric-period {
+            font-size: 11px;
+            color: #666;
+            margin-top: 8px;
+        }
+        
+        .metric-narrative {
+            font-size: 11px;
+            line-height: 1.5;
+            color: #333;
+            margin-top: 10px;
+        }
+        
+        .metric-source {
+            font-size: 9px;
+            color: #999;
+            margin-top: 8px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 8px;
+        }
+        
+        .single-column {
+            grid-column: 1 / -1;
+        }
+        
+        .footer-notes {
+            font-size: 9px;
+            color: #666;
+            margin-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 12px;
+            line-height: 1.4;
+        }
+        
         .print-button {
-            display: inline-block;
+            display: block;
             padding: 12px 24px;
-            background: #CB6015;
+            background: #CA5F15;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 4px;
             cursor: pointer;
             font-weight: 600;
             margin-bottom: 20px;
+            font-size: 14px;
         }
         
         .print-button:hover {
@@ -335,59 +302,235 @@ class MonthlyReportGenerator {
         }
         
         @media print {
+            body { background: white; }
             .print-button { display: none; }
-            .report-container { box-shadow: none; }
+            .page { margin: 0; box-shadow: none; }
         }
     </style>
 </head>
 <body>
     <button class="print-button" onclick="window.print()">Print / Save as PDF</button>
     
-    <div class="report-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="header-title">
-                <h1>THE HIBBS MONITOR</h1>
-                <div class="subtitle">UT Tyler Hibbs Institute Economic Dashboard</div>
-            </div>
-            <div class="header-date">
-                <strong>${monthName} ${this.reportYear}</strong><br>
-                Generated: ${new Date().toLocaleDateString()}
-            </div>
-        </div>
-        
-        <!-- Executive Summary -->
-        <div class="executive-summary">
-            <h2>Executive Summary</h2>
-            <div class="summary-grid">
-                ${this.generateSummaryItems()}
+    <!-- Cover Page -->
+    <div class="page cover-page">
+        <div class="page-container">
+            <div class="cover-title">
+                <div class="month-year">${monthName} ${this.reportYear}</div>
+                <h1>THE HIBBS<br>MONITOR</h1>
+                <div class="subtitle">TRACKING THE ECONOMY</div>
+                <div class="institution">
+                    <p>Hibbs Institute for Business and Economic Research</p>
+                    <p>Soules College of Business</p>
+                    <p>University of Texas at Tyler</p>
+                </div>
             </div>
         </div>
-        
-        <!-- US Indicators Section -->
-        <div class="section">
-            <h2 class="section-title">US Economic Indicators</h2>
-            ${this.generateUSIndicators()}
+    </div>
+    
+    <!-- US Economic Indicators Page -->
+    <div class="page">
+        <div class="page-container">
+            <div class="header-text">THE U.S.</div>
+            
+            <div class="content-grid">
+                <!-- Real GDP -->
+                <div class="metric-box">
+                    <div class="metric-title">Real GDP</div>
+                    <div class="metric-subtitle">Percentage change from preceding quarter</div>
+                    <div class="metric-value">${this.reportData.gdp?.latest?.toFixed(2) || 'N/A'}%</div>
+                    <div class="metric-narrative">
+                        ${this.reportData.gdp?.latest ? `Real gross domestic product increased at an annual rate of ${this.reportData.gdp.latest.toFixed(2)}% in the latest quarter.` : 'Data not available'}
+                    </div>
+                    <div class="metric-source">
+                        Notes: Figures are seasonally adjusted. As of ${dateStr}<br>
+                        Source: Federal Reserve Economic Data (FRED) - Series A191RL1Q225SBEA
+                    </div>
+                </div>
+                
+                <!-- CPI-U -->
+                <div class="metric-box">
+                    <div class="metric-title">CPI-U</div>
+                    <div class="metric-subtitle">One-month percent change</div>
+                    <div class="metric-value">${this.reportData.cpi?.latest?.toFixed(2) || 'N/A'}%</div>
+                    <div class="metric-narrative">
+                        ${this.reportData.cpi?.latest ? `Consumer Price Index for All Urban Consumers rose ${this.reportData.cpi.latest > 0 ? 'by' : ''} ${this.reportData.cpi.latest.toFixed(2)}% in the latest month.` : 'Data not available'}
+                    </div>
+                    <div class="metric-source">
+                        Notes: Figures are seasonally adjusted. As of ${dateStr}<br>
+                        Source: Federal Reserve Economic Data (FRED) - Series CPIAUCSL
+                    </div>
+                </div>
+                
+                <!-- Unemployment Rate -->
+                <div class="metric-box">
+                    <div class="metric-title">Unemployment Rate</div>
+                    <div class="metric-value">${this.reportData.unemployment?.latest?.toFixed(1) || 'N/A'}%</div>
+                    <div class="metric-period">Latest month</div>
+                    <div class="metric-source">
+                        Source: Federal Reserve Economic Data (FRED) - Series UNRATE
+                    </div>
+                </div>
+                
+                <!-- Federal Funds Rate -->
+                <div class="metric-box">
+                    <div class="metric-title">Federal Funds Rate</div>
+                    <div class="metric-subtitle">Current target range</div>
+                    <div class="metric-value">3.75% - 4.0%</div>
+                    <div class="metric-source">
+                        Source: Federal Reserve
+                    </div>
+                </div>
+                
+                <!-- Mortgage Rates -->
+                <div class="metric-box">
+                    <div class="metric-title">Mortgage Rates</div>
+                    <div class="metric-subtitle">Primary Mortgage Market Survey</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px;">
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: #CA5F15;">${this.reportData.mortgage?.latest30?.toFixed(2) || 'N/A'}%</div>
+                            <div style="font-size: 10px; color: #666;">30-Year Fixed</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 24px; font-weight: 700; color: #003065;">${this.reportData.mortgage?.latest15?.toFixed(2) || 'N/A'}%</div>
+                            <div style="font-size: 10px; color: #666;">15-Year Fixed</div>
+                        </div>
+                    </div>
+                    <div class="metric-source" style="margin-top: 12px;">
+                        Source: Freddie Mac Primary Mortgage Market Survey
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-notes">
+                <strong>Data Sources:</strong> Federal Reserve Economic Data (FRED), U.S. Bureau of Labor Statistics, Freddie Mac<br>
+                <strong>Report Date:</strong> ${dateStr}
+            </div>
         </div>
-        
-        <!-- Regional Indicators Section -->
-        <div class="section">
-            <h2 class="section-title">Regional Indicators (Tyler MSA)</h2>
-            ${this.generateRegionalIndicators()}
+    </div>
+    
+    <!-- Regional Indicators Page -->
+    <div class="page">
+        <div class="page-container">
+            <div class="header-text">REGIONAL (TYLER MSA)</div>
+            
+            <div class="content-grid">
+                <!-- Employment -->
+                <div class="metric-box">
+                    <div class="metric-title">Employment Growth</div>
+                    <div class="metric-subtitle">Month-over-month % change</div>
+                    ${this.reportData.employment?.datasets ? `
+                        <table style="width: 100%; margin-top: 10px; font-size: 11px;">
+                            <tr style="border-bottom: 1px solid #e5e7eb;">
+                                <td style="padding: 8px 0; font-weight: 600;">Region</td>
+                                <td style="padding: 8px 0; text-align: right; font-weight: 600;">Latest %</td>
+                            </tr>
+                            ${this.reportData.employment.datasets.map(ds => {
+                                const latest = ds.data[ds.data.length - 1];
+                                return `<tr style="border-bottom: 1px solid #f0f0f0;">
+                                    <td style="padding: 6px 0;">${ds.label}</td>
+                                    <td style="padding: 6px 0; text-align: right;">${latest?.toFixed(2) || 'N/A'}%</td>
+                                </tr>`;
+                            }).join('')}
+                        </table>
+                    ` : '<div style="color: #999; font-size: 11px; margin-top: 10px;">Data not available</div>'}
+                    <div class="metric-source">
+                        Source: Bureau of Labor Statistics
+                    </div>
+                </div>
+                
+                <!-- Sales Tax -->
+                <div class="metric-box">
+                    <div class="metric-title">Sales Tax Collections</div>
+                    <div class="metric-subtitle">Tyler MSA aggregate</div>
+                    <div class="metric-value">${this.reportData.salesTax?.latest?.toFixed(2) || 'N/A'}%</div>
+                    <div class="metric-period">Month-over-month change</div>
+                    <div class="metric-source">
+                        Source: Texas Comptroller of Public Accounts
+                    </div>
+                </div>
+                
+                <!-- Median Home Price -->
+                <div class="metric-box">
+                    <div class="metric-title">Median Listing Price</div>
+                    <div class="metric-subtitle">Month-over-month % change</div>
+                    <div class="metric-value">${this.reportData.medianPrice?.latest?.toFixed(2) || 'N/A'}%</div>
+                    <div class="metric-period">Latest month</div>
+                    <div class="metric-source">
+                        Source: Federal Reserve Economic Data (FRED) - Series MEDLISPRIMM46340
+                    </div>
+                </div>
+                
+                <!-- Tax Collections -->
+                ${this.reportData.revenue ? `
+                    <div class="metric-box single-column">
+                        <div class="metric-title">Texas Tax Collections</div>
+                        <div class="metric-subtitle">Top 5 categories by percentage</div>
+                        ${(() => {
+                            const top5 = this.reportData.revenue.labels
+                                .map((label, i) => ({ label, value: this.reportData.revenue.values[i] }))
+                                .sort((a, b) => b.value - a.value)
+                                .slice(0, 5);
+                            return `
+                                <table style="width: 100%; margin-top: 10px; font-size: 11px;">
+                                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                                        <td style="padding: 8px 0; font-weight: 600;">Category</td>
+                                        <td style="padding: 8px 0; text-align: right; font-weight: 600;">% of Total</td>
+                                    </tr>
+                                    ${top5.map(item => `<tr style="border-bottom: 1px solid #f0f0f0;">
+                                        <td style="padding: 6px 0;">${item.label}</td>
+                                        <td style="padding: 6px 0; text-align: right;">${((item.value / this.reportData.revenue.total) * 100).toFixed(1)}%</td>
+                                    </tr>`).join('')}
+                                </table>
+                            `;
+                        })()}
+                        <div class="metric-source">
+                            <strong>Total:</strong> $${(this.reportData.revenue.total / 1000000).toFixed(1)}M<br>
+                            Source: Texas Comptroller of Public Accounts
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="footer-notes">
+                <strong>Regional Note:</strong> Tyler MSA includes Tyler, Lindale, Whitehouse, Bullard, Troup, Noonday, Arp, Winona, and New Chapel Hill<br>
+                <strong>Report Date:</strong> ${dateStr}
+            </div>
         </div>
-        
-        <!-- Detailed Data Tables -->
-        <div class="page-break"></div>
-        <div class="section">
-            <h2 class="section-title">Detailed Data</h2>
-            ${this.generateDetailedTables()}
-        </div>
-        
-        <!-- Footer -->
-        <div class="footer">
-            <p><strong>Data Sources:</strong> Federal Reserve Economic Data (FRED), Texas Comptroller of Public Accounts, Freddie Mac Primary Mortgage Market Survey, Bureau of Labor Statistics</p>
-            <p>Tyler MSA includes: Tyler, Lindale, Whitehouse, Bullard, Troup, Noonday, Arp, Winona, and New Chapel Hill</p>
-            <p style="margin-top: 12px;">© ${new Date().getFullYear()} UT Tyler Hibbs Institute | All rights reserved</p>
+    </div>
+    
+    <!-- Back Page - Contact Info -->
+    <div class="page">
+        <div class="page-container" style="justify-content: center;">
+            <div style="text-align: center;">
+                <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 30px;">HIBBS INSTITUTE</h2>
+                
+                <div style="margin-bottom: 40px;">
+                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">For More Information</h3>
+                    <p style="font-size: 12px; margin: 4px 0;">
+                        <strong>Website:</strong> www.uttyler.edu/hibbs-institute
+                    </p>
+                    <p style="font-size: 12px; margin: 4px 0;">
+                        <strong>Email:</strong> HibbsInstitute@uttyler.edu
+                    </p>
+                    <p style="font-size: 12px; margin: 4px 0;">
+                        <strong>Phone:</strong> 903.565.5952
+                    </p>
+                </div>
+                
+                <div style="border-top: 1px solid #e5e7eb; padding-top: 30px; margin-top: 30px;">
+                    <h3 style="font-size: 12px; font-weight: 600; margin-bottom: 12px;">Suggested Citation</h3>
+                    <p style="font-size: 10px; line-height: 1.6; max-width: 5in; margin: 0 auto;">
+                        Hibbs Institute for Business and Economic Research (${monthName}, ${this.reportYear}). 
+                        The Hibbs Monitor (Report No. ${this.reportYear}-${String(this.reportMonth).padStart(2, '0')}-HM). 
+                        Soules College of Business. University of Texas at Tyler.
+                    </p>
+                </div>
+                
+                <div style="margin-top: 40px; font-size: 9px; color: #999;">
+                    <p>© ${new Date().getFullYear()} University of Texas at Tyler</p>
+                    <p>All rights reserved</p>
+                </div>
+            </div>
         </div>
     </div>
 </body>
@@ -396,227 +539,31 @@ class MonthlyReportGenerator {
     }
 
     /**
-     * Generate summary items for executive summary
+     * Generate summary items for executive summary (no longer used in new format)
      */
     generateSummaryItems() {
-        let html = '';
-
-        if (this.reportData.gdp) {
-            html += `
-                <div class="summary-item">
-                    <span class="summary-label">US Real GDP Growth:</span>
-                    <span class="summary-value">${this.reportData.gdp.latest?.toFixed(2) || 'N/A'}%</span>
-                </div>
-            `;
-        }
-
-        if (this.reportData.cpi) {
-            html += `
-                <div class="summary-item">
-                    <span class="summary-label">US Inflation (CPI-U):</span>
-                    <span class="summary-value">${this.reportData.cpi.latest?.toFixed(2) || 'N/A'}%</span>
-                </div>
-            `;
-        }
-
-        if (this.reportData.unemployment) {
-            html += `
-                <div class="summary-item">
-                    <span class="summary-label">US Unemployment Rate:</span>
-                    <span class="summary-value">${this.reportData.unemployment.latest?.toFixed(2) || 'N/A'}%</span>
-                </div>
-            `;
-        }
-
-        if (this.reportData.salesTax) {
-            html += `
-                <div class="summary-item">
-                    <span class="summary-label">Tyler MSA Sales Tax:</span>
-                    <span class="summary-value">${this.reportData.salesTax.latest?.toFixed(2) || 'N/A'}%</span>
-                </div>
-            `;
-        }
-
-        return html;
+        return '';
     }
 
     /**
-     * Generate US indicators section
+     * Generate US indicators section (no longer used in new format)
      */
     generateUSIndicators() {
-        let html = '';
-
-        if (this.reportData.gdp) {
-            html += `
-                <div class="indicator-card">
-                    <div class="indicator-header">
-                        <span class="indicator-label">Real GDP Growth (Quarterly)</span>
-                        <span class="indicator-value">${this.reportData.gdp.latest?.toFixed(2)}%</span>
-                    </div>
-                    <div class="indicator-change">FRED Series: A191RL1Q225SBEA</div>
-                    <div class="mini-chart">
-                        ${this.reportData.gdp.values.slice(-4).map(v => `<div class="chart-bar" style="width: ${Math.abs(v) * 5}%"></div>`).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        if (this.reportData.cpi) {
-            html += `
-                <div class="indicator-card">
-                    <div class="indicator-header">
-                        <span class="indicator-label">CPI-U Inflation (Monthly MoM%)</span>
-                        <span class="indicator-value">${this.reportData.cpi.latest?.toFixed(2)}%</span>
-                    </div>
-                    <div class="indicator-change">FRED Series: CPIAUCSL</div>
-                    <div class="mini-chart">
-                        ${this.reportData.cpi.values.slice(-12).map(v => `<div class="chart-bar" style="width: ${Math.abs(v) * 10}%"></div>`).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        if (this.reportData.unemployment) {
-            html += `
-                <div class="indicator-card">
-                    <div class="indicator-header">
-                        <span class="indicator-label">Unemployment Rate</span>
-                        <span class="indicator-value">${this.reportData.unemployment.latest?.toFixed(2)}%</span>
-                    </div>
-                    <div class="indicator-change">FRED Series: UNRATE</div>
-                    <div class="mini-chart">
-                        ${this.reportData.unemployment.values.slice(-12).map(v => `<div class="chart-bar" style="width: ${v * 3}%"></div>`).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        if (this.reportData.mortgage) {
-            html += `
-                <div class="indicator-card">
-                    <div class="indicator-header">
-                        <span class="indicator-label">Mortgage Rates</span>
-                        <span class="indicator-value">${this.reportData.mortgage.latest30?.toFixed(2)}% / ${this.reportData.mortgage.latest15?.toFixed(2)}%</span>
-                    </div>
-                    <div class="indicator-change">30-year / 15-year Fixed (Freddie Mac)</div>
-                </div>
-            `;
-        }
-
-        return html;
+        return '';
     }
 
     /**
-     * Generate regional indicators section
+     * Generate regional indicators section (no longer used in new format)
      */
     generateRegionalIndicators() {
-        let html = '';
-
-        if (this.reportData.employment && this.reportData.employment.datasets) {
-            html += `
-                <div class="indicator-card">
-                    <div class="indicator-header">
-                        <span class="indicator-label">Employment Trends (MoM%)</span>
-                    </div>
-                    <div class="indicator-change">Tyler MSA vs Texas Non-Farm Payroll</div>
-                    <table>
-                        <tr>
-                            <th>Region</th>
-                            <th>Latest</th>
-                        </tr>
-                        ${this.reportData.employment.datasets.map(ds => {
-                            const latest = ds.data[ds.data.length - 1];
-                            return `<tr><td>${ds.label}</td><td>${latest?.toFixed(2)}%</td></tr>`;
-                        }).join('')}
-                    </table>
-                </div>
-            `;
-        }
-
-        if (this.reportData.salesTax) {
-            html += `
-                <div class="indicator-card">
-                    <div class="indicator-header">
-                        <span class="indicator-label">Sales Tax Collections</span>
-                        <span class="indicator-value">${this.reportData.salesTax.latest?.toFixed(2)}%</span>
-                    </div>
-                    <div class="indicator-change">Tyler MSA 9-City Aggregate (Texas Comptroller)</div>
-                    <div class="mini-chart">
-                        ${this.reportData.salesTax.values.slice(-6).map(v => `<div class="chart-bar" style="width: ${Math.abs(v) * 8}%"></div>`).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        if (this.reportData.medianPrice) {
-            html += `
-                <div class="indicator-card">
-                    <div class="indicator-header">
-                        <span class="indicator-label">Median Listing Price Growth (MoM%)</span>
-                        <span class="indicator-value">${this.reportData.medianPrice.latest?.toFixed(2)}%</span>
-                    </div>
-                    <div class="indicator-change">FRED Series: MEDLISPRIMM46340</div>
-                    <div class="mini-chart">
-                        ${this.reportData.medianPrice.values.slice(-12).map(v => `<div class="chart-bar" style="width: ${(v + 5) * 3}%"></div>`).join('')}
-                    </div>
-                </div>
-            `;
-        }
-
-        if (this.reportData.revenue) {
-            const top5 = this.reportData.revenue.labels
-                .map((label, i) => ({ label, value: this.reportData.revenue.values[i] }))
-                .sort((a, b) => b.value - a.value)
-                .slice(0, 5);
-
-            html += `
-                <div class="indicator-card">
-                    <div class="indicator-header">
-                        <span class="indicator-label">Texas Tax Collections (Top 5)</span>
-                        <span class="indicator-value">$${(this.reportData.revenue.total / 1000).toFixed(0)}B</span>
-                    </div>
-                    <div class="indicator-change">Tax Collections Only (FY)</div>
-                    <table>
-                        <tr>
-                            <th>Category</th>
-                            <th>% of Total</th>
-                        </tr>
-                        ${top5.map(item => `<tr><td>${item.label}</td><td>${((item.value / this.reportData.revenue.total) * 100).toFixed(1)}%</td></tr>`).join('')}
-                    </table>
-                </div>
-            `;
-        }
-
-        return html;
+        return '';
     }
 
     /**
-     * Generate detailed data tables
+     * Generate detailed data tables (no longer used in new format)
      */
     generateDetailedTables() {
-        let html = '';
-
-        if (this.reportData.cpi) {
-            const last12 = this.reportData.cpi.labels.slice(-12).map((label, i) => 
-                `<tr><td>${label}</td><td>${this.reportData.cpi.values[this.reportData.cpi.values.length - 12 + i]?.toFixed(3)}%</td></tr>`
-            ).join('');
-
-            html += `
-                <div style="margin-bottom: 20px;">
-                    <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #0f172a;">CPI-U Monthly Data (Last 12 Months)</h3>
-                    <table>
-                        <tr>
-                            <th>Month</th>
-                            <th>MoM Change (%)</th>
-                        </tr>
-                        ${last12}
-                    </table>
-                </div>
-            `;
-        }
-
-        return html;
-    }
+        return '';
 
     /**
      * Download the report as HTML/PDF
