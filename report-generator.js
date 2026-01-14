@@ -564,6 +564,7 @@ class MonthlyReportGenerator {
      */
     generateDetailedTables() {
         return '';
+    }
 
     /**
      * Download the report as HTML/PDF
