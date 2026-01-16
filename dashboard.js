@@ -102,7 +102,7 @@ function ensureDefaults() {
     const start = document.getElementById('startYear');
     const end = document.getElementById('endYear');
     if (start && !start.value) start.value = '2023';
-    if (end && !end.value) end.value = '2025';
+    if (end && !end.value) end.value = '2026';
 }
 
 function registerPlugins() {
