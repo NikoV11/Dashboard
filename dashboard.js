@@ -570,23 +570,37 @@ function renderUnemploymentChart(filtered) {
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 6
+                pointRadius: 4,
+                pointBackgroundColor: '#CB6015',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8,
+                pointHoverBackgroundColor: '#CB6015'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 400 },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: { display: false },
                 datalabels: { display: false },
                 tooltip: {
+                    enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     padding: 12,
                     cornerRadius: 8,
+                    titleFont: { size: 13, weight: 'bold' },
+                    bodyFont: { size: 12 },
+                    borderColor: '#CB6015',
+                    borderWidth: 1,
                     callbacks: {
-                        label: (context) => `${context.parsed.y.toFixed(1)}%`
+                        title: (context) => context[0].label,
+                        label: (context) => `Rate: ${context.parsed.y.toFixed(2)}%`
                     }
                 }
             },
