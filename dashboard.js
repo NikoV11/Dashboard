@@ -245,7 +245,7 @@ async function loadData() {
             .sort((a, b) => new Date(a.date) - new Date(b.date));
         
         // Parse unemployment data and shift dates forward by 1 month (data is released 1 month behind)
-        const unemployment = (unemploymentRaw || [])
+        const unemploymentShifted = (unemploymentRaw || [])
             .map(o => {
                 const date = new Date(o.date);
                 date.setMonth(date.getMonth() + 1);
@@ -253,6 +253,14 @@ async function loadData() {
             })
             .filter(d => !Number.isNaN(d.value))
             .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Remove duplicate dates, keeping the latest value
+        const seen = {};
+        const unemployment = unemploymentShifted.filter(d => {
+            if (seen[d.date]) return false;
+            seen[d.date] = true;
+            return true;
+        });
 
         // Sort CPI data by date first
         const sortedCpiRaw = (cpiRaw || [])
