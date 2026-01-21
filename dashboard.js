@@ -1344,7 +1344,7 @@ function renderRevenueChart() {
     if (revenueChart) revenueChart.destroy();
     
     revenueChart = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels: labels,
             datasets: [{
