@@ -870,7 +870,12 @@ function renderMedianPriceChart() {
                     borderColor: '#002F6C',
                     borderWidth: 1,
                     callbacks: {
-                        label: (context) => `Price: $${(context.parsed.y / 1000).toFixed(0)}K`
+                        label: (context) => {
+                            const firstValue = context.dataset.data[0];
+                            const currentValue = context.parsed.y;
+                            const percentChange = ((currentValue - firstValue) / firstValue * 100).toFixed(2);
+                            return `Change: ${percentChange}%`;
+                        }
                     }
                 }
             },
