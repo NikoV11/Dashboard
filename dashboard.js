@@ -313,6 +313,14 @@ async function loadData() {
             console.log('Latest GDP:', gdp[gdp.length - 1]);
         }
         
+        console.log(`PAYEMS data points: ${payems.length}`);
+        if (payems.length > 0) {
+            console.log('First PAYEMS:', payems[0]);
+            console.log('Latest PAYEMS:', payems[payems.length - 1]);
+        } else {
+            console.warn('No PAYEMS data available');
+        }
+        
         console.log(`CPI data points: ${cpi.length}`);
         if (cpi.length > 0) {
             console.log('First CPI:', cpi[0]);
@@ -868,7 +876,20 @@ function renderSalesTaxChart() {
 
 function renderPayemsChart(filtered) {
     const canvas = document.getElementById('payemsChart');
-    if (!canvas || !filtered.payems || filtered.payems.length === 0) return;
+    if (!canvas) {
+        console.error('PAYEMS canvas element not found');
+        return;
+    }
+    
+    if (!filtered || !filtered.payems) {
+        console.error('Filtered object or payems data missing', { hasFiltered: !!filtered, hasPayems: filtered?.payems ? true : false });
+        return;
+    }
+    
+    if (filtered.payems.length === 0) {
+        console.error('PAYEMS array is empty');
+        return;
+    }
 
     const ctx = canvas.getContext('2d');
 
