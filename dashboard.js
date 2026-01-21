@@ -1931,6 +1931,21 @@ function setupTabs() {
             if (targetContent) {
                 targetContent.classList.add('active');
                 console.log('Activated tab:', tabId);
+                
+                // Trigger chart rendering for specific tabs
+                if (cachedData) {
+                    const filtered = filterData();
+                    
+                    if (tabId === 'unemployment') {
+                        renderUnemploymentChart(filtered);
+                    } else if (tabId === 'nonfarm-employment') {
+                        renderPayemsChart(filtered);
+                    } else if (tabId === 'mortgage-rates') {
+                        renderMortgageCharts();
+                    } else if (tabId === 'median-home-price') {
+                        renderMedianPriceChart();
+                    }
+                }
             } else {
                 console.error('Could not find tab content with id:', tabId);
             }
