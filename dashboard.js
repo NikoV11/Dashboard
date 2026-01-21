@@ -499,6 +499,12 @@ function renderCharts(filtered) {
         plugins: {
             legend: { display: false },
             tooltip: {
+                enabled: true,
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                padding: 12,
+                cornerRadius: 8,
+                borderColor: '#CB6015',
+                borderWidth: 1,
                 callbacks: {
                     label: ctx => `${ctx.parsed.y.toFixed(2)}%`
                 }
@@ -676,6 +682,10 @@ function renderEmploymentChart() {
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 400 },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: {
                     display: true,
@@ -691,9 +701,12 @@ function renderEmploymentChart() {
                     display: false
                 },
                 tooltip: {
+                    enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     padding: 12,
                     cornerRadius: 8,
+                    borderColor: '#CB6015',
+                    borderWidth: 1,
                     callbacks: {
                         label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`
                     }
@@ -747,13 +760,20 @@ function renderSalesTaxChart() {
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 400 },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: { display: false },
                 datalabels: { display: false },
                 tooltip: {
+                    enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     padding: 12,
                     cornerRadius: 8,
+                    borderColor: '#CB6015',
+                    borderWidth: 1,
                     callbacks: {
                         title: (items) => {
                             const idx = items[0].dataIndex;
@@ -823,23 +843,34 @@ function renderMedianPriceChart() {
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 6
+                pointRadius: 4,
+                pointBackgroundColor: '#002F6C',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8,
+                pointHoverBackgroundColor: '#002F6C'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 400 },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: { display: false },
                 datalabels: { display: false },
                 tooltip: {
+                    enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     padding: 12,
                     cornerRadius: 8,
+                    borderColor: '#002F6C',
+                    borderWidth: 1,
                     callbacks: {
-                        label: (context) => `${context.parsed.y.toFixed(2)}%`
+                        label: (context) => `Price: $${(context.parsed.y / 1000).toFixed(0)}K`
                     }
                 }
             },
@@ -922,23 +953,34 @@ function renderMortgageCharts() {
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 6
+                pointRadius: 4,
+                pointBackgroundColor: '#CB6015',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8,
+                pointHoverBackgroundColor: '#CB6015'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 400 },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: { display: false },
                 datalabels: { display: false },
                 tooltip: {
+                    enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     padding: 12,
                     cornerRadius: 8,
+                    borderColor: '#CB6015',
+                    borderWidth: 1,
                     callbacks: {
-                        label: (context) => `${context.parsed.y.toFixed(2)}%`
+                        label: (context) => `Rate: ${context.parsed.y.toFixed(2)}%`
                     }
                 }
             },
@@ -981,23 +1023,34 @@ function renderMortgageCharts() {
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 0,
-                pointHoverRadius: 6
+                pointRadius: 4,
+                pointBackgroundColor: '#002F6C',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8,
+                pointHoverBackgroundColor: '#002F6C'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 400 },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: { display: false },
                 datalabels: { display: false },
                 tooltip: {
+                    enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     padding: 12,
                     cornerRadius: 8,
+                    borderColor: '#002F6C',
+                    borderWidth: 1,
                     callbacks: {
-                        label: (context) => `${context.parsed.y.toFixed(2)}%`
+                        label: (context) => `Rate: ${context.parsed.y.toFixed(2)}%`
                     }
                 }
             },
@@ -1180,9 +1233,12 @@ function renderRevenueChart() {
                 },
                 datalabels: { display: false },
                 tooltip: {
+                    enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
                     padding: 12,
                     cornerRadius: 8,
+                    borderColor: '#CB6015',
+                    borderWidth: 1,
                     callbacks: {
                         label: (context) => {
                             const value = context.parsed;
