@@ -84,6 +84,7 @@
                     <button class="sub-tab-btn active" data-tab="gdp">GDP</button>
                     <button class="sub-tab-btn" data-tab="cpi">CPI-U</button>
                     <button class="sub-tab-btn" data-tab="unemployment">Unemployment</button>
+                    <button class="sub-tab-btn" data-tab="nonfarm-employment">Total Nonfarm Employment</button>
                     <button class="sub-tab-btn" data-tab="mortgage-rates">Mortgage Rates</button>
                 </nav>
             </div>
@@ -167,7 +168,17 @@
                         <h3>Monthly Unemployment Rate (%)</h3>
                         <canvas id="unemploymentChart" role="img" aria-label="Unemployment Rate Chart"></canvas>
                     </div>
-                    <div class="chart-card" style="margin-top: 20px;">
+                </section>
+            </div>
+
+            <!-- Total Nonfarm Employment Tab -->
+            <div class="tab-content" id="nonfarm-employment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Total Nonfarm Employment</h2>
+                            <p class="chip" style="background: #7C3AED; color: white;">FRED: PAYEMS</p>
+                        </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="sharePayemsBtn" class="ghost" title="Share chart">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
@@ -176,7 +187,9 @@
                             </button>
                             <button id="downloadPayemsBtn" class="ghost">Download CSV</button>
                         </div>
-                        <h3>Nonfarm Payroll Employment (Monthly Change in Thousands)</h3>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Change in Thousands of Persons (Seasonally Adjusted)</h3>
                         <canvas id="payemsChart" role="img" aria-label="Nonfarm Payroll Employment Chart"></canvas>
                     </div>
                 </section>
