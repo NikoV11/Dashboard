@@ -1357,7 +1357,6 @@ function handleMortgageDownload() {
 
 function wireEvents() {
     document.getElementById('updateBtn')?.addEventListener('click', renderAll);
-    document.getElementById('generateReportBtn')?.addEventListener('click', handleGenerateReport);
     document.getElementById('downloadGDPBtn')?.addEventListener('click', handleGDPDownload);
     document.getElementById('downloadCPIBtn')?.addEventListener('click', handleCPIDownload);
     document.getElementById('downloadUnemploymentBtn')?.addEventListener('click', handleUnemploymentDownload);
@@ -1657,63 +1656,7 @@ function init() {
     loadRevenueData();
 }
 
-// ========== Monthly Report Handler ==========
 
-function handleGenerateReport() {
-    // Get current month and year
-    const now = new Date();
-    const month = now.getMonth() + 1; // 1-12
-    const year = now.getFullYear();
-    
-    // Show a dialog to let user select month/year
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    
-    let html = `
-        <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10001;">
-            <div style="background: white; padding: 32px; border-radius: 14px; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-                <h2 style="margin: 0 0 20px 0; color: #0f172a; font-size: 24px;">Generate Monthly Report</h2>
-                
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; color: #0f172a; font-weight: 500; font-size: 14px;">Select Month</label>
-                    <select id="reportMonth" style="width: 100%; padding: 10px; border: 1px solid #e4e7ec; border-radius: 8px; font-size: 14px;">
-                        ${monthNames.map((m, i) => `<option value="${i + 1}" ${(i + 1) === month ? 'selected' : ''}>${m}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; color: #0f172a; font-weight: 500; font-size: 14px;">Select Year</label>
-                    <select id="reportYear" style="width: 100%; padding: 10px; border: 1px solid #e4e7ec; border-radius: 8px; font-size: 14px;">
-                        ${[2023, 2024, 2025, 2026].map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div style="display: flex; gap: 12px;">
-                    <button id="generateBtn" style="flex: 1; padding: 12px; background: #CB6015; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">Generate</button>
-                    <button id="cancelBtn" style="flex: 1; padding: 12px; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;">Cancel</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    const dialog = document.createElement('div');
-    dialog.innerHTML = html;
-    document.body.appendChild(dialog);
-    
-    document.getElementById('generateBtn').addEventListener('click', () => {
-        const selectedMonth = parseInt(document.getElementById('reportMonth').value);
-        const selectedYear = parseInt(document.getElementById('reportYear').value);
-        document.body.removeChild(dialog);
-        
-        if (typeof reportGenerator !== 'undefined') {
-            reportGenerator.generateReport(selectedMonth, selectedYear);
-        }
-    });
-    
-    document.getElementById('cancelBtn').addEventListener('click', () => {
-        document.body.removeChild(dialog);
-    });
-}
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
