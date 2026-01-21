@@ -111,6 +111,10 @@ function registerPlugins() {
     }
 }
 
+// Data cache for resilience
+const dataCache = {};
+const CACHE_DURATION = 3600000; // 1 hour
+
 async function withTimeout(promise, ms) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ms);
@@ -124,35 +128,67 @@ async function withTimeout(promise, ms) {
     }
 }
 
+async function fetchWithRetry(url, maxRetries = 3, timeout = 12000) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const res = await withTimeout(signal => fetch(url, { signal }), timeout);
+            if (res.ok) return res;
+            throw new Error(`HTTP ${res.status}`);
+        } catch (err) {
+            const isLastAttempt = attempt === maxRetries;
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Exponential backoff
+            console.log(`[Attempt ${attempt}/${maxRetries}] Failed: ${err.message}${isLastAttempt ? ' (final)' : `, retrying in ${delay}ms`}`);
+            
+            if (!isLastAttempt) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                throw err;
+            }
+        }
+    }
+}
+
 async function fetchSeries(seriesId) {
-    // Try Netlify function first
+    // Check cache first
+    if (dataCache[seriesId] && Date.now() - dataCache[seriesId].timestamp < CACHE_DURATION) {
+        console.log(`[${seriesId}] Using cached data`);
+        return dataCache[seriesId].data;
+    }
+
+    // Try Netlify function first (most reliable)
     try {
         const url = `${FRED_FUNCTION}?seriesId=${seriesId}`;
-        const res = await withTimeout(signal => fetch(url, { signal }), 9000);
-        if (res.ok) {
-            const data = await res.json();
-            return data.observations || [];
+        console.log(`[${seriesId}] Trying Netlify function...`);
+        const res = await fetchWithRetry(url, 2, 12000);
+        const data = await res.json();
+        const observations = data.observations || [];
+        if (observations.length > 0) {
+            dataCache[seriesId] = { data: observations, timestamp: Date.now() };
+            console.log(`[${seriesId}] Successfully fetched ${observations.length} records from Netlify`);
+            return observations;
         }
-        throw new Error(`Function returned ${res.status}`);
+        throw new Error('No observations returned');
     } catch (err) {
         console.warn(`[${seriesId}] Netlify function failed: ${err.message}`);
     }
 
-    // Fallback proxies
+    // Fallback to CORS proxies
     const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000`;
     const proxies = [
         'https://api.allorigins.win/raw?url=',
-        'https://cors.isomorphic-git.org/',
-        'https://thingproxy.freeboard.io/fetch/'
+        'https://thingproxy.freeboard.io/fetch/',
+        'https://cors.isomorphic-git.org/'
     ];
 
     for (let i = 0; i < proxies.length; i++) {
         const proxyUrl = proxies[i] + encodeURIComponent(url);
         try {
-            const res = await withTimeout(signal => fetch(proxyUrl, { signal }), 9000);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            console.log(`[${seriesId}] Trying proxy ${i + 1}/${proxies.length}...`);
+            const res = await fetchWithRetry(proxyUrl, 2, 12000);
             const data = await res.json();
             if (data.observations && data.observations.length) {
+                dataCache[seriesId] = { data: data.observations, timestamp: Date.now() };
+                console.log(`[${seriesId}] Successfully fetched ${data.observations.length} records from proxy ${i + 1}`);
                 return data.observations;
             }
             throw new Error('No observations');
@@ -167,11 +203,40 @@ async function fetchSeries(seriesId) {
 async function loadData() {
     setStatus('Loading US economic data...', 'muted');
     try {
-        const [gdpRaw, cpiRaw, unemploymentRaw] = await Promise.all([
+        console.log('Starting data load...');
+        const results = await Promise.allSettled([
             fetchSeries(GDP_ID),
             fetchSeries(CPI_ID),
             fetchSeries(UNEMPLOYMENT_ID)
         ]);
+
+        // Handle settled promises - use fallback if any fail
+        let gdpRaw = [];
+        let cpiRaw = [];
+        let unemploymentRaw = [];
+
+        if (results[0].status === 'fulfilled' && results[0].value?.length) {
+            gdpRaw = results[0].value;
+        } else {
+            console.warn('GDP fetch failed, will use sample data');
+        }
+
+        if (results[1].status === 'fulfilled' && results[1].value?.length) {
+            cpiRaw = results[1].value;
+        } else {
+            console.warn('CPI fetch failed, will use sample data');
+        }
+
+        if (results[2].status === 'fulfilled' && results[2].value?.length) {
+            unemploymentRaw = results[2].value;
+        } else {
+            console.warn('Unemployment fetch failed, will use sample data');
+        }
+
+        // If all three failed, use sample data
+        if (!gdpRaw.length && !cpiRaw.length && !unemploymentRaw.length) {
+            throw new Error('All series failed to fetch');
+        }
 
         // Sort GDP data by date and parse
         const gdp = (gdpRaw || [])
@@ -226,10 +291,16 @@ async function loadData() {
         
         setStatus(`US economic data loaded successfully. GDP: ${gdp.length} quarters, CPI: ${cpi.length} months, Unemployment: ${unemployment.length} months`, 'success');
     } catch (error) {
-        console.warn('Falling back to sample data:', error.message);
+        console.error('All data fetch attempts failed, falling back to sample data:', error.message);
         cachedData = { ...SAMPLE_DATA };
         dataSource = 'sample';
-        setStatus('Displaying sample data (live API temporarily unavailable).', 'warn');
+        setStatus('Using sample data. Live API temporarily unavailable - retrying in 30s', 'warn');
+        
+        // Retry after 30 seconds
+        setTimeout(() => {
+            console.log('Retrying data load after fallback...');
+            loadData();
+        }, 30000);
     }
 
     renderAll();
