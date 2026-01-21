@@ -902,17 +902,17 @@ function renderPayemsChart(filtered) {
             datasets: [{
                 label: 'Nonfarm Employment Change',
                 data: filtered.payems.map(d => d.value),
-                borderColor: '#7C3AED',
+                borderColor: '#002F6C',
                 backgroundColor: 'rgba(124, 58, 237, 0.1)',
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
                 pointRadius: 0,
-                pointBackgroundColor: '#7C3AED',
+                pointBackgroundColor: '#002F6C',
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
-                pointHoverBackgroundColor: '#7C3AED'
+                pointHoverBackgroundColor: '#002F6C'
             }]
         },
         options: {
@@ -933,7 +933,7 @@ function renderPayemsChart(filtered) {
                     cornerRadius: 8,
                     titleFont: { size: 13, weight: 'bold' },
                     bodyFont: { size: 12 },
-                    borderColor: '#7C3AED',
+                    borderColor: '#002F6C',
                     borderWidth: 1,
                     callbacks: {
                         title: (context) => context[0].label,
