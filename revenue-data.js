@@ -41284,5 +41284,317 @@ const REVENUE_DATA = [
     "month": "August",
     "category": "Total Net Revenue",
     "value": 16063682.939360002
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Sales Taxes",
+    "value": 3944667.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Sales Taxes",
+    "value": 3987666.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Sales Taxes",
+    "value": 4298214.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Sales Taxes",
+    "value": 4097191.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Motor Vehicle Sales and Rental Taxes",
+    "value": 650932.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Motor Vehicle Sales and Rental Taxes",
+    "value": 691805.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Motor Vehicle Sales and Rental Taxes",
+    "value": 578303.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Motor Vehicle Sales and Rental Taxes",
+    "value": 610619.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Motor Fuel Taxes",
+    "value": 72843.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Motor Fuel Taxes",
+    "value": 89973.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Motor Fuel Taxes",
+    "value": 108976.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Motor Fuel Taxes",
+    "value": 64904.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Franchise Tax",
+    "value": 21235.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Franchise Tax",
+    "value": 7297.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Franchise Tax",
+    "value": 52335.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Franchise Tax",
+    "value": -62376.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Oil Production Tax",
+    "value": 444011.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Oil Production Tax",
+    "value": 405014.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Oil Production Tax",
+    "value": 412834.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Oil Production Tax",
+    "value": 393818.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Insurance Taxes",
+    "value": 45371.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Insurance Taxes",
+    "value": 56159.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Insurance Taxes",
+    "value": 65384.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Insurance Taxes",
+    "value": 61839.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Cigarette and Tobacco Taxes",
+    "value": 66194.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Cigarette and Tobacco Taxes",
+    "value": 57270.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Cigarette and Tobacco Taxes",
+    "value": 39235.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Cigarette and Tobacco Taxes",
+    "value": 53016.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Natural Gas Production Tax",
+    "value": 223579.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Natural Gas Production Tax",
+    "value": 228033.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Natural Gas Production Tax",
+    "value": 168742.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Natural Gas Production Tax",
+    "value": 168601.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Alcoholic Beverages Taxes",
+    "value": 150003.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Alcoholic Beverages Taxes",
+    "value": 145557.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Alcoholic Beverages Taxes",
+    "value": 155170.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Alcoholic Beverages Taxes",
+    "value": 147804.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Hotel Occupancy Tax",
+    "value": 59297.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Hotel Occupancy Tax",
+    "value": 64635.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Hotel Occupancy Tax",
+    "value": 78162.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Hotel Occupancy Tax",
+    "value": 60892.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Utility Taxes",
+    "value": 1759.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Utility Taxes",
+    "value": 169137.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Utility Taxes",
+    "value": 10779.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Utility Taxes",
+    "value": 1201.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Other Taxes",
+    "value": 12567.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Other Taxes",
+    "value": 12201.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Other Taxes",
+    "value": 14555.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Other Taxes",
+    "value": 12984.0
+  },
+  {
+    "year": 2026,
+    "month": "September",
+    "category": "Total Net Revenue",
+    "value": 5692459.0
+  },
+  {
+    "year": 2026,
+    "month": "October",
+    "category": "Total Net Revenue",
+    "value": 5914748.0
+  },
+  {
+    "year": 2026,
+    "month": "November",
+    "category": "Total Net Revenue",
+    "value": 5982689.0
+  },
+  {
+    "year": 2026,
+    "month": "December",
+    "category": "Total Net Revenue",
+    "value": 5610492.0
   }
 ];
