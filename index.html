@@ -167,6 +167,18 @@
                         <h3>Monthly Unemployment Rate (%)</h3>
                         <canvas id="unemploymentChart" role="img" aria-label="Unemployment Rate Chart"></canvas>
                     </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <div style="display: flex; gap: 8px;">
+                            <button id="sharePayemsBtn" class="ghost" title="Share chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadPayemsBtn" class="ghost">Download CSV</button>
+                        </div>
+                        <h3>Nonfarm Payroll Employment (Monthly Change in Thousands)</h3>
+                        <canvas id="payemsChart" role="img" aria-label="Nonfarm Payroll Employment Chart"></canvas>
+                    </div>
                 </section>
             </div>
 
@@ -316,7 +328,7 @@
 
         <footer>
             <p><strong>Hibbs Monitor</strong> — East Texas & US Economic Dashboard by UT Tyler Hibbs Institute</p>
-            <p style="margin-top: 8px; font-size: 0.9rem;"><strong>Data Sources:</strong> Federal Reserve Economic Data (FRED) - GDP (A191RL1Q225SBEA), CPI-U (CPIAUCSL), Unemployment Rate (UNRATE), Median Home Price MoM (MEDLISPRIMM46340); Texas Comptroller of Public Accounts - State Tax Collections & Tyler MSA Sales Tax; Freddie Mac - Primary Mortgage Market Survey (30-year & 15-year rates); Bureau of Labor Statistics - Tyler MSA & Texas Employment Data</p>
+            <p style="margin-top: 8px; font-size: 0.9rem;"><strong>Data Sources:</strong> Federal Reserve Economic Data (FRED) - GDP (A191RL1Q225SBEA), CPI-U (CPIAUCSL), Unemployment Rate (UNRATE), Nonfarm Payroll Employment (PAYEMS), Median Home Price MoM (MEDLISPRIMM46340); Texas Comptroller of Public Accounts - State Tax Collections & Tyler MSA Sales Tax; Freddie Mac - Primary Mortgage Market Survey (30-year & 15-year rates); Bureau of Labor Statistics - Tyler MSA & Texas Employment Data</p>
             <p style="margin-top: 8px; font-size: 0.85rem; color: #64748b;">Tyler MSA includes: Tyler, Lindale, Whitehouse, Bullard, Troup, Noonday, Arp, Winona, and New Chapel Hill. Texas fiscal year runs September through August.</p>
         </footer>
     </div>

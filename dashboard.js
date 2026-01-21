@@ -1,6 +1,7 @@
 ﻿const GDP_ID = 'A191RL1Q225SBEA';
 const CPI_ID = 'CPIAUCSL';
 const UNEMPLOYMENT_ID = 'UNRATE';
+const PAYEMS_ID = 'PAYEMS';
 const MEDIAN_PRICE_ID = 'MEDLISPRIMM46340';
 const FRED_FUNCTION = '/.netlify/functions/fred-proxy';
 const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
@@ -77,6 +78,7 @@ const SAMPLE_DATA = {
 let gdpChart = null;
 let cpiChart = null;
 let unemploymentChart = null;
+let payemsChart = null;
 let employmentChart = null;
 let salesTaxChart = null;
 let medianPriceChart = null;
@@ -207,13 +209,15 @@ async function loadData() {
         const results = await Promise.allSettled([
             fetchSeries(GDP_ID),
             fetchSeries(CPI_ID),
-            fetchSeries(UNEMPLOYMENT_ID)
+            fetchSeries(UNEMPLOYMENT_ID),
+            fetchSeries(PAYEMS_ID)
         ]);
 
         // Handle settled promises - use fallback if any fail
         let gdpRaw = [];
         let cpiRaw = [];
         let unemploymentRaw = [];
+        let payemsRaw = [];
 
         if (results[0].status === 'fulfilled' && results[0].value?.length) {
             gdpRaw = results[0].value;
@@ -233,8 +237,14 @@ async function loadData() {
             console.warn('Unemployment fetch failed, will use sample data');
         }
 
-        // If all three failed, use sample data
-        if (!gdpRaw.length && !cpiRaw.length && !unemploymentRaw.length) {
+        if (results[3].status === 'fulfilled' && results[3].value?.length) {
+            payemsRaw = results[3].value;
+        } else {
+            console.warn('PAYEMS fetch failed, will use sample data');
+        }
+
+        // If all series failed, use sample data
+        if (!gdpRaw.length && !cpiRaw.length && !unemploymentRaw.length && !payemsRaw.length) {
             throw new Error('All series failed to fetch');
         }
 
@@ -279,7 +289,21 @@ async function loadData() {
             }
         }
 
-        cachedData = { gdp, cpi, unemployment };
+        // Parse PAYEMS data - calculate month-over-month change in thousands
+        const sortedPayemsRaw = (payemsRaw || [])
+            .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+            .filter(d => !Number.isNaN(d.value))
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        const payems = [];
+        for (let i = 1; i < sortedPayemsRaw.length; i++) {
+            const curr = sortedPayemsRaw[i].value;
+            const prev = sortedPayemsRaw[i - 1].value;
+            const change = curr - prev;
+            payems.push({ date: sortedPayemsRaw[i].date, value: parseFloat(change.toFixed(0)) });
+        }
+
+        cachedData = { gdp, cpi, unemployment, payems };
         dataSource = 'live';
         
         // Log the data information
@@ -494,7 +518,11 @@ function filterData() {
         const y = new Date(d.date).getFullYear();
         return y >= start && y <= end;
     });
-    return { gdp, cpi, unemployment };
+    const payems = cachedData.payems.filter(d => {
+        const y = new Date(d.date).getFullYear();
+        return y >= start && y <= end;
+    });
+    return { gdp, cpi, unemployment, payems };
 }
 
 function renderCharts(filtered) {
@@ -563,6 +591,9 @@ function renderCharts(filtered) {
 
     // Unemployment Chart
     renderUnemploymentChart(filtered);
+    
+    // National Payroll Employment Chart
+    renderPayemsChart(filtered);
     
     // Employment Chart
     renderEmploymentChart();
@@ -825,6 +856,87 @@ function renderSalesTaxChart() {
                         callback: (value) => {
                             // Format as millions
                             return `$${(value / 1000000).toFixed(1)}M`;
+                        },
+                        font: { size: 12, weight: '500' },
+                        color: '#475569'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderPayemsChart(filtered) {
+    const canvas = document.getElementById('payemsChart');
+    if (!canvas || !filtered.payems || filtered.payems.length === 0) return;
+
+    const ctx = canvas.getContext('2d');
+
+    if (payemsChart) payemsChart.destroy();
+    
+    payemsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: filtered.payems.map(d => formatMonthLabel(d.date)),
+            datasets: [{
+                label: 'Nonfarm Employment Change',
+                data: filtered.payems.map(d => d.value),
+                borderColor: '#7C3AED',
+                backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 0,
+                pointBackgroundColor: '#7C3AED',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8,
+                pointHoverBackgroundColor: '#7C3AED'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: false },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    titleFont: { size: 13, weight: 'bold' },
+                    bodyFont: { size: 12 },
+                    borderColor: '#7C3AED',
+                    borderWidth: 1,
+                    callbacks: {
+                        title: (context) => context[0].label,
+                        label: (context) => `Change: ${context.parsed.y.toLocaleString()} thousands`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 15,
+                        font: { size: 11 },
+                        color: '#64748b'
+                    }
+                },
+                y: {
+                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    ticks: {
+                        callback: (value) => {
+                            return `${value.toLocaleString()}K`;
                         },
                         font: { size: 12, weight: '500' },
                         color: '#475569'
@@ -1388,6 +1500,26 @@ function handleUnemploymentDownload() {
     URL.revokeObjectURL(url);
 }
 
+function handlePayemsDownload() {
+    if (!cachedData) return;
+    const filtered = filterData();
+    
+    let csv = 'Date,Nonfarm Payroll Change (Thousands)\n';
+    filtered.payems.forEach(d => {
+        csv += `${formatMonthLabel(d.date)},${d.value}\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `us_payroll_employment_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 function formatQuarterLabel(dateStr) {
     const d = new Date(dateStr);
     const month = d.getUTCMonth(); // Use UTC to avoid timezone issues
@@ -1518,6 +1650,7 @@ function wireEvents() {
     document.getElementById('downloadGDPBtn')?.addEventListener('click', handleGDPDownload);
     document.getElementById('downloadCPIBtn')?.addEventListener('click', handleCPIDownload);
     document.getElementById('downloadUnemploymentBtn')?.addEventListener('click', handleUnemploymentDownload);
+    document.getElementById('downloadPayemsBtn')?.addEventListener('click', handlePayemsDownload);
     document.getElementById('downloadEmploymentBtn')?.addEventListener('click', handleEmploymentDownload);
     document.getElementById('downloadSalesTaxBtn')?.addEventListener('click', handleSalesTaxDownload);
     document.getElementById('downloadMedianPriceBtn')?.addEventListener('click', handleMedianPriceDownload);
@@ -1533,6 +1666,7 @@ function setupShareButtons() {
         { id: 'shareGDPBtn', chart: () => gdpChart, name: 'Real GDP Growth' },
         { id: 'shareCPIBtn', chart: () => cpiChart, name: 'CPI-U Inflation' },
         { id: 'shareUnemploymentBtn', chart: () => unemploymentChart, name: 'Unemployment Rate' },
+        { id: 'sharePayemsBtn', chart: () => payemsChart, name: 'Nonfarm Payroll Employment' },
         { id: 'shareEmploymentBtn', chart: () => employmentChart, name: 'Employment Trends' },
         { id: 'shareSalesTaxBtn', chart: () => salesTaxChart, name: 'Tyler MSA Sales Tax' },
         { id: 'shareMedianPriceBtn', chart: () => medianPriceChart, name: 'Tyler Median Home Price' },
