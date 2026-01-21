@@ -244,9 +244,13 @@ async function loadData() {
             .filter(d => !Number.isNaN(d.value))
             .sort((a, b) => new Date(a.date) - new Date(b.date));
         
-        // Parse unemployment data
+        // Parse unemployment data and shift dates forward by 1 month (data is released 1 month behind)
         const unemployment = (unemploymentRaw || [])
-            .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+            .map(o => {
+                const date = new Date(o.date);
+                date.setMonth(date.getMonth() + 1);
+                return { date: date.toISOString().split('T')[0], value: parseFloat(o.value) };
+            })
             .filter(d => !Number.isNaN(d.value))
             .sort((a, b) => new Date(a.date) - new Date(b.date));
 
