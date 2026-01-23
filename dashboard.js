@@ -797,51 +797,26 @@ function renderSalesTaxChart() {
     if (!canvas || !salesTaxData || salesTaxData.length === 0) return;
     
     const ctx = canvas.getContext('2d');
+function renderSalesTaxChart() {
+    const canvas = document.getElementById('salesTaxChart');
+    if (!canvas || !salesTaxData || salesTaxData.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
 
     if (salesTaxChart) salesTaxChart.destroy();
-    
-    // Get all unique cities from data
-    const allCities = new Set();
-    salesTaxData.forEach(d => {
-        Object.keys(d.cityData || {}).forEach(city => allCities.add(city));
-    });
-    const cities = Array.from(allCities).sort();
-    
-    // Define colors for each city
-    const cityColors = {
-        'Tyler': '#CB6015',
-        'Lindale': '#1c17ad',
-        'Whitehouse': '#ff0000',
-        'Bullard': '#600157',
-        'Troup': '#555351',
-        'Noonday': '#232321',
-        'Arp': '#e6cc0a',
-        'Winona': '#17cd54',
-        'New Chapel Hill': '#6B3E1F'
-    };
-    
-    // Create datasets for each city
-    const datasets = cities.map((city, idx) => {
-        const colors = Object.values(cityColors);
-        const color = cityColors[city] || colors[idx % colors.length];
-        
-        return {
-            label: city,
-            data: salesTaxData.map(d => d.cityData[city] || 0),
-            backgroundColor: color,
-            borderRadius: 4,
-            borderSkipped: false
-        };
-    });
     
     salesTaxChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: salesTaxData.map(d => formatMonthLabel(d.date)),
-            datasets: datasets
+            datasets: [{
+                label: 'Net Collections',
+                data: salesTaxData.map(d => d.value),
+                backgroundColor: '#CB6015',
+                borderRadius: 6
+            }]
         },
         options: {
-            indexAxis: undefined,
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 400 },
@@ -850,22 +825,7 @@ function renderSalesTaxChart() {
                 intersect: false
             },
             plugins: {
-                legend: { 
-                    display: true,
-                    position: 'bottom',
-                    labels: {
-                        padding: 15,
-                        font: { size: 12, weight: '500' },
-                        generateLabels: (chart) => {
-                            return chart.data.datasets.map((dataset, i) => ({
-                                text: dataset.label,
-                                fillStyle: dataset.backgroundColor,
-                                hidden: false,
-                                index: i
-                            }));
-                        }
-                    }
-                },
+                legend: { display: false },
                 datalabels: { display: false },
                 tooltip: {
                     enabled: true,
@@ -884,29 +844,22 @@ function renderSalesTaxChart() {
                             return '';
                         },
                         label: (context) => {
-                            const city = context.dataset.label;
                             const value = context.parsed.y;
-                            return `${city}: $${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+                            return `Total: $${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
                         },
-                        afterBody: (items) => {
-                            if (items.length > 0) {
-                                const idx = items[0].dataIndex;
-                                const data = salesTaxData[idx];
-                                const total = data.value;
-                                return [
-                                    `Total: $${total.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
-                                    `MoM Change: ${data.periodChange.toFixed(2)}%`,
-                                    `YoY Change: ${data.yoyChange.toFixed(2)}%`
-                                ];
-                            }
-                            return [];
+                        afterLabel: (context) => {
+                            const idx = context.dataIndex;
+                            const data = salesTaxData[idx];
+                            return [
+                                `MoM Change: ${data.periodChange.toFixed(2)}%`,
+                                `YoY Change: ${data.yoyChange.toFixed(2)}%`
+                            ];
                         }
                     }
                 }
             },
             scales: {
                 x: {
-                    stacked: true,
                     grid: { display: false },
                     ticks: {
                         maxRotation: 45,
@@ -918,7 +871,6 @@ function renderSalesTaxChart() {
                     }
                 },
                 y: {
-                    stacked: true,
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
                         callback: (value) => {
