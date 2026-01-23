@@ -1957,7 +1957,9 @@ function setupTabs() {
                 if (cachedData) {
                     const filtered = filterData();
                     
-                    if (tabId === 'unemployment') {
+                    if (tabId === 'gdp' || tabId === 'cpi') {
+                        renderCharts(filtered);
+                    } else if (tabId === 'unemployment') {
                         renderUnemploymentChart(filtered);
                     } else if (tabId === 'nonfarm-employment') {
                         renderPayemsChart(filtered);
