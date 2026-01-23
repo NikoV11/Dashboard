@@ -376,12 +376,13 @@ async function loadSalesTaxData() {
         
         console.log(`Fetched ${allData.length} total records from ${msaCities.length} cities`);
         
-        // Group by year and month, summing net payments
+        // Group by year and month, tracking city data separately
         const grouped = new Map();
         
         allData.forEach(d => {
             const year = parseInt(d.report_year);
             const month = parseInt(d.report_month);
+            const city = d.city || 'Unknown';
             
             // Filter by year range
             if (year < startYear || year > endYear) return;
@@ -390,14 +391,16 @@ async function loadSalesTaxData() {
             const value = parseFloat(d.net_payment_this_period) || 0;
             
             if (grouped.has(key)) {
-                grouped.get(key).value += value;
-                grouped.get(key).count += 1;
+                const existing = grouped.get(key);
+                existing.totalValue += value;
+                if (!existing.cityData) existing.cityData = {};
+                existing.cityData[city] = (existing.cityData[city] || 0) + value;
             } else {
                 grouped.set(key, {
                     year,
                     month,
-                    value,
-                    count: 1,
+                    totalValue: value,
+                    cityData: { [city]: value },
                     date: `${year}-${String(month).padStart(2, '0')}-01`
                 });
             }
@@ -410,9 +413,9 @@ async function loadSalesTaxData() {
                 // Calculate month-over-month change
                 let periodChange = 0;
                 if (idx > 0) {
-                    const prevValue = arr[idx - 1].value;
+                    const prevValue = arr[idx - 1].totalValue;
                     if (prevValue !== 0) {
-                        periodChange = ((item.value - prevValue) / prevValue) * 100;
+                        periodChange = ((item.totalValue - prevValue) / prevValue) * 100;
                     }
                 }
                 
@@ -420,15 +423,16 @@ async function loadSalesTaxData() {
                 let yoyChange = 0;
                 const prevYearIdx = arr.findIndex(d => d.year === item.year - 1 && d.month === item.month);
                 if (prevYearIdx !== -1) {
-                    const prevYearValue = arr[prevYearIdx].value;
+                    const prevYearValue = arr[prevYearIdx].totalValue;
                     if (prevYearValue !== 0) {
-                        yoyChange = ((item.value - prevYearValue) / prevYearValue) * 100;
+                        yoyChange = ((item.totalValue - prevYearValue) / prevYearValue) * 100;
                     }
                 }
                 
                 return {
                     date: item.date,
-                    value: item.value,
+                    value: item.totalValue,
+                    cityData: item.cityData || {},
                     periodChange,
                     yoyChange,
                     year: item.year,
@@ -796,18 +800,48 @@ function renderSalesTaxChart() {
 
     if (salesTaxChart) salesTaxChart.destroy();
     
+    // Get all unique cities from data
+    const allCities = new Set();
+    salesTaxData.forEach(d => {
+        Object.keys(d.cityData || {}).forEach(city => allCities.add(city));
+    });
+    const cities = Array.from(allCities).sort();
+    
+    // Define colors for each city
+    const cityColors = {
+        'Tyler': '#CB6015',
+        'Lindale': '#1c17ad',
+        'Whitehouse': '#ff0000',
+        'Bullard': '#600157',
+        'Troup': '#555351',
+        'Noonday': '#232321',
+        'Arp': '#e6cc0a',
+        'Winona': '#17cd54',
+        'New Chapel Hill': '#6B3E1F'
+    };
+    
+    // Create datasets for each city
+    const datasets = cities.map((city, idx) => {
+        const colors = Object.values(cityColors);
+        const color = cityColors[city] || colors[idx % colors.length];
+        
+        return {
+            label: city,
+            data: salesTaxData.map(d => d.cityData[city] || 0),
+            backgroundColor: color,
+            borderRadius: 4,
+            borderSkipped: false
+        };
+    });
+    
     salesTaxChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: salesTaxData.map(d => formatMonthLabel(d.date)),
-            datasets: [{
-                label: 'Net Collections',
-                data: salesTaxData.map(d => d.value),
-                backgroundColor: '#CB6015',
-                borderRadius: 6
-            }]
+            datasets: datasets
         },
         options: {
+            indexAxis: undefined,
             responsive: true,
             maintainAspectRatio: false,
             animation: { duration: 400 },
@@ -816,7 +850,22 @@ function renderSalesTaxChart() {
                 intersect: false
             },
             plugins: {
-                legend: { display: false },
+                legend: { 
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        padding: 15,
+                        font: { size: 12, weight: '500' },
+                        generateLabels: (chart) => {
+                            return chart.data.datasets.map((dataset, i) => ({
+                                text: dataset.label,
+                                fillStyle: dataset.backgroundColor,
+                                hidden: false,
+                                index: i
+                            }));
+                        }
+                    }
+                },
                 datalabels: { display: false },
                 tooltip: {
                     enabled: true,
@@ -827,27 +876,37 @@ function renderSalesTaxChart() {
                     borderWidth: 1,
                     callbacks: {
                         title: (items) => {
-                            const idx = items[0].dataIndex;
-                            const data = salesTaxData[idx];
-                            return formatMonthLabel(data.date);
+                            if (items.length > 0) {
+                                const idx = items[0].dataIndex;
+                                const data = salesTaxData[idx];
+                                return formatMonthLabel(data.date);
+                            }
+                            return '';
                         },
                         label: (context) => {
+                            const city = context.dataset.label;
                             const value = context.parsed.y;
-                            return `Net Payment: $${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+                            return `${city}: $${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
                         },
-                        afterLabel: (context) => {
-                            const idx = context.dataIndex;
-                            const data = salesTaxData[idx];
-                            return [
-                                `MoM Change: ${data.periodChange.toFixed(2)}%`,
-                                `YoY Change: ${data.yoyChange.toFixed(2)}%`
-                            ];
+                        afterBody: (items) => {
+                            if (items.length > 0) {
+                                const idx = items[0].dataIndex;
+                                const data = salesTaxData[idx];
+                                const total = data.value;
+                                return [
+                                    `Total: $${total.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
+                                    `MoM Change: ${data.periodChange.toFixed(2)}%`,
+                                    `YoY Change: ${data.yoyChange.toFixed(2)}%`
+                                ];
+                            }
+                            return [];
                         }
                     }
                 }
             },
             scales: {
                 x: {
+                    stacked: true,
                     grid: { display: false },
                     ticks: {
                         maxRotation: 45,
@@ -859,6 +918,7 @@ function renderSalesTaxChart() {
                     }
                 },
                 y: {
+                    stacked: true,
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
                         callback: (value) => {
@@ -1598,11 +1658,20 @@ function handleSalesTaxDownload() {
         return;
     }
     
-    let csv = 'Date,Net Payment ($),Period Change (%),Year-over-Year Change (%)\n';
+    // Get all unique cities
+    const allCities = new Set();
+    salesTaxData.forEach(d => {
+        Object.keys(d.cityData || {}).forEach(city => allCities.add(city));
+    });
+    const cities = Array.from(allCities).sort();
+    
+    // Create header with city columns
+    let csv = 'Date,Total ($),' + cities.map(c => `${c} ($)`).join(',') + ',Period Change (%),Year-over-Year Change (%)\n';
     
     salesTaxData.forEach(item => {
         csv += `${formatMonthLabel(item.date)},`;
         csv += `${item.value.toFixed(2)},`;
+        csv += cities.map(city => `${(item.cityData[city] || 0).toFixed(2)}`).join(',') + ',';
         csv += `${item.periodChange.toFixed(2)},`;
         csv += `${item.yoyChange.toFixed(2)}\n`;
     });
