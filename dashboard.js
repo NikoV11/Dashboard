@@ -1439,8 +1439,8 @@ function renderRevenueChart() {
     const titleEl = document.getElementById('revenueChartTitle');
     if (titleEl) {
         const total = values.reduce((a, b) => a + b, 0);
-        // Total is in dollars, divide by billion to get billions
-        titleEl.textContent = `Texas Tax Collections - ${selectedMonth} FY${selectedYear} (Total: $${(total / 1000000000).toFixed(2)}B)`;
+        // Convert from thousands to billions (same as legend)
+        titleEl.textContent = `Texas Tax Collections - ${selectedMonth} FY${selectedYear} (Total: $${((total * 1000) / 1000000000).toFixed(2)}B)`;
     }
 }
 
