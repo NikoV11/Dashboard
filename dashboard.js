@@ -797,11 +797,6 @@ function renderSalesTaxChart() {
     if (!canvas || !salesTaxData || salesTaxData.length === 0) return;
     
     const ctx = canvas.getContext('2d');
-function renderSalesTaxChart() {
-    const canvas = document.getElementById('salesTaxChart');
-    if (!canvas || !salesTaxData || salesTaxData.length === 0) return;
-    
-    const ctx = canvas.getContext('2d');
 
     if (salesTaxChart) salesTaxChart.destroy();
     
