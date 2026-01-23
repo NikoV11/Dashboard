@@ -1405,7 +1405,7 @@ function renderRevenueChart() {
                                 const value = data.datasets[0].data[i];
                                 const percentage = ((value / total) * 100).toFixed(1);
                                 return {
-                                    text: `${label}: $${(value / 1000).toFixed(0)}K (${percentage}%)`,
+                                    text: `${label}: $${(value / 1000000000).toFixed(2)}B (${percentage}%)`,
                                     fillStyle: data.datasets[0].backgroundColor[i],
                                     hidden: false,
                                     index: i
@@ -1427,7 +1427,7 @@ function renderRevenueChart() {
                             const value = context.parsed;
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const percentage = ((value / total) * 100).toFixed(1);
-                            return `${context.label}: $${value.toLocaleString('en-US', { maximumFractionDigits: 0 })} (${percentage}%)`;
+                            return `${context.label}: $${(value / 1000000000).toFixed(2)}B (${percentage}%)`;
                         }
                     }
                 }
