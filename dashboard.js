@@ -542,7 +542,11 @@ function renderCharts(filtered) {
     const cpiCtx = document.getElementById('cpiChart')?.getContext('2d');
     if (!gdpCtx || !cpiCtx) return;
 
-    const sharedOptions = {
+    // Check if we should show data labels (15 or fewer bars)
+    const showGDPLabels = filtered.gdp.length <= 15;
+    const showCPILabels = filtered.cpi.length <= 15;
+
+    const sharedOptions = (showLabels) => ({
         responsive: true,
         maintainAspectRatio: false,
         animation: {
@@ -561,7 +565,14 @@ function renderCharts(filtered) {
                     label: ctx => `${ctx.parsed.y.toFixed(2)}%`
                 }
             },
-            datalabels: { display: false }
+            datalabels: showLabels ? {
+                display: true,
+                anchor: 'end',
+                align: 'end',
+                font: { weight: 'bold', size: 11 },
+                color: '#0f172a',
+                formatter: (value) => value.toFixed(2) + '%'
+            } : { display: false }
         },
         scales: {
             y: {
@@ -569,7 +580,7 @@ function renderCharts(filtered) {
                 ticks: { callback: v => `${v}%` }
             }
         }
-    };
+    });
 
     if (gdpChart) gdpChart.destroy();
     gdpChart = new Chart(gdpCtx, {
@@ -583,7 +594,7 @@ function renderCharts(filtered) {
                 borderRadius: 6
             }]
         },
-        options: sharedOptions
+        options: sharedOptions(showGDPLabels)
     });
 
     if (cpiChart) cpiChart.destroy();
@@ -598,7 +609,7 @@ function renderCharts(filtered) {
                 borderRadius: 6
             }]
         },
-        options: sharedOptions
+        options: sharedOptions(showCPILabels)
     });
 
     // Unemployment Chart
@@ -712,6 +723,8 @@ function renderEmploymentChart() {
         return year >= startYear && year <= endYear;
     });
 
+    const showLabels = filteredTyler.length <= 15;
+
     if (employmentChart) employmentChart.destroy();
     
     employmentChart = new Chart(ctx, {
@@ -752,9 +765,14 @@ function renderEmploymentChart() {
                         color: '#0f172a'
                     }
                 },
-                datalabels: {
-                    display: false
-                },
+                datalabels: showLabels ? {
+                    display: true,
+                    anchor: 'end',
+                    align: 'end',
+                    font: { weight: 'bold', size: 11 },
+                    color: '#0f172a',
+                    formatter: (value) => value.toFixed(1) + '%'
+                } : { display: false },
                 tooltip: {
                     enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
@@ -797,6 +815,7 @@ function renderSalesTaxChart() {
     if (!canvas || !salesTaxData || salesTaxData.length === 0) return;
     
     const ctx = canvas.getContext('2d');
+    const showLabels = salesTaxData.length <= 15;
 
     if (salesTaxChart) salesTaxChart.destroy();
     
@@ -821,7 +840,14 @@ function renderSalesTaxChart() {
             },
             plugins: {
                 legend: { display: false },
-                datalabels: { display: false },
+                datalabels: showLabels ? {
+                    display: true,
+                    anchor: 'end',
+                    align: 'end',
+                    font: { weight: 'bold', size: 11 },
+                    color: '#0f172a',
+                    formatter: (value) => `$${(value / 1000000).toFixed(1)}M`
+                } : { display: false },
                 tooltip: {
                     enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
