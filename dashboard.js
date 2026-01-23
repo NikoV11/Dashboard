@@ -513,7 +513,7 @@ async function loadMedianPriceData() {
 
 function filterData() {
     const start = parseInt(document.getElementById('startYear').value, 10) || 2023;
-    const end = parseInt(document.getElementById('endYear').value, 10) || 2025;
+    const end = parseInt(document.getElementById('endYear').value, 10) || 2026;
     const gdp = cachedData.gdp.filter(d => {
         const y = new Date(d.date).getFullYear();
         return y >= start && y <= end;
@@ -1691,7 +1691,6 @@ function setupShareButtons() {
         { id: 'shareEmploymentBtn', chart: () => employmentChart, name: 'Employment Trends' },
         { id: 'shareSalesTaxBtn', chart: () => salesTaxChart, name: 'Tyler MSA Sales Tax' },
         { id: 'shareMedianPriceBtn', chart: () => medianPriceChart, name: 'Tyler Median Home Price' },
-        { id: 'shareMortgageBtn', chart: () => mortgage30Chart, name: 'Mortgage Rates' },
         { id: 'shareRevenueBtn', chart: () => revenueChart, name: 'Texas Tax Collections' }
     ];
 
@@ -1701,6 +1700,12 @@ function setupShareButtons() {
             btn.addEventListener('click', () => shareChart(chart(), name));
         }
     });
+
+    // Special handler for mortgage rates (both 30 and 15 year)
+    const mortgageBtn = document.getElementById('shareMortgageBtn');
+    if (mortgageBtn) {
+        mortgageBtn.addEventListener('click', () => shareMortgageCharts());
+    }
 }
 
 function shareChart(chartInstance, chartName) {
@@ -1751,6 +1756,29 @@ function shareChart(chartInstance, chartName) {
     } catch (error) {
         console.error('Error sharing chart:', error);
         alert('Unable to share chart. Please try downloading the data instead.');
+    }
+}
+
+function shareMortgageCharts() {
+    if (!mortgage30Chart || !mortgage15Chart) {
+        alert('Charts not yet loaded. Please wait for data to load.');
+        return;
+    }
+
+    try {
+        // Get both charts as base64 images
+        const image30 = mortgage30Chart.toBase64Image('image/png', 1);
+        const image15 = mortgage15Chart.toBase64Image('image/png', 1);
+        
+        // Create share URL
+        const dashboardUrl = window.location.href.split('?')[0];
+        const shareText = 'Mortgage Rates - Hibbs Monitor Dashboard';
+        
+        // For mortgage rates, show both charts in the modal
+        fallbackShareMortgage(image30, image15, shareText, dashboardUrl);
+    } catch (error) {
+        console.error('Error sharing mortgage charts:', error);
+        alert('Unable to share charts. Please try downloading the data instead.');
     }
 }
 
@@ -1887,6 +1915,133 @@ function fallbackShare(imageUrl, shareText, dashboardUrl) {
         a.href = imageUrl;
         a.download = `${shareText.replace(/\s+/g, '_')}.png`;
         a.click();
+        document.body.removeChild(modal);
+    });
+}
+
+function fallbackShareMortgage(image30Url, image15Url, shareText, dashboardUrl) {
+    // Create modal for share options
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 16px;
+        overflow-y: auto;
+    `;
+    
+    const content = document.createElement('div');
+    const isMobile = window.innerWidth <= 640;
+    content.style.cssText = `
+        background: white;
+        border-radius: ${isMobile ? '12px' : '14px'};
+        padding: ${isMobile ? '20px' : '24px'};
+        max-width: 600px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-height: 90vh;
+        overflow-y: auto;
+    `;
+    
+    const buttonStyle = isMobile 
+        ? 'padding: 12px 10px; background: {bg}; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; touch-action: manipulation;'
+        : 'padding: 10px 12px; background: {bg}; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px;';
+    
+    content.innerHTML = `
+        <h3 style="margin: 0 0 ${isMobile ? '12px' : '16px'} 0; color: #0f172a; font-size: ${isMobile ? '1.1rem' : '1.25rem'};">Share Mortgage Rates</h3>
+        <div style="margin-bottom: ${isMobile ? '16px' : '20px'};">
+            <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: #475569;">30-Year Rate</h4>
+            <img src="${image30Url}" style="width: 100%; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 16px;" alt="30-year mortgage rates chart">
+            
+            <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: #475569;">15-Year Rate</h4>
+            <img src="${image15Url}" style="width: 100%; border-radius: 8px; border: 1px solid #e2e8f0;" alt="15-year mortgage rates chart">
+        </div>
+        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : 'repeat(auto-fit, minmax(130px, 1fr))'}; gap: ${isMobile ? '12px' : '10px'};">
+            <button id="postTwitter" style="${buttonStyle.replace('{bg}', '#000000')}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle; ${isMobile ? '' : 'margin-right: 4px;'}"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                <span>Post to X</span>
+            </button>
+            <button id="postLinkedIn" style="${buttonStyle.replace('{bg}', '#0A66C2')}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle; ${isMobile ? '' : 'margin-right: 4px;'}"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg>
+                <span>Post to LinkedIn</span>
+            </button>
+            <button id="postFacebook" style="${buttonStyle.replace('{bg}', '#1877F2')}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle; ${isMobile ? '' : 'margin-right: 4px;'}"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                <span>Post to Facebook</span>
+            </button>
+            <button id="postInstagram" style="padding: ${isMobile ? '12px 10px' : '10px 12px'}; background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: ${isMobile ? '48px' : 'auto'}; touch-action: manipulation;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle; ${isMobile ? '' : 'margin-right: 4px;'}"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+                <span>Save for Instagram</span>
+            </button>
+        </div>
+        <div style="margin-top: 12px; display: ${isMobile ? 'flex' : 'flex'}; flex-direction: ${isMobile ? 'column' : 'row'}; gap: ${isMobile ? '10px' : '8px'};">
+            <button id="downloadImage" style="flex: 1; padding: ${isMobile ? '12px' : '10px 12px'}; background: #CB6015; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; min-height: ${isMobile ? '48px' : 'auto'}; touch-action: manipulation;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download Both
+            </button>
+            <button id="closeModal" style="flex: 1; padding: ${isMobile ? '12px' : '10px 12px'}; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; min-height: ${isMobile ? '48px' : 'auto'}; touch-action: manipulation;">
+                Close
+            </button>
+        </div>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Close modal on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+    
+    // Close button
+    content.querySelector('#closeModal').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+    
+    // Post to X (Twitter)
+    content.querySelector('#postTwitter').addEventListener('click', () => {
+        const postText = `${shareText} 📊\n\nCheck out mortgage rate trends from UT Tyler Hibbs Institute`;
+        const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}&url=${encodeURIComponent(dashboardUrl)}`;
+        window.open(twitterUrl, '_blank', 'width=550,height=600');
+    });
+    
+    // Post to LinkedIn
+    content.querySelector('#postLinkedIn').addEventListener('click', () => {
+        const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(dashboardUrl)}`;
+        window.open(linkedInUrl, '_blank', 'width=550,height=600');
+    });
+    
+    // Post to Facebook
+    content.querySelector('#postFacebook').addEventListener('click', () => {
+        const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(dashboardUrl)}`;
+        window.open(facebookUrl, '_blank', 'width=550,height=600');
+    });
+    
+    // Download images - create a combined image or zip
+    content.querySelector('#downloadImage').addEventListener('click', () => {
+        // Download 30-year chart
+        const a1 = document.createElement('a');
+        a1.href = image30Url;
+        a1.download = `mortgage_30year_${new Date().toISOString().split('T')[0]}.png`;
+        a1.click();
+        
+        // Download 15-year chart with a slight delay
+        setTimeout(() => {
+            const a2 = document.createElement('a');
+            a2.href = image15Url;
+            a2.download = `mortgage_15year_${new Date().toISOString().split('T')[0]}.png`;
+            a2.click();
+        }, 500);
+        
         document.body.removeChild(modal);
     });
 }
