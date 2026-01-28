@@ -1667,7 +1667,12 @@ async function renderAll() {
         console.error('Mortgage load failed:', e);
     }
     
-    renderRevenueChart();
+    try {
+        loadRevenueData();
+        renderRevenueChart();
+    } catch (e) {
+        console.error('Revenue load failed:', e);
+    }
     hideLoadingIndicator();
 }
 
