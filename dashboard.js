@@ -1359,11 +1359,23 @@ function renderRevenueChart() {
     const labels = finalCategories.map(([cat, val]) => cat);
     const values = finalCategories.map(([cat, val]) => val);
     
-    // Color palette
+    // Color palette - Orange and Blue for top 2, then distinct colors
     const colors = [
-        '#CB6015', '#002F6C', '#E07A3C', '#1A4D8F', '#F4A460',
-        '#4169E1', '#FF8C42', '#6495ED', '#D2691E', '#5B9BD5',
-        '#C65D21', '#003A70', '#F2994A', '#2E5C99', '#FFB366'
+        '#CB6015', // Orange - largest
+        '#002F6C', // Navy Blue - second largest
+        '#27AE60', // Emerald Green
+        '#8E44AD', // Purple
+        '#E74C3C', // Red
+        '#F39C12', // Amber
+        '#16A085', // Teal
+        '#E67E22', // Pumpkin Orange
+        '#2ECC71', // Lime Green
+        '#9B59B6', // Violet
+        '#C0392B', // Dark Red
+        '#D35400', // Burnt Orange
+        '#1ABC9C', // Turquoise
+        '#34495E', // Dark Gray
+        '#F1C40F'  // Yellow
     ];
     
     const ctx = canvas.getContext('2d');
