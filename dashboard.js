@@ -1372,7 +1372,7 @@ function renderRevenueChart() {
         '#2ECC71', // Lime Green
         '#9B59B6', // Violet
         '#C0392B', // Dark Red
-        '#D35400', // Burnt Orange
+        '#0a0a0a', // Black
         '#1ABC9C', // Turquoise
         '#34495E', // Dark Gray
         '#F1C40F'  // Yellow
