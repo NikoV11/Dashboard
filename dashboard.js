@@ -91,6 +91,9 @@ let medianPriceData = [];
 let mortgageData = [];
 let revenueData = [];
 let dataSource = 'sample';
+let salesTaxLoaded = false;
+let medianPriceLoaded = false;
+let mortgageLoaded = false;
 
 function setStatus(text, tone = 'muted') {
     const statusEl = document.getElementById('statusText');
@@ -1006,23 +1009,15 @@ function renderMedianPriceChart() {
     if (medianPriceChart) medianPriceChart.destroy();
     
     medianPriceChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: medianPriceData.map(d => formatMonthLabel(d.date)),
             datasets: [{
                 label: 'Median Listing Price',
                 data: medianPriceData.map(d => d.value),
+                backgroundColor: '#002F6C',
                 borderColor: '#002F6C',
-                backgroundColor: 'rgba(0, 47, 108, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointBackgroundColor: '#002F6C',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverRadius: 8,
-                pointHoverBackgroundColor: '#002F6C'
+                borderWidth: 1
             }]
         },
         options: {
@@ -1487,46 +1482,39 @@ async function renderAll() {
     if (!cachedData) return;
     const filtered = filterData();
     
-    // Always render GDP and CPI (they're in the first tab group)
-    renderCharts(filtered);
-    
-    // Check which tab is currently active and render its chart
+    // Check which tab is currently active
     const activeTab = document.querySelector('.sub-tab-btn.active');
-    if (activeTab && cachedData) {
-        const tabId = activeTab.dataset.tab;
-        if (tabId === 'unemployment') {
-            renderUnemploymentChart(filtered);
-        } else if (tabId === 'nonfarm-employment') {
-            renderPayemsChart(filtered);
-        } else if (tabId === 'employment') {
-            renderEmploymentChart();
-        } else if (tabId === 'sales-tax') {
-            renderSalesTaxChart();
-        } else if (tabId === 'median-home-price') {
-            renderMedianPriceChart();
-        } else if (tabId === 'mortgage-rates') {
-            renderMortgageCharts();
-        } else if (tabId === 'state-revenue') {
-            renderRevenueChart();
+    const tabId = activeTab?.dataset.tab || 'gdp';
+    
+    // Only render the active chart to speed up rendering
+    if (tabId === 'gdp' || tabId === 'cpi') {
+        renderCharts(filtered);
+    } else if (tabId === 'unemployment') {
+        renderUnemploymentChart(filtered);
+    } else if (tabId === 'nonfarm-employment') {
+        renderPayemsChart(filtered);
+    } else if (tabId === 'employment') {
+        renderEmploymentChart();
+    } else if (tabId === 'sales-tax') {
+        if (!salesTaxLoaded) {
+            salesTaxLoaded = true;
+            await loadSalesTaxData();
         }
-    }
-    
-    // Load and render sales tax data
-    await loadSalesTaxData();
-    if (document.querySelector('.sub-tab-btn.active')?.dataset.tab === 'sales-tax') {
         renderSalesTaxChart();
-    }
-    
-    // Load and render median home price data
-    await loadMedianPriceData();
-    if (document.querySelector('.sub-tab-btn.active')?.dataset.tab === 'median-home-price') {
+    } else if (tabId === 'median-home-price') {
+        if (!medianPriceLoaded) {
+            medianPriceLoaded = true;
+            await loadMedianPriceData();
+        }
         renderMedianPriceChart();
-    }
-    
-    // Load and render mortgage rates
-    loadMortgageData();
-    if (document.querySelector('.sub-tab-btn.active')?.dataset.tab === 'mortgage-rates') {
+    } else if (tabId === 'mortgage-rates') {
+        if (!mortgageLoaded) {
+            mortgageLoaded = true;
+            loadMortgageData();
+        }
         renderMortgageCharts();
+    } else if (tabId === 'state-revenue') {
+        renderRevenueChart();
     }
 }
 
@@ -2186,7 +2174,7 @@ function setupTabs() {
                 targetContent.classList.add('active');
                 console.log('Activated tab:', tabId);
                 
-                // Trigger chart rendering for specific tabs
+                // Trigger chart rendering for specific tabs with lazy loading
                 if (cachedData) {
                     const filtered = filterData();
                     
@@ -2197,9 +2185,29 @@ function setupTabs() {
                     } else if (tabId === 'nonfarm-employment') {
                         renderPayemsChart(filtered);
                     } else if (tabId === 'mortgage-rates') {
+                        if (!mortgageLoaded) {
+                            mortgageLoaded = true;
+                            loadMortgageData();
+                        }
                         renderMortgageCharts();
                     } else if (tabId === 'median-home-price') {
-                        renderMedianPriceChart();
+                        if (!medianPriceLoaded) {
+                            medianPriceLoaded = true;
+                            loadMedianPriceData().then(() => renderMedianPriceChart());
+                        } else {
+                            renderMedianPriceChart();
+                        }
+                    } else if (tabId === 'sales-tax') {
+                        if (!salesTaxLoaded) {
+                            salesTaxLoaded = true;
+                            loadSalesTaxData().then(() => renderSalesTaxChart());
+                        } else {
+                            renderSalesTaxChart();
+                        }
+                    } else if (tabId === 'employment') {
+                        renderEmploymentChart();
+                    } else if (tabId === 'state-revenue') {
+                        renderRevenueChart();
                     }
                 }
             } else {
@@ -2215,8 +2223,7 @@ function init() {
     wireEvents();
     setupTabs();
     setupShareButtons();
-    loadData();
-    loadRevenueData();
+    loadData(); // Only load US indicators initially
 }
 
 
