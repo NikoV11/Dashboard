@@ -1391,211 +1391,273 @@ function renderMortgageCharts() {
     });
 }
 
+// ========== Texas Revenue Functions ==========
+
 function loadRevenueData() {
     try {
-        if (typeof REVENUE_DATA === 'undefined') {
-            console.error('REVENUE_DATA not loaded');
-            return;
+        // Validate data is loaded
+        if (typeof REVENUE_DATA === 'undefined' || !REVENUE_DATA || REVENUE_DATA.length === 0) {
+            console.error('REVENUE_DATA not available');
+            return false;
         }
         
         revenueData = REVENUE_DATA;
         console.log(`Revenue data loaded: ${revenueData.length} records`);
         
-        // Populate year dropdown
-        const years = [...new Set(revenueData.map(d => d.year))].sort((a, b) => b - a);
+        // Get unique fiscal years from data
+        // Fiscal year is based on September start, so Sept-Dec of year X is part of FY X+1
+        const calendarYears = [...new Set(revenueData.map(d => d.year))].sort((a, b) => a - b);
+        const fiscalYears = [];
+        
+        // Convert calendar years to fiscal years
+        calendarYears.forEach(year => {
+            if (!fiscalYears.includes(year)) fiscalYears.push(year);
+            if (!fiscalYears.includes(year + 1)) fiscalYears.push(year + 1);
+        });
+        
+        fiscalYears.sort((a, b) => b - a); // Most recent first
+        
+        // Populate fiscal year dropdown
         const yearSelect = document.getElementById('revenueYear');
-        if (yearSelect) {
-            yearSelect.innerHTML = years.map(y => 
-                `<option value="${y}" ${y === 2024 ? 'selected' : ''}>${y}</option>`
-            ).join('');
+        if (!yearSelect) {
+            console.error('revenueYear select element not found');
+            return false;
         }
         
-        // Populate month dropdown (calendar year order: Jan-Dec)
-        const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        yearSelect.innerHTML = fiscalYears.map(fy => 
+            `<option value="${fy}">${fy}</option>`
+        ).join('');
+        
+        // Set default to most recent fiscal year
+        if (fiscalYears.length > 0) {
+            yearSelect.value = fiscalYears[0];
+        }
+        
+        // Populate month dropdown in fiscal year order (Sept-Aug)
+        const monthsInFiscalOrder = [
+            'September', 'October', 'November', 'December',
+            'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August'
+        ];
+        
         const monthSelect = document.getElementById('revenueMonth');
-        if (monthSelect) {
-            monthSelect.innerHTML = monthOrder.map((m, i) => 
-                `<option value="${m}" ${m === 'January' ? 'selected' : ''}>${m}</option>`
-            ).join('');
+        if (!monthSelect) {
+            console.error('revenueMonth select element not found');
+            return false;
         }
         
+        monthSelect.innerHTML = monthsInFiscalOrder.map(month => 
+            `<option value="${month}">${month}</option>`
+        ).join('');
+        
+        // Set default to September (start of fiscal year)
+        monthSelect.value = 'September';
+        
+        console.log('Revenue dropdowns populated successfully');
+        
+        // Render initial chart
         renderRevenueChart();
+        
+        return true;
     } catch (error) {
         console.error('Revenue data load failed:', error);
+        return false;
     }
 }
 
 function renderRevenueChart() {
-    const canvas = document.getElementById('revenueChart');
-    if (!canvas || !revenueData || revenueData.length === 0) return;
-    
-    const yearSelect = document.getElementById('revenueYear');
-    const monthSelect = document.getElementById('revenueMonth');
-    
-    if (!yearSelect || !monthSelect) return;
-    
-    const selectedFiscalYear = parseInt(yearSelect.value);
-    const selectedMonth = monthSelect.value;
-    
-    // Convert fiscal year to calendar years
-    // Fiscal Year 2024 = Sept 2023 - Aug 2024
-    // So Sept-Dec are in calendar year (selectedFiscalYear - 1)
-    // And Jan-Aug are in calendar year selectedFiscalYear
-    const septToDecMonths = ['September', 'October', 'November', 'December'];
-    const janToAugMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August'];
-    
-    let calendarYear;
-    if (septToDecMonths.includes(selectedMonth)) {
-        calendarYear = selectedFiscalYear - 1;
-    } else {
-        calendarYear = selectedFiscalYear;
-    }
-    
-    // Filter data for selected fiscal year and month - only tax categories
-    const filteredData = revenueData.filter(d => 
-        d.year === calendarYear && 
-        d.month === selectedMonth &&
-        (d.category.includes('Tax') || d.category.includes('Taxes')) &&
-        !['Tax Collections', 'Total Tax Collections', 'Total Net Revenue'].includes(d.category)
-    );
-    
-    if (filteredData.length === 0) {
-        console.log(`No data for selected fiscal year/month: FY${selectedFiscalYear} ${selectedMonth} (calendar year ${calendarYear})`);
-        return;
-    }
-    
-    // Group by category and sum values
-    const categoryTotals = {};
-    filteredData.forEach(d => {
-        // Normalize category names
-        let category = d.category;
-        if (category.includes('Motor Fuel')) category = 'Motor Fuels Taxes';
-        if (category.includes('Alcoholic Beverage')) category = 'Alcoholic Beverage Taxes';
-        if (category.includes('Natural Gas')) category = 'Natural Gas Production Tax';
+    try {
+        const canvas = document.getElementById('revenueChart');
+        if (!canvas) {
+            console.error('revenueChart canvas not found');
+            return;
+        }
         
-        if (categoryTotals[category]) {
-            categoryTotals[category] += d.value;
-        } else {
-            categoryTotals[category] = d.value;
+        if (!revenueData || revenueData.length === 0) {
+            console.warn('No revenue data available');
+            return;
         }
-    });
-    
-    // Calculate total for percentage calculation
-    const grandTotal = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
-    
-    // Sort by value descending
-    const sortedCategories = Object.entries(categoryTotals)
-        .sort((a, b) => b[1] - a[1]);
-    
-    // Group categories under 1% into "Others"
-    const finalCategories = [];
-    let othersTotal = 0;
-    
-    sortedCategories.forEach(([cat, val]) => {
-        const percentage = (val / grandTotal) * 100;
-        if (percentage >= 1.0) {
-            finalCategories.push([cat, val]);
-        } else {
-            othersTotal += val;
+        
+        const yearSelect = document.getElementById('revenueYear');
+        const monthSelect = document.getElementById('revenueMonth');
+        
+        if (!yearSelect || !monthSelect) {
+            console.error('Revenue dropdowns not found');
+            return;
         }
-    });
-    
-    // Add "Others" category if there are any small categories
-    if (othersTotal > 0) {
-        finalCategories.push(['Others', othersTotal]);
-    }
-    
-    const labels = finalCategories.map(([cat, val]) => cat);
-    const values = finalCategories.map(([cat, val]) => val);
-    
-    // Color palette - Orange and Blue for top 2, then distinct colors (no duplicates)
-    const colors = [
-        '#CB6015', // Orange - largest
-        '#002F6C', // Navy Blue - second largest
-        '#27AE60', // Green
-        '#8E44AD', // Purple
-        '#E74C3C', // Red
-        '#F1C40F', // Yellow
-        '#16A085', // Teal
-        '#0a0a0a', // Black
-        '#FF1493', // Deep Pink
-        '#8B4513', // Saddle Brown
-        '#00CED1', // Dark Cyan
-        '#FF6347', // Tomato
-        '#4B0082', // Indigo
-        '#2F4F4F', // Dark Slate Gray
-        '#FFD700'  // Gold
-    ];
-    
-    const ctx = canvas.getContext('2d');
-    
-    destroyChart(revenueChart);
-    
-    revenueChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: colors.slice(0, labels.length),
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'right',
-                    labels: {
-                        padding: 15,
-                        font: { size: 12, weight: '500' },
-                        color: '#0f172a',
-                        generateLabels: (chart) => {
-                            const data = chart.data;
-                            const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-                            return data.labels.map((label, i) => {
-                                const value = data.datasets[0].data[i];
-                                const percentage = ((value / total) * 100).toFixed(1);
-                                return {
-                                    text: `${label}: $${(value / 1000000000).toFixed(2)}B (${percentage}%)`,
-                                    fillStyle: data.datasets[0].backgroundColor[i],
-                                    hidden: false,
-                                    index: i
-                                };
-                            });
+        
+        const selectedFiscalYear = parseInt(yearSelect.value);
+        const selectedMonth = monthSelect.value;
+        
+        console.log(`Rendering chart for FY${selectedFiscalYear} ${selectedMonth}`);
+        
+        // Convert fiscal year and month to calendar year
+        // FY 2024 runs Sept 2023 - Aug 2024
+        const calendarYear = (['September', 'October', 'November', 'December'].includes(selectedMonth))
+            ? selectedFiscalYear - 1
+            : selectedFiscalYear;
+        
+        console.log(`Looking for data: calendar year ${calendarYear}, month ${selectedMonth}`);
+        
+        // Filter for tax data in the selected month/year
+        const filteredData = revenueData.filter(d => {
+            const matchesYear = d.year === calendarYear;
+            const matchesMonth = d.month === selectedMonth;
+            const isTax = (d.category.includes('Tax') || d.category.includes('Taxes'));
+            const notTotal = !['Tax Collections', 'Total Tax Collections', 'Total Net Revenue', 'Total Revenue'].includes(d.category);
+            
+            return matchesYear && matchesMonth && isTax && notTotal;
+        });
+        
+        console.log(`Found ${filteredData.length} tax records`);
+        
+        if (filteredData.length === 0) {
+            console.warn(`No data for FY${selectedFiscalYear} ${selectedMonth} (calendar ${calendarYear})`);
+            // Clear the chart
+            destroyChart(revenueChart);
+            return;
+        }
+        
+        // Aggregate by category
+        const categoryTotals = {};
+        filteredData.forEach(d => {
+            let category = d.category.trim();
+            
+            // Normalize similar category names
+            if (category.includes('Motor Fuel')) category = 'Motor Fuels Taxes';
+            else if (category.includes('Alcoholic Beverage')) category = 'Alcoholic Beverage Taxes';
+            else if (category.includes('Natural Gas')) category = 'Natural Gas Production Tax';
+            else if (category.includes('Oil Production')) category = 'Oil Production Tax';
+            else if (category.includes('Sales Tax')) category = 'Sales Tax';
+            
+            categoryTotals[category] = (categoryTotals[category] || 0) + d.value;
+        });
+        
+        console.log('Category totals:', categoryTotals);
+        
+        // Calculate grand total
+        const grandTotal = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
+        
+        // Sort categories by value (descending)
+        const sortedCategories = Object.entries(categoryTotals)
+            .sort((a, b) => b[1] - a[1]);
+        
+        // Group small categories (<1%) into "Others"
+        const finalCategories = [];
+        let othersTotal = 0;
+        
+        sortedCategories.forEach(([category, value]) => {
+            const percentage = (value / grandTotal) * 100;
+            if (percentage >= 1.0) {
+                finalCategories.push({ category, value });
+            } else {
+                othersTotal += value;
+            }
+        });
+        
+        // Add "Others" if applicable
+        if (othersTotal > 0) {
+            finalCategories.push({ category: 'Others', value: othersTotal });
+        }
+        
+        const labels = finalCategories.map(d => d.category);
+        const values = finalCategories.map(d => d.value);
+        
+        // Color palette
+        const colors = [
+            '#CB6015', // Orange
+            '#002F6C', // Navy Blue
+            '#27AE60', // Green
+            '#8E44AD', // Purple
+            '#E74C3C', // Red
+            '#F1C40F', // Yellow
+            '#16A085', // Teal
+            '#3498DB', // Sky Blue
+            '#E67E22', // Carrot Orange
+            '#95A5A6', // Gray
+            '#1ABC9C', // Turquoise
+            '#9B59B6', // Amethyst
+            '#34495E', // Wet Asphalt
+            '#F39C12', // Orange
+            '#D35400'  // Pumpkin
+        ];
+        
+        // Destroy existing chart
+        destroyChart(revenueChart);
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Create doughnut chart
+        revenueChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'right',
+                        labels: {
+                            padding: 12,
+                            font: { size: 11, weight: '500' },
+                            color: '#0f172a',
+                            generateLabels: (chart) => {
+                                const dataset = chart.data.datasets[0];
+                                const total = dataset.data.reduce((a, b) => a + b, 0);
+                                
+                                return chart.data.labels.map((label, i) => {
+                                    const value = dataset.data[i];
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    // Values are in thousands, convert to billions
+                                    const billions = (value / 1000000).toFixed(2);
+                                    
+                                    return {
+                                        text: `${label}: $${billions}B (${percentage}%)`,
+                                        fillStyle: dataset.backgroundColor[i],
+                                        hidden: false,
+                                        index: i
+                                    };
+                                });
+                            }
                         }
-                    }
-                },
-                datalabels: { display: false },
-                tooltip: {
-                    enabled: true,
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    padding: 12,
-                    cornerRadius: 8,
-                    borderColor: '#CB6015',
-                    borderWidth: 1,
-                    callbacks: {
-                        label: (context) => {
-                            const value = context.parsed * 1000; // Convert from thousands
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0) * 1000;
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${context.label}: $${(value / 1000000000).toFixed(2)}B (${percentage}%)`;
+                    },
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        borderColor: '#CB6015',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                // Values are in thousands, convert to billions
+                                const billions = (value / 1000000).toFixed(2);
+                                
+                                return `${context.label}: $${billions}B (${percentage}%)`;
+                            }
                         }
                     }
                 }
             }
-        }
-    });
-    
-    // Update chart title
-    const titleEl = document.getElementById('revenueChartTitle');
-    if (titleEl) {
-        const total = values.reduce((a, b) => a + b, 0);
-        // Convert from thousands to billions (same as legend)
-        titleEl.textContent = `Texas Tax Collections - ${selectedMonth} FY${selectedYear} (Total: $${((total * 1000) / 1000000000).toFixed(2)}B)`;
+        });
+        
+        console.log('Revenue chart rendered successfully');
+        
+    } catch (error) {
+        console.error('Revenue chart render failed:', error);
     }
 }
 
