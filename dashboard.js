@@ -1916,6 +1916,8 @@ function wireEvents() {
     document.getElementById('downloadMortgageBtn')?.addEventListener('click', handleMortgageDownload);
     document.getElementById('updateRevenueBtn')?.addEventListener('click', renderRevenueChart);
     document.getElementById('downloadRevenueBtn')?.addEventListener('click', handleRevenueDownload);
+    document.getElementById('revenueYear')?.addEventListener('change', renderRevenueChart);
+    document.getElementById('revenueMonth')?.addEventListener('change', renderRevenueChart);
 }
 
 // ========== Share Functionality ==========
