@@ -320,6 +320,7 @@ button.ghost:hover {
 }
 .status.success { color: #0f9d58; }
 .status.warn { color: #c05621; }
+.status.error { color: #dc2626; font-weight: 500; }
 
 .stat-cards {
     display: grid;

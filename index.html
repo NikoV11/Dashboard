@@ -107,8 +107,8 @@
                             <p class="chip gdp">FRED: A191RL1Q225SBEA</p>
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button id="shareGDPBtn" class="ghost" title="Share chart">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <button id="shareGDPBtn" class="ghost" title="Share GDP chart" aria-label="Share Real GDP chart on social media">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
                                     <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                                 </svg>
                             </button>
@@ -117,7 +117,7 @@
                     </div>
                     <div class="chart-card" style="margin-top: 20px;">
                         <h3>Quarterly Growth Rate (%)</h3>
-                        <canvas id="gdpChart" role="img" aria-label="Real GDP Chart"></canvas>
+                        <canvas id="gdpChart" role="img" aria-label="Bar chart showing US Real GDP quarterly growth rate from 2023 to 2026"></canvas>
                     </div>
                 </section>
             </div>
@@ -131,8 +131,8 @@
                             <p class="chip cpi">FRED: CPIAUCSL</p>
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button id="shareCPIBtn" class="ghost" title="Share chart">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <button id="shareCPIBtn" class="ghost" title="Share CPI chart" aria-label="Share CPI-U inflation chart on social media">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
                                     <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                                 </svg>
                             </button>
@@ -252,8 +252,8 @@
                             <p class="chip" style="background: var(--cpi); color: white;">FRED: MEDLISPRIMM46340</p>
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button id="shareMedianPriceBtn" class="ghost" title="Share chart">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                            <button id="shareMedianPriceBtn" class="ghost" title="Share median price chart" aria-label="Share Tyler MSA median listing price chart on social media">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
                                     <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
                                 </svg>
                             </button>
@@ -261,8 +261,8 @@
                         </div>
                     </div>
                     <div class="chart-card" style="margin-top: 20px;">
-                        <h3>Month-Over-Month Price Change (%)</h3>
-                        <canvas id="medianPriceChart" role="img" aria-label="Median Home Price Chart"></canvas>
+                        <h3>Median Listing Price ($)</h3>
+                        <canvas id="medianPriceChart" role="img" aria-label="Tyler MSA Median Listing Price by Month"></canvas>
                     </div>
                 </section>
             </div>
@@ -345,11 +345,11 @@
         </footer>
     </div>
 
-    <script src="employment-data.js" defer></script>
-    <script src="mortgage-data.js?v=2" defer></script>
-    <script src="revenue-data.js" defer></script>
+    <script src="employment-data.js"></script>
+    <script src="mortgage-data.js?v=2"></script>
+    <script src="revenue-data.js"></script>
     <script src="report-generator.js?v=3" defer></script>
-    <script src="dashboard.js?v=38" defer></script>
+    <script src="dashboard.js?v=39" defer></script>
 </body>
 </html>
 

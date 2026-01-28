@@ -95,6 +95,101 @@ let salesTaxLoaded = false;
 let medianPriceLoaded = false;
 let mortgageLoaded = false;
 
+// ========== Utility Functions ==========
+
+// Validate that required data files are loaded
+function validateDataSources() {
+    const missing = [];
+    if (typeof EMPLOYMENT_DATA === 'undefined') missing.push('employment-data.js');
+    if (typeof MORTGAGE_RATES_DATA === 'undefined') missing.push('mortgage-data.js');
+    if (typeof REVENUE_DATA === 'undefined') missing.push('revenue-data.js');
+    
+    if (missing.length > 0) {
+        setStatus(`Error: Missing data files - ${missing.join(', ')}`, 'error');
+        console.error('Missing required data files:', missing);
+        return false;
+    }
+    return true;
+}
+
+// Validate year range inputs
+function validateYearRange(startYear, endYear) {
+    const currentYear = new Date().getFullYear();
+    
+    if (isNaN(startYear) || isNaN(endYear)) {
+        alert('Please enter valid numeric years');
+        return false;
+    }
+    
+    if (startYear > endYear) {
+        alert('Start year must be before or equal to end year');
+        return false;
+    }
+    
+    if (startYear < 1947) {
+        alert('FRED data is not available before 1947. Please enter a start year of 1947 or later.');
+        return false;
+    }
+    
+    if (endYear > currentYear + 5) {
+        alert(`Please enter an end year no later than ${currentYear + 5}`);
+        return false;
+    }
+    
+    return true;
+}
+
+// Destroy chart instance safely
+function destroyChart(chartInstance) {
+    if (chartInstance) {
+        try {
+            chartInstance.destroy();
+        } catch (error) {
+            console.warn('Error destroying chart:', error);
+        }
+    }
+}
+
+// Create chart with error handling
+function createChartSafely(canvasId, config) {
+    try {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) {
+            console.error(`Canvas element not found: ${canvasId}`);
+            return null;
+        }
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            console.error(`Could not get 2D context for: ${canvasId}`);
+            return null;
+        }
+        
+        return new Chart(ctx, config);
+    } catch (error) {
+        console.error(`Error creating chart ${canvasId}:`, error);
+        setStatus(`Error creating chart: ${error.message}`, 'error');
+        return null;
+    }
+}
+
+// Show loading indicator for lazy-loaded tabs
+function showLoadingIndicator(tabId) {
+    const statusEl = document.getElementById('statusText');
+    if (statusEl) {
+        statusEl.textContent = `Loading ${tabId} data...`;
+        statusEl.className = 'status muted';
+    }
+}
+
+function hideLoadingIndicator() {
+    const statusEl = document.getElementById('statusText');
+    if (statusEl && statusEl.textContent.includes('Loading')) {
+        statusEl.textContent = 'Ready';
+        statusEl.className = 'status success';
+    }
+}
+
 function setStatus(text, tone = 'muted') {
     const statusEl = document.getElementById('statusText');
     if (statusEl) {
@@ -336,12 +431,12 @@ async function loadData() {
             console.log('Latest Unemployment:', unemployment[unemployment.length - 1]);
         }
         
-        setStatus(`US economic data loaded successfully. GDP: ${gdp.length} quarters, CPI: ${cpi.length} months, Unemployment: ${unemployment.length} months`, 'success');
+        setStatus(`Ready - Loaded ${gdp.length} GDP quarters, ${cpi.length} CPI months, ${unemployment.length} unemployment months, ${payems.length} employment months`, 'success');
     } catch (error) {
         console.error('All data fetch attempts failed, falling back to sample data:', error.message);
         cachedData = { ...SAMPLE_DATA };
         dataSource = 'sample';
-        setStatus('Using sample data. Live API temporarily unavailable - retrying in 30s', 'warn');
+        setStatus('⚠️ Using sample data - Live API temporarily unavailable (retrying in 30s)', 'warn');
         
         // Retry after 30 seconds
         setTimeout(() => {
@@ -545,6 +640,10 @@ function renderCharts(filtered) {
     const cpiCtx = document.getElementById('cpiChart')?.getContext('2d');
     if (!gdpCtx || !cpiCtx) return;
 
+    // Destroy existing charts before creating new ones
+    destroyChart(gdpChart);
+    destroyChart(cpiChart);
+
     // Check if we should show data labels (15 or fewer bars)
     const showGDPLabels = filtered.gdp.length <= 15;
     const showCPILabels = filtered.cpi.length <= 15;
@@ -585,7 +684,6 @@ function renderCharts(filtered) {
         }
     });
 
-    if (gdpChart) gdpChart.destroy();
     gdpChart = new Chart(gdpCtx, {
         type: 'bar',
         data: {
@@ -600,7 +698,6 @@ function renderCharts(filtered) {
         options: sharedOptions(showGDPLabels)
     });
 
-    if (cpiChart) cpiChart.destroy();
     cpiChart = new Chart(cpiCtx, {
         type: 'bar',
         data: {
@@ -625,7 +722,7 @@ function renderUnemploymentChart(filtered) {
 
     const ctx = canvas.getContext('2d');
 
-    if (unemploymentChart) unemploymentChart.destroy();
+    destroyChart(unemploymentChart);
     
     unemploymentChart = new Chart(ctx, {
         type: 'line',
@@ -722,7 +819,7 @@ function renderEmploymentChart() {
 
     const showLabels = filteredTyler.length <= 15;
 
-    if (employmentChart) employmentChart.destroy();
+    destroyChart(employmentChart);
     
     employmentChart = new Chart(ctx, {
         type: 'bar',
@@ -814,7 +911,7 @@ function renderSalesTaxChart() {
     const ctx = canvas.getContext('2d');
     const showLabels = salesTaxData.length <= 15;
 
-    if (salesTaxChart) salesTaxChart.destroy();
+    destroyChart(salesTaxChart);
     
     salesTaxChart = new Chart(ctx, {
         type: 'bar',
@@ -924,7 +1021,7 @@ function renderPayemsChart(filtered) {
     const ctx = canvas.getContext('2d');
     const showLabels = filtered.payems.length <= 15;
 
-    if (payemsChart) payemsChart.destroy();
+    destroyChart(payemsChart);
     
     payemsChart = new Chart(ctx, {
         type: 'bar',
@@ -1006,7 +1103,7 @@ function renderMedianPriceChart() {
     
     const ctx = canvas.getContext('2d');
 
-    if (medianPriceChart) medianPriceChart.destroy();
+    destroyChart(medianPriceChart);
     
     medianPriceChart = new Chart(ctx, {
         type: 'bar',
@@ -1111,7 +1208,7 @@ function renderMortgageCharts() {
     const data15 = mortgageData.filter(d => d.rate15yr !== null);
     
     // 30-Year Chart
-    if (mortgage30Chart) mortgage30Chart.destroy();
+    destroyChart(mortgage30Chart);
     
     mortgage30Chart = new Chart(ctx30, {
         type: 'line',
@@ -1181,7 +1278,7 @@ function renderMortgageCharts() {
     });
     
     // 15-Year Chart
-    if (mortgage15Chart) mortgage15Chart.destroy();
+    destroyChart(mortgage15Chart);
     
     mortgage15Chart = new Chart(ctx15, {
         type: 'line',
@@ -1375,7 +1472,7 @@ function renderRevenueChart() {
     
     const ctx = canvas.getContext('2d');
     
-    if (revenueChart) revenueChart.destroy();
+    destroyChart(revenueChart);
     
     revenueChart = new Chart(ctx, {
         type: 'doughnut',
@@ -1498,19 +1595,25 @@ async function renderAll() {
     } else if (tabId === 'sales-tax') {
         if (!salesTaxLoaded) {
             salesTaxLoaded = true;
+            showLoadingIndicator('sales tax');
             await loadSalesTaxData();
+            hideLoadingIndicator();
         }
         renderSalesTaxChart();
     } else if (tabId === 'median-home-price') {
         if (!medianPriceLoaded) {
             medianPriceLoaded = true;
+            showLoadingIndicator('median price');
             await loadMedianPriceData();
+            hideLoadingIndicator();
         }
         renderMedianPriceChart();
     } else if (tabId === 'mortgage-rates') {
         if (!mortgageLoaded) {
             mortgageLoaded = true;
+            showLoadingIndicator('mortgage rates');
             loadMortgageData();
+            hideLoadingIndicator();
         }
         renderMortgageCharts();
     } else if (tabId === 'state-revenue') {
@@ -1733,7 +1836,16 @@ function handleMortgageDownload() {
 }
 
 function wireEvents() {
-    document.getElementById('updateBtn')?.addEventListener('click', renderAll);
+    // Update button with validation
+    document.getElementById('updateBtn')?.addEventListener('click', () => {
+        const startYear = parseInt(document.getElementById('startYear')?.value);
+        const endYear = parseInt(document.getElementById('endYear')?.value);
+        
+        if (validateYearRange(startYear, endYear)) {
+            renderAll();
+        }
+    });
+    
     document.getElementById('downloadGDPBtn')?.addEventListener('click', handleGDPDownload);
     document.getElementById('downloadCPIBtn')?.addEventListener('click', handleCPIDownload);
     document.getElementById('downloadUnemploymentBtn')?.addEventListener('click', handleUnemploymentDownload);
@@ -2187,20 +2299,30 @@ function setupTabs() {
                     } else if (tabId === 'mortgage-rates') {
                         if (!mortgageLoaded) {
                             mortgageLoaded = true;
+                            showLoadingIndicator('mortgage rates');
                             loadMortgageData();
+                            hideLoadingIndicator();
                         }
                         renderMortgageCharts();
                     } else if (tabId === 'median-home-price') {
                         if (!medianPriceLoaded) {
                             medianPriceLoaded = true;
-                            loadMedianPriceData().then(() => renderMedianPriceChart());
+                            showLoadingIndicator('median price');
+                            loadMedianPriceData().then(() => {
+                                renderMedianPriceChart();
+                                hideLoadingIndicator();
+                            });
                         } else {
                             renderMedianPriceChart();
                         }
                     } else if (tabId === 'sales-tax') {
                         if (!salesTaxLoaded) {
                             salesTaxLoaded = true;
-                            loadSalesTaxData().then(() => renderSalesTaxChart());
+                            showLoadingIndicator('sales tax');
+                            loadSalesTaxData().then(() => {
+                                renderSalesTaxChart();
+                                hideLoadingIndicator();
+                            });
                         } else {
                             renderSalesTaxChart();
                         }
@@ -2218,12 +2340,20 @@ function setupTabs() {
 }
 
 function init() {
+    // Validate required data sources are loaded
+    if (!validateDataSources()) {
+        console.error('Failed to load required data sources');
+        return;
+    }
+    
     registerPlugins();
     ensureDefaults();
     wireEvents();
     setupTabs();
     setupShareButtons();
     loadData(); // Only load US indicators initially
+    
+    console.log('Dashboard initialized successfully');
 }
 
 
