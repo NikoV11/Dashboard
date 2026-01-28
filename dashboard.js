@@ -941,6 +941,11 @@ function renderSalesTaxChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    bottom: 40
+                }
+            },
             animation: { duration: 400 },
             interaction: {
                 mode: 'index',
