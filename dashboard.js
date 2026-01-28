@@ -1434,19 +1434,33 @@ function renderRevenueChart() {
     
     if (!yearSelect || !monthSelect) return;
     
-    const selectedYear = parseInt(yearSelect.value);
+    const selectedFiscalYear = parseInt(yearSelect.value);
     const selectedMonth = monthSelect.value;
     
-    // Filter data for selected year and month - only tax categories
+    // Convert fiscal year to calendar years
+    // Fiscal Year 2024 = Sept 2023 - Aug 2024
+    // So Sept-Dec are in calendar year (selectedFiscalYear - 1)
+    // And Jan-Aug are in calendar year selectedFiscalYear
+    const septToDecMonths = ['September', 'October', 'November', 'December'];
+    const janToAugMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August'];
+    
+    let calendarYear;
+    if (septToDecMonths.includes(selectedMonth)) {
+        calendarYear = selectedFiscalYear - 1;
+    } else {
+        calendarYear = selectedFiscalYear;
+    }
+    
+    // Filter data for selected fiscal year and month - only tax categories
     const filteredData = revenueData.filter(d => 
-        d.year === selectedYear && 
+        d.year === calendarYear && 
         d.month === selectedMonth &&
         (d.category.includes('Tax') || d.category.includes('Taxes')) &&
         !['Tax Collections', 'Total Tax Collections', 'Total Net Revenue'].includes(d.category)
     );
     
     if (filteredData.length === 0) {
-        console.log('No data for selected month/year');
+        console.log(`No data for selected fiscal year/month: FY${selectedFiscalYear} ${selectedMonth} (calendar year ${calendarYear})`);
         return;
     }
     
