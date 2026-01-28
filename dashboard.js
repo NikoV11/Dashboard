@@ -1611,37 +1611,39 @@ async function renderAll() {
     if (!cachedData) return;
     const filtered = filterData();
     
-    // Check which tab is currently active
-    const activeTab = document.querySelector('.sub-tab-btn.active');
-    const tabId = activeTab?.dataset.tab || 'gdp';
+    // Always render US indicators (GDP, CPI, Unemployment, PAYEMS)
+    renderCharts(filtered);
+    renderUnemploymentChart(filtered);
+    renderPayemsChart(filtered);
     
-    // Only render the active chart to speed up rendering
-    if (tabId === 'gdp' || tabId === 'cpi') {
-        renderCharts(filtered);
-    } else if (tabId === 'unemployment') {
-        renderUnemploymentChart(filtered);
-    } else if (tabId === 'nonfarm-employment') {
-        renderPayemsChart(filtered);
-    } else if (tabId === 'employment') {
-        renderEmploymentChart();
-    } else if (tabId === 'sales-tax') {
-        showLoadingIndicator('sales tax');
+    // Render regional indicators
+    renderEmploymentChart();
+    
+    // Reload and render regional data that requires API calls
+    showLoadingIndicator('loading all data');
+    try {
         await loadSalesTaxData();
-        hideLoadingIndicator();
         renderSalesTaxChart();
-    } else if (tabId === 'median-home-price') {
-        showLoadingIndicator('median price');
-        await loadMedianPriceData();
-        hideLoadingIndicator();
-        renderMedianPriceChart();
-    } else if (tabId === 'mortgage-rates') {
-        showLoadingIndicator('mortgage rates');
-        loadMortgageData();
-        hideLoadingIndicator();
-        renderMortgageCharts();
-    } else if (tabId === 'state-revenue') {
-        renderRevenueChart();
+    } catch (e) {
+        console.error('Sales tax load failed:', e);
     }
+    
+    try {
+        await loadMedianPriceData();
+        renderMedianPriceChart();
+    } catch (e) {
+        console.error('Median price load failed:', e);
+    }
+    
+    try {
+        loadMortgageData();
+        renderMortgageCharts();
+    } catch (e) {
+        console.error('Mortgage load failed:', e);
+    }
+    
+    renderRevenueChart();
+    hideLoadingIndicator();
 }
 
 function handleGDPDownload() {
