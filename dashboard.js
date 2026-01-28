@@ -1466,11 +1466,10 @@ function renderRevenueChart() {
             return;
         }
         
-        const yearSelect = document.getElementById('revenueYear');
         const monthSelect = document.getElementById('revenueMonth');
         
-        if (!yearSelect || !monthSelect) {
-            console.error('Revenue dropdowns not found');
+        if (!monthSelect) {
+            console.error('revenueMonth select element not found');
             return;
         }
         
