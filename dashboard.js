@@ -1404,28 +1404,46 @@ function loadRevenueData() {
         revenueData = REVENUE_DATA;
         console.log(`Revenue data loaded: ${revenueData.length} records`);
         
-        // Get unique fiscal years from data
-        // Fiscal year is based on September start, so Sept-Dec of year X is part of FY X+1
-        const calendarYears = [...new Set(revenueData.map(d => d.year))].sort((a, b) => a - b);
-        const fiscalYears = [];
+        // Get unique year-month combinations sorted by date (most recent first)
+        const monthsInOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         
-        // Convert calendar years to fiscal years
-        calendarYears.forEach(year => {
-            if (!fiscalYears.includes(year)) fiscalYears.push(year);
-            if (!fiscalYears.includes(year + 1)) fiscalYears.push(year + 1);
+        const yearMonthMap = new Map(); // year-month -> count
+        revenueData.forEach(d => {
+            const key = `${d.year}-${d.month}`;
+            if (!yearMonthMap.has(key)) {
+                yearMonthMap.set(key, { year: d.year, month: d.month });
+            }
         });
         
-        fiscalYears.sort((a, b) => b - a); // Most recent first
+        // Convert to array and sort by date (most recent first)
+        const availableYearMonths = Array.from(yearMonthMap.values())
+            .sort((a, b) => {
+                const aDate = new Date(a.year, monthsInOrder.indexOf(a.month));
+                const bDate = new Date(b.year, monthsInOrder.indexOf(b.month));
+                return bDate - aDate;
+            });
         
-        // Populate fiscal year dropdown
+        console.log(`Available months: ${availableYearMonths.map(m => `${m.year} ${m.month}`).join(', ')}`);
+        
+        // Populate fiscal year dropdown (kept for compatibility)
         const yearSelect = document.getElementById('revenueYear');
         if (!yearSelect) {
             console.error('revenueYear select element not found');
             return false;
         }
         
+        // For fiscal year, show the calculated fiscal year based on the month
+        const fiscalYearSet = new Set();
+        availableYearMonths.forEach(ym => {
+            const septToDecMonths = ['September', 'October', 'November', 'December'];
+            const fiscalYear = septToDecMonths.includes(ym.month) ? ym.year + 1 : ym.year;
+            fiscalYearSet.add(fiscalYear);
+        });
+        
+        const fiscalYears = Array.from(fiscalYearSet).sort((a, b) => b - a);
+        
         yearSelect.innerHTML = fiscalYears.map(fy => 
-            `<option value="${fy}">${fy}</option>`
+            `<option value="${fy}">FY${fy}</option>`
         ).join('');
         
         // Set default to most recent fiscal year
@@ -1433,24 +1451,21 @@ function loadRevenueData() {
             yearSelect.value = fiscalYears[0];
         }
         
-        // Populate month dropdown in fiscal year order (Sept-Aug)
-        const monthsInFiscalOrder = [
-            'September', 'October', 'November', 'December',
-            'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August'
-        ];
-        
+        // Populate month dropdown with actual year and month
         const monthSelect = document.getElementById('revenueMonth');
         if (!monthSelect) {
             console.error('revenueMonth select element not found');
             return false;
         }
         
-        monthSelect.innerHTML = monthsInFiscalOrder.map(month => 
-            `<option value="${month}">${month}</option>`
+        monthSelect.innerHTML = availableYearMonths.map(ym => 
+            `<option value="${ym.year}-${ym.month}">${ym.year} ${ym.month}</option>`
         ).join('');
         
-        // Set default to September (start of fiscal year)
-        monthSelect.value = 'September';
+        // Set default to most recent month (December 2025)
+        if (availableYearMonths.length > 0) {
+            monthSelect.value = `${availableYearMonths[0].year}-${availableYearMonths[0].month}`;
+        }
         
         console.log('Revenue dropdowns populated successfully');
         
@@ -1486,17 +1501,13 @@ function renderRevenueChart() {
         }
         
         const selectedFiscalYear = parseInt(yearSelect.value);
-        const selectedMonth = monthSelect.value;
+        const monthValue = monthSelect.value; // Format: "2025-December"
         
-        console.log(`Rendering chart for FY${selectedFiscalYear} ${selectedMonth}`);
+        // Parse the month value
+        const [selectedYear, selectedMonth] = monthValue.split('-');
+        const calendarYear = parseInt(selectedYear);
         
-        // Convert fiscal year and month to calendar year
-        // FY 2024 runs Sept 2023 - Aug 2024
-        const calendarYear = (['September', 'October', 'November', 'December'].includes(selectedMonth))
-            ? selectedFiscalYear - 1
-            : selectedFiscalYear;
-        
-        console.log(`Looking for data: calendar year ${calendarYear}, month ${selectedMonth}`);
+        console.log(`Rendering chart for FY${selectedFiscalYear}: ${selectedYear} ${selectedMonth}`);
         
         // Filter for tax data in the selected month/year
         const filteredData = revenueData.filter(d => {
@@ -1508,10 +1519,10 @@ function renderRevenueChart() {
             return matchesYear && matchesMonth && isTax && notTotal;
         });
         
-        console.log(`Found ${filteredData.length} tax records`);
+        console.log(`Found ${filteredData.length} tax records for ${selectedYear} ${selectedMonth}`);
         
         if (filteredData.length === 0) {
-            console.warn(`No data for FY${selectedFiscalYear} ${selectedMonth} (calendar ${calendarYear})`);
+            console.warn(`No data for ${selectedYear} ${selectedMonth}`);
             // Clear the chart
             destroyChart(revenueChart);
             return;
