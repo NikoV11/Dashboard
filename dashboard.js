@@ -1939,8 +1939,8 @@ function shareChart(chartInstance, chartName) {
     }
 
     try {
-        // Get chart as base64 image
-        const imageUrl = chartInstance.toBase64Image('image/png', 1);
+        // Get chart as base64 image with 2x scale for higher quality
+        const imageUrl = chartInstance.toBase64Image('image/png', 2);
         
         // Create share URL
         const dashboardUrl = window.location.href.split('?')[0];
@@ -1990,9 +1990,9 @@ function shareMortgageCharts() {
     }
 
     try {
-        // Get both charts as base64 images
-        const image30 = mortgage30Chart.toBase64Image('image/png', 1);
-        const image15 = mortgage15Chart.toBase64Image('image/png', 1);
+        // Get both charts as base64 images with 2x scale for higher quality
+        const image30 = mortgage30Chart.toBase64Image('image/png', 2);
+        const image15 = mortgage15Chart.toBase64Image('image/png', 2);
         
         // Create share URL
         const dashboardUrl = window.location.href.split('?')[0];
