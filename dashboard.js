@@ -909,17 +909,31 @@ function renderSalesTaxChart() {
     if (!canvas || !salesTaxData || salesTaxData.length === 0) return;
     
     const ctx = canvas.getContext('2d');
-    const showLabels = salesTaxData.length <= 15;
+    
+    // Filter by year range
+    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
+    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    
+    const filteredData = salesTaxData.filter(d => {
+        return d.year >= startYear && d.year <= endYear;
+    });
+    
+    if (filteredData.length === 0) {
+        console.warn('No sales tax data available for selected year range');
+        return;
+    }
+    
+    const showLabels = filteredData.length <= 15;
 
     destroyChart(salesTaxChart);
     
     salesTaxChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: salesTaxData.map(d => formatMonthLabel(d.date)),
+            labels: filteredData.map(d => formatMonthLabel(d.date)),
             datasets: [{
                 label: 'Net Collections',
-                data: salesTaxData.map(d => d.value),
+                data: filteredData.map(d => d.value),
                 backgroundColor: '#CB6015',
                 borderRadius: 6
             }]
@@ -953,7 +967,7 @@ function renderSalesTaxChart() {
                         title: (items) => {
                             if (items.length > 0) {
                                 const idx = items[0].dataIndex;
-                                const data = salesTaxData[idx];
+                                const data = filteredData[idx];
                                 return formatMonthLabel(data.date);
                             }
                             return '';
@@ -964,7 +978,7 @@ function renderSalesTaxChart() {
                         },
                         afterLabel: (context) => {
                             const idx = context.dataIndex;
-                            const data = salesTaxData[idx];
+                            const data = filteredData[idx];
                             return [
                                 `MoM Change: ${data.periodChange.toFixed(2)}%`,
                                 `YoY Change: ${data.yoyChange.toFixed(2)}%`
@@ -1102,16 +1116,25 @@ function renderMedianPriceChart() {
     if (!canvas || !medianPriceData || medianPriceData.length === 0) return;
     
     const ctx = canvas.getContext('2d');
+    
+    // Filter by year range
+    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
+    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    
+    const filteredData = medianPriceData.filter(d => {
+        const year = new Date(d.date).getFullYear();
+        return year >= startYear && year <= endYear;
+    });
 
     destroyChart(medianPriceChart);
     
     medianPriceChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: medianPriceData.map(d => formatMonthLabel(d.date)),
+            labels: filteredData.map(d => formatMonthLabel(d.date)),
             datasets: [{
                 label: 'Median Listing Price',
-                data: medianPriceData.map(d => d.value),
+                data: filteredData.map(d => d.value),
                 backgroundColor: '#002F6C',
                 borderColor: '#002F6C',
                 borderWidth: 1
@@ -1203,9 +1226,18 @@ function renderMortgageCharts() {
     const ctx30 = canvas30.getContext('2d');
     const ctx15 = canvas15.getContext('2d');
     
+    // Filter by year range
+    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
+    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    
+    const filteredByYear = mortgageData.filter(d => {
+        const year = new Date(d.date).getFullYear();
+        return year >= startYear && year <= endYear;
+    });
+    
     // Filter data for each chart
-    const data30 = mortgageData.filter(d => d.rate30yr !== null);
-    const data15 = mortgageData.filter(d => d.rate15yr !== null);
+    const data30 = filteredByYear.filter(d => d.rate30yr !== null);
+    const data15 = filteredByYear.filter(d => d.rate15yr !== null);
     
     // 30-Year Chart
     destroyChart(mortgage30Chart);
