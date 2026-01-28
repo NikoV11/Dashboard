@@ -1543,10 +1543,10 @@ function renderRevenueChart() {
                             const data = chart.data;
                             const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
                             return data.labels.map((label, i) => {
-                                const value = data.datasets[0].data[i] * 1000; // Convert from thousands
-                                const percentage = ((value / (total * 1000)) * 100).toFixed(1);
+                                const value = data.datasets[0].data[i];
+                                const percentage = ((value / total) * 100).toFixed(1);
                                 return {
-                                    text: `${label}: $${(value / 1000000000).toFixed(2)}B (${percentage}%)`,
+                                    text: `${label}: $${(value / 1000000).toFixed(1)}M (${percentage}%)`,
                                     fillStyle: data.datasets[0].backgroundColor[i],
                                     hidden: false,
                                     index: i
