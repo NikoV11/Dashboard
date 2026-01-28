@@ -1141,6 +1141,8 @@ function renderMedianPriceChart() {
     }
 
     const showLabels = momChanges.length <= 15;
+    
+    console.log('Median Price Chart Data:', momChanges.slice(0, 3)); // Debug first 3 items
 
     destroyChart(medianPriceChart);
     
