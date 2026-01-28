@@ -1756,6 +1756,14 @@ function handlePayemsDownload() {
     URL.revokeObjectURL(url);
 }
 
+// ========== Date Formatting and Parsing ==========
+
+// Parse date string as local time to avoid timezone shifting
+function parseLocalDate(dateStr) {
+    const parts = dateStr.split('-');
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1);
+}
+
 function formatQuarterLabel(dateStr) {
     const d = new Date(dateStr);
     const month = d.getUTCMonth(); // Use UTC to avoid timezone issues
@@ -1766,13 +1774,13 @@ function formatQuarterLabel(dateStr) {
 
 function formatMonthLabel(dateStr) {
     // Parse as local date to avoid timezone shifting
-    const parts = dateStr.split('-');
-    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const d = parseLocalDate(dateStr);
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
 function formatDateDisplay(dateStr) {
-    const d = new Date(dateStr);
+    // Parse as local date to avoid timezone shifting
+    const d = parseLocalDate(dateStr);
     return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
