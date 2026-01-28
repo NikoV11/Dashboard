@@ -1126,33 +1126,18 @@ function renderMedianPriceChart() {
         return year >= startYear && year <= endYear;
     });
 
-    // Calculate month-over-month percentage changes - use current month's date for the change
-    const momChanges = [];
-    for (let i = 1; i < filteredData.length; i++) {
-        const prevValue = filteredData[i - 1].value;
-        const currValue = filteredData[i].value;
-        const percentChange = ((currValue - prevValue) / prevValue) * 100;
-        momChanges.push({
-            date: filteredData[i].date,
-            percentChange: percentChange,
-            currentPrice: currValue,
-            previousPrice: prevValue
-        });
-    }
-
-    const showLabels = momChanges.length <= 15;
-    
-    console.log('Median Price Chart Data:', momChanges.slice(0, 3)); // Debug first 3 items
+    // Data is already month-over-month percentage changes from FRED
+    const showLabels = filteredData.length <= 15;
 
     destroyChart(medianPriceChart);
     
     medianPriceChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: momChanges.map(d => formatMonthLabel(d.date)),
+            labels: filteredData.map(d => formatMonthLabel(d.date)),
             datasets: [{
                 label: 'MoM % Change',
-                data: momChanges.map(d => d.percentChange),
+                data: filteredData.map(d => d.value),
                 backgroundColor: '#002F6C',
                 borderColor: '#002F6C',
                 borderWidth: 1,
@@ -1185,15 +1170,7 @@ function renderMedianPriceChart() {
                     borderColor: '#002F6C',
                     borderWidth: 1,
                     callbacks: {
-                        label: (context) => {
-                            const idx = context.dataIndex;
-                            const percentChange = momChanges[idx].percentChange;
-                            const price = momChanges[idx].currentPrice;
-                            return [
-                                `MoM Change: ${percentChange.toFixed(2)}%`,
-                                `Median Price: $${price.toLocaleString()}`
-                            ];
-                        }
+                        label: (context) => `MoM Change: ${context.parsed.y.toFixed(2)}%`
                     }
                 }
             },
