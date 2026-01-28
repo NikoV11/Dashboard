@@ -1593,28 +1593,19 @@ async function renderAll() {
     } else if (tabId === 'employment') {
         renderEmploymentChart();
     } else if (tabId === 'sales-tax') {
-        if (!salesTaxLoaded) {
-            salesTaxLoaded = true;
-            showLoadingIndicator('sales tax');
-            await loadSalesTaxData();
-            hideLoadingIndicator();
-        }
+        showLoadingIndicator('sales tax');
+        await loadSalesTaxData();
+        hideLoadingIndicator();
         renderSalesTaxChart();
     } else if (tabId === 'median-home-price') {
-        if (!medianPriceLoaded) {
-            medianPriceLoaded = true;
-            showLoadingIndicator('median price');
-            await loadMedianPriceData();
-            hideLoadingIndicator();
-        }
+        showLoadingIndicator('median price');
+        await loadMedianPriceData();
+        hideLoadingIndicator();
         renderMedianPriceChart();
     } else if (tabId === 'mortgage-rates') {
-        if (!mortgageLoaded) {
-            mortgageLoaded = true;
-            showLoadingIndicator('mortgage rates');
-            loadMortgageData();
-            hideLoadingIndicator();
-        }
+        showLoadingIndicator('mortgage rates');
+        loadMortgageData();
+        hideLoadingIndicator();
         renderMortgageCharts();
     } else if (tabId === 'state-revenue') {
         renderRevenueChart();
