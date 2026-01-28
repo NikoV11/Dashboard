@@ -612,14 +612,8 @@ function renderCharts(filtered) {
         options: sharedOptions(showCPILabels)
     });
 
-    // Unemployment Chart
-    renderUnemploymentChart(filtered);
-    
-    // National Payroll Employment Chart
-    renderPayemsChart(filtered);
-    
-    // Employment Chart
-    renderEmploymentChart();
+    // Note: Unemployment, Payems, and Employment charts are rendered on-demand when their tabs are activated
+    // This prevents Chart.js rendering issues with hidden canvases
 }
 
 function renderUnemploymentChart(filtered) {
@@ -1480,19 +1474,48 @@ function handleRevenueDownload() {
 async function renderAll() {
     if (!cachedData) return;
     const filtered = filterData();
+    
+    // Always render GDP and CPI (they're in the first tab group)
     renderCharts(filtered);
+    
+    // Check which tab is currently active and render its chart
+    const activeTab = document.querySelector('.sub-tab-btn.active');
+    if (activeTab && cachedData) {
+        const tabId = activeTab.dataset.tab;
+        if (tabId === 'unemployment') {
+            renderUnemploymentChart(filtered);
+        } else if (tabId === 'nonfarm-employment') {
+            renderPayemsChart(filtered);
+        } else if (tabId === 'employment') {
+            renderEmploymentChart();
+        } else if (tabId === 'sales-tax') {
+            renderSalesTaxChart();
+        } else if (tabId === 'median-home-price') {
+            renderMedianPriceChart();
+        } else if (tabId === 'mortgage-rates') {
+            renderMortgageCharts();
+        } else if (tabId === 'state-revenue') {
+            renderRevenueChart();
+        }
+    }
     
     // Load and render sales tax data
     await loadSalesTaxData();
-    renderSalesTaxChart();
+    if (document.querySelector('.sub-tab-btn.active')?.dataset.tab === 'sales-tax') {
+        renderSalesTaxChart();
+    }
     
     // Load and render median home price data
     await loadMedianPriceData();
-    renderMedianPriceChart();
+    if (document.querySelector('.sub-tab-btn.active')?.dataset.tab === 'median-home-price') {
+        renderMedianPriceChart();
+    }
     
     // Load and render mortgage rates
     loadMortgageData();
-    renderMortgageCharts();
+    if (document.querySelector('.sub-tab-btn.active')?.dataset.tab === 'mortgage-rates') {
+        renderMortgageCharts();
+    }
 }
 
 function handleGDPDownload() {
