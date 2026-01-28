@@ -1045,10 +1045,8 @@ function renderMedianPriceChart() {
                     borderWidth: 1,
                     callbacks: {
                         label: (context) => {
-                            const firstValue = context.dataset.data[0];
                             const currentValue = context.parsed.y;
-                            const percentChange = ((currentValue - firstValue) / firstValue * 100).toFixed(2);
-                            return `Change: ${percentChange}%`;
+                            return `Median Price: $${currentValue.toLocaleString()}`;
                         }
                     }
                 }
