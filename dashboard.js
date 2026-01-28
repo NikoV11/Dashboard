@@ -923,23 +923,16 @@ function renderPayemsChart(filtered) {
     if (payemsChart) payemsChart.destroy();
     
     payemsChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: filtered.payems.map(d => formatMonthLabel(d.date)),
             datasets: [{
                 label: 'Nonfarm Employment Change',
                 data: filtered.payems.map(d => d.value),
+                backgroundColor: '#002F6C',
                 borderColor: '#002F6C',
-                backgroundColor: 'rgba(124, 58, 237, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointBackgroundColor: '#002F6C',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverRadius: 8,
-                pointHoverBackgroundColor: '#002F6C'
+                borderWidth: 1,
+                hoverBackgroundColor: '#004999'
             }]
         },
         options: {
