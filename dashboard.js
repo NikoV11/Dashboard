@@ -955,10 +955,10 @@ function renderSalesTaxChart() {
                 legend: { display: false },
                 datalabels: showLabels ? {
                     display: true,
-                    anchor: 'end',
-                    align: 'end',
+                    anchor: 'center',
+                    align: 'center',
                     font: { weight: 'bold', size: 11 },
-                    color: '#0f172a',
+                    color: '#ffffff',
                     formatter: (value) => `$${(value / 1000000).toFixed(1)}M`
                 } : { display: false },
                 tooltip: {
