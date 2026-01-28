@@ -41289,25 +41289,25 @@ const REVENUE_DATA = [
     "year": 2026,
     "month": "September",
     "category": "Sales Taxes",
-    "value": 3944667.0
+    "value": 3970547.0
   },
   {
     "year": 2026,
     "month": "October",
     "category": "Sales Taxes",
-    "value": 3987666.0
+    "value": 4194911.0
   },
   {
     "year": 2026,
     "month": "November",
     "category": "Sales Taxes",
-    "value": 4298214.0
+    "value": 4530352.0
   },
   {
     "year": 2026,
     "month": "December",
     "category": "Sales Taxes",
-    "value": 4097191.0
+    "value": 4331549.0
   },
   {
     "year": 2026,
@@ -41319,43 +41319,43 @@ const REVENUE_DATA = [
     "year": 2026,
     "month": "October",
     "category": "Motor Vehicle Sales and Rental Taxes",
-    "value": 691805.0
+    "value": 695218.0
   },
   {
     "year": 2026,
     "month": "November",
     "category": "Motor Vehicle Sales and Rental Taxes",
-    "value": 578303.0
+    "value": 581935.0
   },
   {
     "year": 2026,
     "month": "December",
     "category": "Motor Vehicle Sales and Rental Taxes",
-    "value": 610619.0
+    "value": 613591.0
   },
   {
     "year": 2026,
     "month": "September",
     "category": "Motor Fuel Taxes",
-    "value": 72843.0
+    "value": 341007.0
   },
   {
     "year": 2026,
     "month": "October",
     "category": "Motor Fuel Taxes",
-    "value": 89973.0
+    "value": 332757.0
   },
   {
     "year": 2026,
     "month": "November",
     "category": "Motor Fuel Taxes",
-    "value": 108976.0
+    "value": 353109.0
   },
   {
     "year": 2026,
     "month": "December",
     "category": "Motor Fuel Taxes",
-    "value": 64904.0
+    "value": 324037.0
   },
   {
     "year": 2026,
@@ -41409,19 +41409,19 @@ const REVENUE_DATA = [
     "year": 2026,
     "month": "September",
     "category": "Insurance Taxes",
-    "value": 45371.0
+    "value": 45406.0
   },
   {
     "year": 2026,
     "month": "October",
     "category": "Insurance Taxes",
-    "value": 56159.0
+    "value": 56376.0
   },
   {
     "year": 2026,
     "month": "November",
     "category": "Insurance Taxes",
-    "value": 65384.0
+    "value": 65454.0
   },
   {
     "year": 2026,
@@ -41439,19 +41439,19 @@ const REVENUE_DATA = [
     "year": 2026,
     "month": "October",
     "category": "Cigarette and Tobacco Taxes",
-    "value": 57270.0
+    "value": 85971.0
   },
   {
     "year": 2026,
     "month": "November",
     "category": "Cigarette and Tobacco Taxes",
-    "value": 39235.0
+    "value": 83852.0
   },
   {
     "year": 2026,
     "month": "December",
     "category": "Cigarette and Tobacco Taxes",
-    "value": 53016.0
+    "value": 99883.0
   },
   {
     "year": 2026,
@@ -41553,25 +41553,25 @@ const REVENUE_DATA = [
     "year": 2026,
     "month": "September",
     "category": "Other Taxes",
-    "value": 12567.0
+    "value": 13071.0
   },
   {
     "year": 2026,
     "month": "October",
     "category": "Other Taxes",
-    "value": 12201.0
+    "value": 48330.0
   },
   {
     "year": 2026,
     "month": "November",
     "category": "Other Taxes",
-    "value": 14555.0
+    "value": -7862.0
   },
   {
     "year": 2026,
     "month": "December",
     "category": "Other Taxes",
-    "value": 12984.0
+    "value": 13382.0
   },
   {
     "year": 2026,
