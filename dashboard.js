@@ -998,9 +998,8 @@ function renderSalesTaxChart() {
                     ticks: {
                         maxRotation: 45,
                         minRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 20,
-                        font: { size: 12, weight: '500' },
+                        autoSkip: false,
+                        font: { size: 11, weight: '500' },
                         color: '#475569'
                     }
                 },
