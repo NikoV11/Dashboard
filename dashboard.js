@@ -1765,7 +1765,9 @@ function formatQuarterLabel(dateStr) {
 }
 
 function formatMonthLabel(dateStr) {
-    const d = new Date(dateStr);
+    // Parse as local date to avoid timezone shifting
+    const parts = dateStr.split('-');
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
