@@ -1425,32 +1425,6 @@ function loadRevenueData() {
         
         console.log(`Available months: ${availableYearMonths.map(m => `${m.year} ${m.month}`).join(', ')}`);
         
-        // Populate fiscal year dropdown (kept for compatibility)
-        const yearSelect = document.getElementById('revenueYear');
-        if (!yearSelect) {
-            console.error('revenueYear select element not found');
-            return false;
-        }
-        
-        // For fiscal year, show the calculated fiscal year based on the month
-        const fiscalYearSet = new Set();
-        availableYearMonths.forEach(ym => {
-            const septToDecMonths = ['September', 'October', 'November', 'December'];
-            const fiscalYear = septToDecMonths.includes(ym.month) ? ym.year + 1 : ym.year;
-            fiscalYearSet.add(fiscalYear);
-        });
-        
-        const fiscalYears = Array.from(fiscalYearSet).sort((a, b) => b - a);
-        
-        yearSelect.innerHTML = fiscalYears.map(fy => 
-            `<option value="${fy}">FY${fy}</option>`
-        ).join('');
-        
-        // Set default to most recent fiscal year
-        if (fiscalYears.length > 0) {
-            yearSelect.value = fiscalYears[0];
-        }
-        
         // Populate month dropdown with actual year and month
         const monthSelect = document.getElementById('revenueMonth');
         if (!monthSelect) {
@@ -1467,7 +1441,7 @@ function loadRevenueData() {
             monthSelect.value = `${availableYearMonths[0].year}-${availableYearMonths[0].month}`;
         }
         
-        console.log('Revenue dropdowns populated successfully');
+        console.log('Revenue dropdown populated successfully');
         
         // Render initial chart
         renderRevenueChart();
@@ -1500,14 +1474,13 @@ function renderRevenueChart() {
             return;
         }
         
-        const selectedFiscalYear = parseInt(yearSelect.value);
         const monthValue = monthSelect.value; // Format: "2025-December"
         
         // Parse the month value
         const [selectedYear, selectedMonth] = monthValue.split('-');
         const calendarYear = parseInt(selectedYear);
         
-        console.log(`Rendering chart for FY${selectedFiscalYear}: ${selectedYear} ${selectedMonth}`);
+        console.log(`Rendering chart for ${selectedYear} ${selectedMonth}`);
         
         // Filter for tax data in the selected month/year
         const filteredData = revenueData.filter(d => {
