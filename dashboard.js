@@ -1126,20 +1126,35 @@ function renderMedianPriceChart() {
         return year >= startYear && year <= endYear;
     });
 
-    const showLabels = filteredData.length <= 15;
+    // Calculate month-over-month percentage changes - use current month's date for the change
+    const momChanges = [];
+    for (let i = 1; i < filteredData.length; i++) {
+        const prevValue = filteredData[i - 1].value;
+        const currValue = filteredData[i].value;
+        const percentChange = ((currValue - prevValue) / prevValue) * 100;
+        momChanges.push({
+            date: filteredData[i].date,
+            percentChange: percentChange,
+            currentPrice: currValue,
+            previousPrice: prevValue
+        });
+    }
+
+    const showLabels = momChanges.length <= 15;
 
     destroyChart(medianPriceChart);
     
     medianPriceChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: filteredData.map(d => formatMonthLabel(d.date)),
+            labels: momChanges.map(d => formatMonthLabel(d.date)),
             datasets: [{
-                label: 'Median Listing Price',
-                data: filteredData.map(d => d.value),
+                label: 'MoM % Change',
+                data: momChanges.map(d => d.percentChange),
                 backgroundColor: '#002F6C',
                 borderColor: '#002F6C',
-                borderWidth: 1
+                borderWidth: 1,
+                borderRadius: 6
             }]
         },
         options: {
@@ -1158,7 +1173,7 @@ function renderMedianPriceChart() {
                     align: 'end',
                     font: { weight: 'bold', size: 11 },
                     color: '#0f172a',
-                    formatter: (value) => `$${(value / 1000).toFixed(0)}K`
+                    formatter: (value) => value.toFixed(2) + '%'
                 } : { display: false },
                 tooltip: {
                     enabled: true,
@@ -1169,8 +1184,13 @@ function renderMedianPriceChart() {
                     borderWidth: 1,
                     callbacks: {
                         label: (context) => {
-                            const currentValue = context.parsed.y;
-                            return `Median Price: $${currentValue.toLocaleString()}`;
+                            const idx = context.dataIndex;
+                            const percentChange = momChanges[idx].percentChange;
+                            const price = momChanges[idx].currentPrice;
+                            return [
+                                `MoM Change: ${percentChange.toFixed(2)}%`,
+                                `Median Price: $${price.toLocaleString()}`
+                            ];
                         }
                     }
                 }
@@ -1188,7 +1208,6 @@ function renderMedianPriceChart() {
                     }
                 },
                 y: {
-                    beginAtZero: true,
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
                         callback: (value) => `${value}%`,
@@ -1827,11 +1846,21 @@ function handleMedianPriceDownload() {
         return;
     }
     
-    let csv = 'Date,Month-Over-Month Change (%)\n';
+    let csv = 'Date,Median Listing Price ($),Month-Over-Month Change (%)\n';
     
-    medianPriceData.forEach(item => {
-        csv += `${formatMonthLabel(item.date)},${item.value.toFixed(2)}\n`;
-    });
+    // Calculate MoM changes for CSV
+    for (let i = 0; i < medianPriceData.length; i++) {
+        const item = medianPriceData[i];
+        let momChange = '';
+        
+        if (i > 0) {
+            const prevValue = medianPriceData[i - 1].value;
+            const percentChange = ((item.value - prevValue) / prevValue) * 100;
+            momChange = percentChange.toFixed(2);
+        }
+        
+        csv += `${formatMonthLabel(item.date)},${item.value.toFixed(0)},${momChange}\n`;
+    }
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
