@@ -919,6 +919,7 @@ function renderPayemsChart(filtered) {
     }
 
     const ctx = canvas.getContext('2d');
+    const showLabels = filtered.payems.length <= 15;
 
     if (payemsChart) payemsChart.destroy();
     
@@ -932,7 +933,8 @@ function renderPayemsChart(filtered) {
                 backgroundColor: '#002F6C',
                 borderColor: '#002F6C',
                 borderWidth: 1,
-                hoverBackgroundColor: '#004999'
+                hoverBackgroundColor: '#004999',
+                borderRadius: 6
             }]
         },
         options: {
@@ -945,7 +947,14 @@ function renderPayemsChart(filtered) {
             },
             plugins: {
                 legend: { display: false },
-                datalabels: { display: false },
+                datalabels: showLabels ? {
+                    display: true,
+                    anchor: 'end',
+                    align: 'end',
+                    font: { weight: 'bold', size: 11 },
+                    color: '#0f172a',
+                    formatter: (value) => value.toLocaleString() + 'K'
+                } : { display: false },
                 tooltip: {
                     enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
