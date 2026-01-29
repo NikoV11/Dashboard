@@ -1648,32 +1648,44 @@ function renderRevenueChart() {
 }
 
 function handleRevenueDownload() {
-    const yearSelect = document.getElementById('revenueYear');
     const monthSelect = document.getElementById('revenueMonth');
     
-    if (!yearSelect || !monthSelect || !revenueData || revenueData.length === 0) {
+    if (!monthSelect || !revenueData || revenueData.length === 0) {
         alert('No revenue data available to download.');
         return;
     }
     
-    const selectedYear = parseInt(yearSelect.value);
-    const selectedMonth = monthSelect.value;
+    const selectedValue = monthSelect.value; // Format: "2025-12"
+    if (!selectedValue || selectedValue === '') {
+        alert('Please select a month first.');
+        return;
+    }
+    
+    const [year, month] = selectedValue.split('-');
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthName = monthNames[parseInt(month) - 1];
     
     const filteredData = revenueData.filter(d => 
-        d.year === selectedYear && d.month === selectedMonth
+        d.year === parseInt(year) && d.month === monthName
     );
     
-    let csv = 'Category,Value ($)\n';
+    if (filteredData.length === 0) {
+        alert('No data available for the selected month.');
+        return;
+    }
+    
+    let csv = 'Category,Value ($ thousands)\n';
     
     filteredData.forEach(item => {
-        csv += `${item.category},${item.value.toFixed(2)}\n`;
+        csv += `"${item.category}",${item.value.toFixed(2)}\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `texas_revenue_${selectedMonth}_${selectedYear}.csv`;
+    link.download = `texas_revenue_${year}_${monthName}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
