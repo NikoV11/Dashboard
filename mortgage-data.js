@@ -14298,5 +14298,10 @@ const MORTGAGE_RATES_DATA = [
     "date": "2026-01-15",
     "rate30yr": 6.06,
     "rate15yr": 5.38
+  },
+  {
+    "date": "2026-01-22",
+    "rate30yr": 6.09,
+    "rate15yr": 5.44
   }
 ];
