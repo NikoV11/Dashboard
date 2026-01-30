@@ -1,105 +1,91 @@
-# Real GDP & CPI-U Interactive Dashboard
+# Hibbs Monitor - East Texas & US Economic Dashboard
 
-A responsive, interactive dashboard displaying Real GDP quarterly percentage changes and CPI-U monthly percent changes with interactive bar charts.
+An interactive, real-time economic dashboard tracking national and regional economic indicators for Tyler MSA and the United States. Built by the UT Tyler Hibbs Institute for Business and Economic Research.
 
 ## Features
 
-- **Real GDP Chart**: Quarterly percentage change from the preceding quarter (Series: GDPC1)
-- **CPI-U Chart**: One-month percent change in Consumer Price Index for All Urban Consumers (Series: CPIAUCSL)
-- **Interactive Controls**: Filter data by year range
-- **Data Table**: Detailed view of all data points
-- **Data Export**: Download filtered data as CSV
-- **Responsive Design**: Works on desktop, tablet, and mobile devices
-- **Custom Color Scheme**: 
-  - GDP bars: #CB6015 (orange)
-  - CPI bars: #002F6C (dark blue)
+**US Economy**
+- Real GDP: Quarterly percentage change (FRED: A191RL1Q225SBEA)
+- Inflation (CPI-U): Monthly percent change (FRED: CPIAUCSL)
 
-## Getting Started
+**Labor Market**
+- Unemployment Rate: National unemployment trends (FRED: UNRATE)
+- Total Nonfarm Employment: Monthly employment change (FRED: PAYEMS)
+- Regional Employment: Tyler MSA employment data (BLS)
 
-### Prerequisites
-- A modern web browser (Chrome, Firefox, Safari, Edge)
-- No server required - runs entirely in the browser
+**Housing Market**
+- Median Home Price: Month-over-month percentage change (FRED: MEDLISPRIMM46340)
+- Mortgage Rates: 30-year and 15-year fixed rates (FRED: MORTGAGE30US, MORTGAGE15US)
 
-### Installation
+**Public Finances**
+- Sales Tax: Tyler MSA sales tax collections (Texas Comptroller)
+- State Revenue: Texas tax collections and distributions (Texas Comptroller)
 
-1. Clone or download this repository
-2. Open `index.html` in your web browser
-3. Use the year range controls to filter data
-4. Click "Update Charts" to refresh visualizations
-5. Click "Download Data" to export filtered data as CSV
+## Data Sources
 
-## File Structure
+- **Board of Governors of the Federal Reserve System** - Federal Reserve Economic Data (FRED)
+- **Freddie Mac** - Primary Mortgage Market Survey
+- **State Comptroller of Public Accounts, State of Texas** - Tax Collections
+- **U.S. Bureau of Labor Statistics** - Employment Data
 
-```
-dashboard/
-├── index.html       # Main HTML file
-├── styles.css       # CSS styling (responsive design)
-├── dashboard.js     # JavaScript logic (charts, interactivity, data handling)
-└── README.md        # This file
-```
+## Quick Start
 
-## Technologies Used
+1. Open `index.html` in a modern web browser
+2. Use the date range controls to select data period
+3. Click "Update" to refresh all charts
+4. View detailed data in each section
+5. Download data as CSV using the "Download CSV" buttons
+6. View the latest FOMC statement link in the hero section
 
-- **Chart.js** 4.4.0: Interactive bar charts
-- **HTML5**: Semantic markup
-- **CSS3**: Responsive grid layout, gradients, animations
-- **Vanilla JavaScript**: No frameworks - lightweight and fast
+## Technologies
 
-## Data
+- **Chart.js 4.4.0** - Interactive charting
+- **HTML5** - Semantic markup with accessibility
+- **CSS3** - Responsive design with mobile optimization
+- **Vanilla JavaScript** - No frameworks required
 
-Currently uses sample data. To integrate with real FRED data:
-
-1. Get a free API key from [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/docs/api/)
-2. Modify `sampleData` in `dashboard.js` to fetch from FRED API
-3. Update the `getFilteredData()` function to handle real API responses
-
-Example FRED API integration:
-```javascript
-const gdpcUrl = `https://api.stlouisfed.org/fred/series/data?series_id=GDPC1&api_key=YOUR_API_KEY&file_type=json`;
-const cpiUrl = `https://api.stlouisfed.org/fred/series/data?series_id=CPIAUCSL&api_key=YOUR_API_KEY&file_type=json`;
-```
-
-## Customization
-
-### Colors
-Edit the CSS variables in `styles.css`:
-```css
-:root {
-    --gdp-color: #CB6015;  /* GDP bar color */
-    --cpi-color: #002F6C;  /* CPI bar color */
-}
-```
-
-### Data Update Frequency
-Modify the `sampleData` object in `dashboard.js` or implement live API polling.
-
-## Browser Compatibility
+## Browser Support
 
 - Chrome 90+
 - Firefox 88+
 - Safari 14+
 - Edge 90+
+- Mobile browsers (iOS Safari, Chrome Mobile)
 
-## Performance
+## File Structure
 
-- Lightweight (~15KB uncompressed)
-- No external dependencies besides Chart.js
-- Responsive animations and interactions
-- Optimized for performance on mobile devices
+```
+Dashboard/
+├── index.html              # Main HTML file
+├── styles.css              # Responsive styling (1404 lines)
+├── dashboard.js            # Core application logic (2600+ lines)
+├── employment-data.js      # Employment data
+├── revenue-data.js         # Revenue data
+├── report-generator.js     # Monthly report generation
+├── images/                 # Logo and assets
+└── README.md               # This file
+```
 
-## License
+## Mobile Optimization
 
-MIT License - Feel free to use and modify for your needs.
+- Touch-optimized controls (48-52px targets)
+- Safe area support for notched devices
+- Responsive breakpoints: 480px, 640px, 900px, 1280px+
+- WCAG 2.1 AA accessibility compliance
+- Optimized typography and spacing
 
-## Contributing
+## Customization
 
-To suggest improvements or report issues, please create an issue or pull request.
-
-## Data Sources
-
-- **Real GDP (GDPC1)**: U.S. Real Gross Domestic Product - Federal Reserve Economic Data (FRED)
-- **CPI-U (CPIAUCSL)**: Consumer Price Index for All Urban Consumers - Federal Reserve Economic Data (FRED)
+Colors are defined in `styles.css`:
+```css
+:root {
+    --gdp: #CB6015;        /* GDP charts */
+    --cpi: #002F6C;        /* CPI charts */
+}
+```
 
 ---
 
-**Last Updated**: December 2025
+**Hibbs Monitor** - East Texas & US Economic Dashboard  
+UT Tyler Hibbs Institute for Business and Economic Research  
+Last Updated: January 2026
