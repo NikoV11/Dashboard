@@ -117,12 +117,12 @@ function validateYearRange(startYear, endYear) {
     const currentYear = new Date().getFullYear();
     
     if (isNaN(startYear) || isNaN(endYear)) {
-        alert('Please enter valid numeric years');
+        alert('Please enter valid years');
         return false;
     }
     
     if (startYear > endYear) {
-        alert('Start year must be before or equal to end year');
+        alert('Start date must be before or equal to end date');
         return false;
     }
     
@@ -137,6 +137,56 @@ function validateYearRange(startYear, endYear) {
     }
     
     return true;
+}
+
+// Helper function to get date range from inputs
+function getDateRange() {
+    const startDateEl = document.getElementById('startDate');
+    const endDateEl = document.getElementById('endDate');
+    
+    // Month inputs return YYYY-MM format
+    const startValue = startDateEl?.value || '2023-01';
+    const endValue = endDateEl?.value || '2026-01';
+    
+    const [startYear, startMonth] = startValue.split('-').map(Number);
+    const [endYear, endMonth] = endValue.split('-').map(Number);
+    
+    // Start date: first day of the month at midnight
+    const startDate = new Date(startYear, startMonth - 1, 1, 0, 0, 0, 0);
+    
+    // End date: last day of the month at end of day
+    const endDate = new Date(endYear, endMonth, 0, 23, 59, 59, 999);
+    
+    return { startDate, endDate };
+}
+
+// Helper function to check if a date is within range
+function isDateInRange(dateStr, startDate, endDate, isQuarterly = false) {
+    const date = parseLocalDate(dateStr);
+    
+    if (isQuarterly) {
+        // For quarterly data, check if the quarter overlaps with the date range
+        // Get the quarter's start and end months
+        const dataMonth = date.getMonth(); // 0-11
+        const dataYear = date.getFullYear();
+        
+        // Determine quarter start and end months
+        const quarterStartMonth = Math.floor(dataMonth / 3) * 3;
+        const quarterEndMonth = quarterStartMonth + 2;
+        
+        const quarterStart = new Date(dataYear, quarterStartMonth, 1, 0, 0, 0, 0);
+        const quarterEnd = new Date(dataYear, quarterEndMonth + 1, 0, 23, 59, 59, 999);
+        
+        // Check if quarter overlaps with the selected date range
+        return quarterEnd >= startDate && quarterStart <= endDate;
+    } else {
+        // For monthly data, compare by month/year
+        const dateFirstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+        const startFirstOfMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1, 0, 0, 0, 0);
+        const endFirstOfMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1, 0, 0, 0, 0);
+        
+        return dateFirstOfMonth >= startFirstOfMonth && dateFirstOfMonth <= endFirstOfMonth;
+    }
 }
 
 // Destroy chart instance safely
@@ -199,10 +249,10 @@ function setStatus(text, tone = 'muted') {
 }
 
 function ensureDefaults() {
-    const start = document.getElementById('startYear');
-    const end = document.getElementById('endYear');
-    if (start && !start.value) start.value = '2023';
-    if (end && !end.value) end.value = '2026';
+    const start = document.getElementById('startDate');
+    const end = document.getElementById('endDate');
+    if (start && !start.value) start.value = '2023-01';
+    if (end && !end.value) end.value = '2026-01';
 }
 
 function registerPlugins() {
@@ -450,8 +500,9 @@ async function loadData() {
 
 async function loadSalesTaxData() {
     const API_URL = 'https://data.texas.gov/resource/53pa-m7sm.json';
-    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
-    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    const { startDate, endDate } = getDateRange();
+    const startYear = startDate.getFullYear();
+    const endYear = endDate.getFullYear();
     
     // Tyler MSA cities
     const msaCities = ['Tyler', 'Lindale', 'Whitehouse', 'Bullard', 'Troup', 'Noonday', 'Arp', 'Winona', 'New Chapel Hill'];
@@ -482,8 +533,12 @@ async function loadSalesTaxData() {
             const month = parseInt(d.report_month);
             const city = d.city || 'Unknown';
             
-            // Filter by year range
-            if (year < startYear || year > endYear) return;
+            // Filter by date range (month/year comparison)
+            const itemYearMonth = year * 100 + month;
+            const startYearMonth = startDate.getFullYear() * 100 + (startDate.getMonth() + 1);
+            const endYearMonth = endDate.getFullYear() * 100 + (endDate.getMonth() + 1);
+            
+            if (itemYearMonth < startYearMonth || itemYearMonth > endYearMonth) return;
             
             const key = `${year}-${String(month).padStart(2, '0')}`;
             const value = parseFloat(d.net_payment_this_period) || 0;
@@ -554,8 +609,7 @@ async function loadSalesTaxData() {
 
 async function loadMedianPriceData() {
     try {
-        const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
-        const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+        const { startDate, endDate } = getDateRange();
         
         const medianPriceRaw = await fetchSeries(MEDIAN_PRICE_ID);
         
@@ -563,8 +617,7 @@ async function loadMedianPriceData() {
             .map(o => ({ date: o.date, value: parseFloat(o.value) }))
             .filter(d => {
                 if (Number.isNaN(d.value)) return false;
-                const year = new Date(d.date).getFullYear();
-                return year >= startYear && year <= endYear;
+                return isDateInRange(d.date, startDate, endDate);
             })
             .sort((a, b) => new Date(a.date) - new Date(b.date));
         
@@ -614,23 +667,19 @@ async function loadMedianPriceData() {
 }
 
 function filterData() {
-    const start = parseInt(document.getElementById('startYear').value, 10) || 2023;
-    const end = parseInt(document.getElementById('endYear').value, 10) || 2026;
+    const { startDate, endDate } = getDateRange();
+    
     const gdp = cachedData.gdp.filter(d => {
-        const y = new Date(d.date).getFullYear();
-        return y >= start && y <= end;
+        return isDateInRange(d.date, startDate, endDate, true); // GDP is quarterly
     });
     const cpi = cachedData.cpi.filter(d => {
-        const y = new Date(d.date).getFullYear();
-        return y >= start && y <= end;
+        return isDateInRange(d.date, startDate, endDate, false); // CPI is monthly
     });
     const unemployment = cachedData.unemployment.filter(d => {
-        const y = new Date(d.date).getFullYear();
-        return y >= start && y <= end;
+        return isDateInRange(d.date, startDate, endDate, false); // Monthly
     });
     const payems = cachedData.payems.filter(d => {
-        const y = new Date(d.date).getFullYear();
-        return y >= start && y <= end;
+        return isDateInRange(d.date, startDate, endDate, false); // Monthly
     });
     return { gdp, cpi, unemployment, payems };
 }
@@ -803,18 +852,15 @@ function renderEmploymentChart() {
     const ctx = canvas.getContext('2d');
     const empData = parseEmploymentData();
     
-    // Filter by year range
-    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
-    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    // Filter by date range
+    const { startDate, endDate } = getDateRange();
     
     const filteredTyler = empData.tyler.filter(d => {
-        const year = new Date(d.date).getFullYear();
-        return year >= startYear && year <= endYear;
+        return isDateInRange(d.date, startDate, endDate);
     });
     
     const filteredTexas = empData.texas.filter(d => {
-        const year = new Date(d.date).getFullYear();
-        return year >= startYear && year <= endYear;
+        return isDateInRange(d.date, startDate, endDate);
     });
 
     const showLabels = filteredTyler.length <= 15;
@@ -910,12 +956,15 @@ function renderSalesTaxChart() {
     
     const ctx = canvas.getContext('2d');
     
-    // Filter by year range
-    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
-    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    // Filter by date range
+    const { startDate, endDate } = getDateRange();
     
     const filteredData = salesTaxData.filter(d => {
-        return d.year >= startYear && d.year <= endYear;
+        // Compare year and month
+        const itemYearMonth = d.year * 100 + d.month;
+        const startYearMonth = startDate.getFullYear() * 100 + (startDate.getMonth() + 1);
+        const endYearMonth = endDate.getFullYear() * 100 + (endDate.getMonth() + 1);
+        return itemYearMonth >= startYearMonth && itemYearMonth <= endYearMonth;
     });
     
     if (filteredData.length === 0) {
@@ -1121,13 +1170,11 @@ function renderMedianPriceChart() {
     
     const ctx = canvas.getContext('2d');
     
-    // Filter by year range
-    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
-    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    // Filter by date range
+    const { startDate, endDate } = getDateRange();
     
     const filteredData = medianPriceData.filter(d => {
-        const year = new Date(d.date).getFullYear();
-        return year >= startYear && year <= endYear;
+        return isDateInRange(d.date, startDate, endDate);
     });
 
     // Data is already month-over-month percentage changes from FRED
@@ -1205,13 +1252,11 @@ function renderMedianPriceChart() {
 
 function loadMortgageData() {
     try {
-        const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
-        const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+        const { startDate, endDate } = getDateRange();
         
         mortgageData = MORTGAGE_RATES_DATA
             .filter(d => {
-                const year = new Date(d.date).getFullYear();
-                return year >= startYear && year <= endYear;
+                return isDateInRange(d.date, startDate, endDate);
             });
         
         console.log(`Mortgage rates data points: ${mortgageData.length}`);
@@ -1237,13 +1282,11 @@ function renderMortgageCharts() {
     const ctx30 = canvas30.getContext('2d');
     const ctx15 = canvas15.getContext('2d');
     
-    // Filter by year range
-    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
-    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    // Filter by date range
+    const { startDate, endDate } = getDateRange();
     
     const filteredByYear = mortgageData.filter(d => {
-        const year = new Date(d.date).getFullYear();
-        return year >= startYear && year <= endYear;
+        return isDateInRange(d.date, startDate, endDate);
     });
     
     // Filter data for each chart
@@ -1823,12 +1866,16 @@ function parseLocalDate(dateStr) {
     // Handle both "YYYY-MM-DD" and "M/D/YYYY" formats
     if (dateStr.includes('-')) {
         const parts = dateStr.split('-');
-        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1);
+        // Create date at noon to avoid timezone issues
+        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1, 12, 0, 0, 0);
     } else if (dateStr.includes('/')) {
         const parts = dateStr.split('/');
-        return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]) || 1);
+        // Create date at noon to avoid timezone issues
+        return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]) || 1, 12, 0, 0, 0);
     }
-    return new Date(dateStr);
+    const d = new Date(dateStr);
+    d.setHours(12, 0, 0, 0);
+    return d;
 }
 
 function formatQuarterLabel(dateStr) {
@@ -1853,17 +1900,14 @@ function formatDateDisplay(dateStr) {
 
 function handleEmploymentDownload() {
     const empData = parseEmploymentData();
-    const startYear = parseInt(document.getElementById('startYear')?.value || 2023);
-    const endYear = parseInt(document.getElementById('endYear')?.value || 2025);
+    const { startDate, endDate } = getDateRange();
     
     const filteredTyler = empData.tyler.filter(d => {
-        const year = new Date(d.date).getFullYear();
-        return year >= startYear && year <= endYear;
+        return isDateInRange(d.date, startDate, endDate);
     });
     
     const filteredTexas = empData.texas.filter(d => {
-        const year = new Date(d.date).getFullYear();
-        return year >= startYear && year <= endYear;
+        return isDateInRange(d.date, startDate, endDate);
     });
     
     let csv = 'Date,Tyler Employment (% Change),Texas Employment (% Change)\n';
@@ -1980,8 +2024,9 @@ function handleMortgageDownload() {
 function wireEvents() {
     // Update button with validation
     document.getElementById('updateBtn')?.addEventListener('click', () => {
-        const startYear = parseInt(document.getElementById('startYear')?.value);
-        const endYear = parseInt(document.getElementById('endYear')?.value);
+        const { startDate, endDate } = getDateRange();
+        const startYear = startDate.getFullYear();
+        const endYear = endDate.getFullYear();
         
         if (validateYearRange(startYear, endYear)) {
             renderAll();
