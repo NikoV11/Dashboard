@@ -3,6 +3,8 @@ const CPI_ID = 'CPIAUCSL';
 const UNEMPLOYMENT_ID = 'UNRATE';
 const PAYEMS_ID = 'PAYEMS';
 const MEDIAN_PRICE_ID = 'MEDLISPRIMM46340';
+const MORTGAGE30_ID = 'MORTGAGE30US';
+const MORTGAGE15_ID = 'MORTGAGE15US';
 const FRED_FUNCTION = '/.netlify/functions/fred-proxy';
 const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
 const FRED_URL = 'https://api.stlouisfed.org/fred/series/observations';
@@ -101,7 +103,6 @@ let mortgageLoaded = false;
 function validateDataSources() {
     const missing = [];
     if (typeof EMPLOYMENT_DATA === 'undefined') missing.push('employment-data.js');
-    if (typeof MORTGAGE_RATES_DATA === 'undefined') missing.push('mortgage-data.js');
     if (typeof REVENUE_DATA === 'undefined') missing.push('revenue-data.js');
     
     if (missing.length > 0) {
@@ -1250,14 +1251,42 @@ function renderMedianPriceChart() {
     });
 }
 
-function loadMortgageData() {
+async function loadMortgageData() {
     try {
         const { startDate, endDate } = getDateRange();
         
-        mortgageData = MORTGAGE_RATES_DATA
-            .filter(d => {
-                return isDateInRange(d.date, startDate, endDate);
+        // Fetch both 30-year and 15-year rates from FRED API
+        const [data30, data15] = await Promise.all([
+            fetchFredData(MORTGAGE30_ID, startDate, endDate),
+            fetchFredData(MORTGAGE15_ID, startDate, endDate)
+        ]);
+        
+        // Combine the data by date
+        const dateMap = new Map();
+        
+        data30.forEach(point => {
+            dateMap.set(point.date, { 
+                date: point.date, 
+                rate30yr: parseFloat(point.value),
+                rate15yr: null 
             });
+        });
+        
+        data15.forEach(point => {
+            if (dateMap.has(point.date)) {
+                dateMap.get(point.date).rate15yr = parseFloat(point.value);
+            } else {
+                dateMap.set(point.date, {
+                    date: point.date,
+                    rate30yr: null,
+                    rate15yr: parseFloat(point.value)
+                });
+            }
+        });
+        
+        mortgageData = Array.from(dateMap.values()).sort((a, b) => 
+            new Date(a.date) - new Date(b.date)
+        );
         
         console.log(`Mortgage rates data points: ${mortgageData.length}`);
         if (mortgageData.length > 0) {
@@ -1265,10 +1294,12 @@ function loadMortgageData() {
             console.log('Latest Mortgage Rate:', mortgageData[mortgageData.length - 1]);
         }
         
+        mortgageLoaded = true;
         return mortgageData;
     } catch (error) {
         console.error('Mortgage data load failed:', error);
         mortgageData = [];
+        mortgageLoaded = false;
         return [];
     }
 }
@@ -1764,7 +1795,7 @@ async function renderAll() {
     }
     
     try {
-        loadMortgageData();
+        await loadMortgageData();
         renderMortgageCharts();
     } catch (e) {
         console.error('Mortgage load failed:', e);
@@ -2489,10 +2520,13 @@ function setupTabs() {
                         if (!mortgageLoaded) {
                             mortgageLoaded = true;
                             showLoadingIndicator('mortgage rates');
-                            loadMortgageData();
-                            hideLoadingIndicator();
+                            loadMortgageData().then(() => {
+                                renderMortgageCharts();
+                                hideLoadingIndicator();
+                            });
+                        } else {
+                            renderMortgageCharts();
                         }
-                        renderMortgageCharts();
                     } else if (tabId === 'median-home-price') {
                         if (!medianPriceLoaded) {
                             medianPriceLoaded = true;
