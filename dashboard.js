@@ -1346,8 +1346,8 @@ async function loadEmploymentData() {
         // Fetch both Tyler and Texas payroll data from FRED API
         console.log('Fetching TYLSA158MFRBDAL and TX0000000M175FRBDAL from FRED...');
         const [tylerRaw, texasRaw] = await Promise.all([
-            fetchSeries(TYLER_PAYROLL_ID),
-            fetchSeries(TEXAS_PAYROLL_ID)
+            fetchSeries(TYLER_PAYROLL_ID),  // Already in percent change
+            fetchSeries(TEXAS_PAYROLL_ID)   // In thousands of persons - needs conversion
         ]);
         
         console.log('TYLSA158MFRBDAL data points:', tylerRaw?.length || 0);
@@ -1368,30 +1368,68 @@ async function loadEmploymentData() {
             console.warn('No Texas payroll data received');
         }
         
-        // Combine the data by date (both should be percent changes from FRED)
+        // Tyler data is already in percent change - use as-is
+        const tylerPercent = tylerRaw ? tylerRaw.map(d => ({
+            date: d.date.trim(),
+            value: parseFloat(d.value)
+        })) : [];
+        
+        // Calculate month-over-month percent change for Texas (from employment levels in thousands)
+        function calculateTexasPercentChange(rawData) {
+            if (!rawData || rawData.length === 0) return [];
+            
+            const sorted = rawData
+                .map(d => ({
+                    date: d.date.trim(),
+                    value: parseFloat(d.value)
+                }))
+                .filter(d => !isNaN(d.value))
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            const percentChangeData = [];
+            for (let i = 1; i < sorted.length; i++) {
+                const current = sorted[i];
+                const previous = sorted[i - 1];
+                const percentChange = ((current.value - previous.value) / previous.value) * 100;
+                
+                percentChangeData.push({
+                    date: current.date,
+                    value: parseFloat(percentChange.toFixed(2))
+                });
+            }
+            
+            return percentChangeData;
+        }
+        
+        const texasPercent = calculateTexasPercentChange(texasRaw);
+        
+        console.log('Tyler percent data points:', tylerPercent.length);
+        console.log('Texas percent change data points:', texasPercent.length);
+        if (tylerPercent.length > 0) console.log('Tyler sample:', tylerPercent.slice(0, 3));
+        if (texasPercent.length > 0) console.log('Texas percent sample:', texasPercent.slice(0, 3));
+        
+        // Combine the data by date
         const dateMap = new Map();
         
-        if (tylerRaw && tylerRaw.length > 0) {
-            tylerRaw.forEach(point => {
-                const normalizedDate = point.date.trim();
-                dateMap.set(normalizedDate, { 
-                    date: normalizedDate, 
-                    tyler: parseFloat(point.value),
+        if (tylerPercent && tylerPercent.length > 0) {
+            tylerPercent.forEach(point => {
+                dateMap.set(point.date, { 
+                    date: point.date, 
+                    tyler: point.value,
                     texas: null 
                 });
             });
         }
         
-        if (texasRaw && texasRaw.length > 0) {
-            texasRaw.forEach(point => {
-                const normalizedDate = point.date.trim();
-                if (dateMap.has(normalizedDate)) {
-                    dateMap.get(normalizedDate).texas = parseFloat(point.value);
+        if (texasPercent && texasPercent.length > 0) {
+            texasPercent.forEach(point => {
+                if (dateMap.has(point.date)) {
+                    dateMap.get(point.date).texas = point.value;
                 } else {
-                    dateMap.set(normalizedDate, {
-                        date: normalizedDate,
+                    dateMap.set(point.date, {
+                        date: point.date,
                         tyler: null,
-                        texas: parseFloat(point.value)
+                        texas: point.value
                     });
                 }
             });
