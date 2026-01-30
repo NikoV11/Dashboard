@@ -281,7 +281,7 @@ async function withTimeout(promise, ms) {
     }
 }
 
-async function fetchWithRetry(url, maxRetries = 2, timeout = 8000) {
+async function fetchWithRetry(url, maxRetries = 2, timeout = 12000) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const res = await withTimeout(signal => fetch(url, { signal }), timeout);
@@ -319,7 +319,7 @@ async function fetchSeries(seriesId) {
         const proxyUrl = proxies[i] + encodeURIComponent(url);
         try {
             console.log(`[${seriesId}] Trying proxy ${i + 1}/${proxies.length}...`);
-            const res = await fetchWithRetry(proxyUrl, 2, 6000);
+            const res = await fetchWithRetry(proxyUrl, 1, 10000);
             const data = await res.json();
             if (data.observations && data.observations.length) {
                 dataCache[seriesId] = { data: data.observations, timestamp: Date.now() };
