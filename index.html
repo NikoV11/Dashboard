@@ -96,28 +96,44 @@
 
             <!-- Main Tab Navigation -->
             <nav class="main-tab-nav" aria-label="Main dashboard sections">
-                <button class="main-tab-btn active" data-main-tab="us-indicators">US Indicators</button>
-                <button class="main-tab-btn" data-main-tab="regional-indicators">Regional Indicators</button>
+                <button class="main-tab-btn active" data-main-tab="us-economy">US Economy</button>
+                <button class="main-tab-btn" data-main-tab="labor-market">Labor Market</button>
+                <button class="main-tab-btn" data-main-tab="housing-market">Housing Market</button>
+                <button class="main-tab-btn" data-main-tab="public-finances">Public Finances</button>
             </nav>
 
-            <!-- US Indicators Sub-tabs -->
-            <div class="sub-tabs-container active" id="us-indicators-tabs">
-                <nav class="sub-tab-nav" aria-label="US Indicators sections">
+            <!-- US Economy Sub-tabs -->
+            <div class="sub-tabs-container active" id="us-economy-tabs">
+                <nav class="sub-tab-nav" aria-label="US Economy sections">
                     <button class="sub-tab-btn active" data-tab="gdp">GDP</button>
                     <button class="sub-tab-btn" data-tab="cpi">CPI-U</button>
-                    <button class="sub-tab-btn" data-tab="unemployment">Unemployment</button>
+                </nav>
+            </div>
+
+            <!-- Labor Market Sub-tabs -->
+            <div class="sub-tabs-container" id="labor-market-tabs">
+                <nav class="sub-tab-nav" aria-label="Labor Market sections">
+                    <button class="sub-tab-btn active" data-tab="unemployment">Unemployment</button>
                     <button class="sub-tab-btn" data-tab="nonfarm-employment">Total Nonfarm Employment</button>
+                    <button class="sub-tab-btn" data-tab="employment">Regional Employment</button>
+                </nav>
+            </div>
+
+            <!-- Housing Market Sub-tabs -->
+            <div class="sub-tabs-container" id="housing-market-tabs">
+                <nav class="sub-tab-nav" aria-label="Housing Market sections">
+                    <button class="sub-tab-btn active" data-tab="median-home-price">Median Home Price</button>
                     <button class="sub-tab-btn" data-tab="mortgage-rates">Mortgage Rates</button>
                 </nav>
             </div>
 
-            <!-- Regional Indicators Sub-tabs -->
-            <div class="sub-tabs-container" id="regional-indicators-tabs">
-                <nav class="sub-tab-nav" aria-label="Regional Indicators sections">
-                    <button class="sub-tab-btn active" data-tab="employment">Employment</button>
-                    <button class="sub-tab-btn" data-tab="sales-tax">Sales Tax</button>
-                    <button class="sub-tab-btn" data-tab="median-home-price">Median Home Price</button>
+            <!-- Public Finances Sub-tabs -->
+            <div class="sub-tabs-container" id="public-finances-tabs">
+                <nav class="sub-tab-nav" aria-label="Public Finances sections">
+                    <button class="sub-tab-btn active" data-tab="sales-tax">Sales Tax</button>
                     <button class="sub-tab-btn" data-tab="state-revenue">State Revenue</button>
+                </nav>
+            </div>
                 </nav>
             </div>
 
