@@ -434,26 +434,25 @@ const EMPLOYMENT_DATA = `Date,Tyler,Texas
 11/1/2025,2.5,-0.4`;
 
 function parseEmploymentData() {
-    const lines = EMPLOYMENT_DATA.trim().split('\n');
-    const tyler = [];
-    const texas = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-        const [date, tylerVal, texasVal] = lines[i].split(',');
-        
-        // Skip empty values
-        if (!tylerVal || !texasVal || tylerVal === '' || texasVal === '') continue;
-        
-        tyler.push({
-            date: date.trim(),
-            value: parseFloat(tylerVal)
-        });
-        
-        texas.push({
-            date: date.trim(),
-            value: parseFloat(texasVal)
-        });
+    // Use employment data loaded from FRED APIs (dashboard.js)
+    if (typeof employmentData === 'undefined' || !employmentData || employmentData.length === 0) {
+        console.warn('Employment data not available yet, returning empty arrays');
+        return { tyler: [], texas: [] };
     }
+    
+    const tyler = employmentData
+        .filter(d => d.tyler !== null && d.tyler !== undefined)
+        .map(d => ({
+            date: d.date,
+            value: d.tyler
+        }));
+    
+    const texas = employmentData
+        .filter(d => d.texas !== null && d.texas !== undefined)
+        .map(d => ({
+            date: d.date,
+            value: d.texas
+        }));
     
     return { tyler, texas };
 }

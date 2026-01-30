@@ -5,6 +5,8 @@ const PAYEMS_ID = 'PAYEMS';
 const MEDIAN_PRICE_ID = 'MEDLISPRIMM46340';
 const MORTGAGE30_ID = 'MORTGAGE30US';
 const MORTGAGE15_ID = 'MORTGAGE15US';
+const TYLER_PAYROLL_ID = 'TYLSA158MFRBDAL';
+const TEXAS_PAYROLL_ID = 'TX0000000M175FRBDAL';
 const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
 const FRED_URL = 'https://api.stlouisfed.org/fred/series/observations';
 
@@ -91,17 +93,18 @@ let salesTaxData = [];
 let medianPriceData = [];
 let mortgageData = [];
 let revenueData = [];
+let employmentData = [];
 let dataSource = 'sample';
 let salesTaxLoaded = false;
 let medianPriceLoaded = false;
 let mortgageLoaded = false;
+let employmentLoaded = false;
 
 // ========== Utility Functions ==========
 
 // Validate that required data files are loaded
 function validateDataSources() {
     const missing = [];
-    if (typeof EMPLOYMENT_DATA === 'undefined') missing.push('employment-data.js');
     if (typeof REVENUE_DATA === 'undefined') missing.push('revenue-data.js');
     
     if (missing.length > 0) {
@@ -1302,6 +1305,71 @@ async function loadMortgageData() {
         console.error('Error details:', error.message, error.stack);
         mortgageData = [];
         mortgageLoaded = false;
+        return [];
+    }
+}
+
+async function loadEmploymentData() {
+    try {
+        console.log('Loading regional employment data...');
+        
+        // Fetch both Tyler and Texas payroll data from FRED API
+        console.log('Fetching TYLSA158MFRBDAL and TX0000000M175FRBDAL from FRED...');
+        const [tylerRaw, texasRaw] = await Promise.all([
+            fetchSeries(TYLER_PAYROLL_ID),
+            fetchSeries(TEXAS_PAYROLL_ID)
+        ]);
+        
+        console.log('TYLSA158MFRBDAL data points:', tylerRaw?.length || 0);
+        console.log('TX0000000M175FRBDAL data points:', texasRaw?.length || 0);
+        
+        if (!tylerRaw || tylerRaw.length === 0) {
+            console.warn('No Tyler payroll data received');
+        }
+        if (!texasRaw || texasRaw.length === 0) {
+            console.warn('No Texas payroll data received');
+        }
+        
+        // Combine the data by date
+        const dateMap = new Map();
+        
+        tylerRaw.forEach(point => {
+            dateMap.set(point.date, { 
+                date: point.date, 
+                tyler: parseFloat(point.value),
+                texas: null 
+            });
+        });
+        
+        texasRaw.forEach(point => {
+            if (dateMap.has(point.date)) {
+                dateMap.get(point.date).texas = parseFloat(point.value);
+            } else {
+                dateMap.set(point.date, {
+                    date: point.date,
+                    tyler: null,
+                    texas: parseFloat(point.value)
+                });
+            }
+        });
+        
+        employmentData = Array.from(dateMap.values()).sort((a, b) => 
+            new Date(a.date) - new Date(b.date)
+        );
+        
+        console.log(`Employment data points combined: ${employmentData.length}`);
+        if (employmentData.length > 0) {
+            console.log('First Employment:', employmentData[0]);
+            console.log('Latest Employment:', employmentData[employmentData.length - 1]);
+        }
+        
+        employmentLoaded = true;
+        return employmentData;
+    } catch (error) {
+        console.error('Employment data load failed:', error);
+        console.error('Error details:', error.message, error.stack);
+        employmentData = [];
+        employmentLoaded = false;
         return [];
     }
 }
@@ -2587,7 +2655,22 @@ function setupTabs() {
                             renderSalesTaxChart();
                         }
                     } else if (tabId === 'employment') {
-                        renderEmploymentChart();
+                        if (!employmentLoaded) {
+                            employmentLoaded = true;
+                            showLoadingIndicator('employment data');
+                            loadEmploymentData()
+                                .then(() => {
+                                    console.log('Employment data loaded, rendering chart...');
+                                    renderEmploymentChart();
+                                    hideLoadingIndicator();
+                                })
+                                .catch(error => {
+                                    console.error('Error loading employment data:', error);
+                                    hideLoadingIndicator();
+                                });
+                        } else {
+                            renderEmploymentChart();
+                        }
                     } else if (tabId === 'state-revenue') {
                         renderRevenueChart();
                     }
