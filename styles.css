@@ -339,6 +339,36 @@ button.ghost:hover {
 .card h3 { font-size: 1.1rem; margin-bottom: 6px; }
 .card .muted { color: var(--muted); font-size: 0.95rem; }
 
+.report-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, var(--gdp), var(--gdp-dark));
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(203, 96, 21, 0.25);
+}
+
+.report-download-btn:hover {
+    background: linear-gradient(135deg, var(--cpi), var(--cpi-dark));
+    box-shadow: 0 4px 16px rgba(0, 47, 108, 0.35);
+    transform: translateY(-2px);
+}
+
+.report-download-btn:active {
+    transform: translateY(0);
+}
+
+.report-download-btn svg {
+    flex-shrink: 0;
+}
+
 .charts {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
