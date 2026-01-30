@@ -1253,13 +1253,24 @@ function renderMedianPriceChart() {
 
 async function loadMortgageData() {
     try {
-        const { startDate, endDate } = getDateRange();
+        console.log('Loading mortgage data...');
         
         // Fetch both 30-year and 15-year rates from FRED API
+        console.log('Fetching MORTGAGE30US and MORTGAGE15US from FRED...');
         const [data30, data15] = await Promise.all([
-            fetchFredData(MORTGAGE30_ID, startDate, endDate),
-            fetchFredData(MORTGAGE15_ID, startDate, endDate)
+            fetchSeries(MORTGAGE30_ID),
+            fetchSeries(MORTGAGE15_ID)
         ]);
+        
+        console.log('MORTGAGE30US data points:', data30?.length || 0);
+        console.log('MORTGAGE15US data points:', data15?.length || 0);
+        
+        if (!data30 || data30.length === 0) {
+            console.warn('No 30-year mortgage data received');
+        }
+        if (!data15 || data15.length === 0) {
+            console.warn('No 15-year mortgage data received');
+        }
         
         // Combine the data by date
         const dateMap = new Map();
@@ -1288,7 +1299,7 @@ async function loadMortgageData() {
             new Date(a.date) - new Date(b.date)
         );
         
-        console.log(`Mortgage rates data points: ${mortgageData.length}`);
+        console.log(`Mortgage rates data points combined: ${mortgageData.length}`);
         if (mortgageData.length > 0) {
             console.log('First Mortgage Rate:', mortgageData[0]);
             console.log('Latest Mortgage Rate:', mortgageData[mortgageData.length - 1]);
@@ -1298,6 +1309,7 @@ async function loadMortgageData() {
         return mortgageData;
     } catch (error) {
         console.error('Mortgage data load failed:', error);
+        console.error('Error details:', error.message, error.stack);
         mortgageData = [];
         mortgageLoaded = false;
         return [];
@@ -1305,24 +1317,42 @@ async function loadMortgageData() {
 }
 
 function renderMortgageCharts() {
+    console.log('renderMortgageCharts called');
     const canvas30 = document.getElementById('mortgage30Chart');
     const canvas15 = document.getElementById('mortgage15Chart');
     
-    if (!canvas30 || !canvas15 || !mortgageData || mortgageData.length === 0) return;
+    if (!canvas30) {
+        console.error('mortgage30Chart canvas not found');
+        return;
+    }
+    if (!canvas15) {
+        console.error('mortgage15Chart canvas not found');
+        return;
+    }
+    if (!mortgageData || mortgageData.length === 0) {
+        console.warn('No mortgage data available to render');
+        return;
+    }
+    
+    console.log('Rendering mortgage charts with', mortgageData.length, 'data points');
     
     const ctx30 = canvas30.getContext('2d');
     const ctx15 = canvas15.getContext('2d');
     
     // Filter by date range
     const { startDate, endDate } = getDateRange();
+    console.log('Date range:', startDate, 'to', endDate);
     
     const filteredByYear = mortgageData.filter(d => {
         return isDateInRange(d.date, startDate, endDate);
     });
+    console.log('Filtered data points:', filteredByYear.length);
     
     // Filter data for each chart
     const data30 = filteredByYear.filter(d => d.rate30yr !== null);
     const data15 = filteredByYear.filter(d => d.rate15yr !== null);
+    console.log('30-year data points:', data30.length);
+    console.log('15-year data points:', data15.length);
     
     // 30-Year Chart
     destroyChart(mortgage30Chart);
@@ -2033,9 +2063,20 @@ function handleMortgageDownload() {
         return;
     }
     
+    // Filter by current date range
+    const { startDate, endDate } = getDateRange();
+    const filteredData = mortgageData.filter(d => {
+        return isDateInRange(d.date, startDate, endDate);
+    });
+    
+    if (filteredData.length === 0) {
+        alert('No mortgage rates data available in the selected date range.');
+        return;
+    }
+    
     let csv = 'Date,30-Year Fixed Rate (%),15-Year Fixed Rate (%)\n';
     
-    mortgageData.forEach(item => {
+    filteredData.forEach(item => {
         csv += `${formatMonthLabel(item.date)},`;
         csv += `${item.rate30yr !== null ? item.rate30yr.toFixed(2) : ''},`;
         csv += `${item.rate15yr !== null ? item.rate15yr.toFixed(2) : ''}\n`;
@@ -2520,10 +2561,16 @@ function setupTabs() {
                         if (!mortgageLoaded) {
                             mortgageLoaded = true;
                             showLoadingIndicator('mortgage rates');
-                            loadMortgageData().then(() => {
-                                renderMortgageCharts();
-                                hideLoadingIndicator();
-                            });
+                            loadMortgageData()
+                                .then(() => {
+                                    console.log('Mortgage data loaded, rendering charts...');
+                                    renderMortgageCharts();
+                                    hideLoadingIndicator();
+                                })
+                                .catch(error => {
+                                    console.error('Error loading mortgage data:', error);
+                                    hideLoadingIndicator();
+                                });
                         } else {
                             renderMortgageCharts();
                         }
