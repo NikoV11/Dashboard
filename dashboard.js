@@ -281,7 +281,7 @@ async function withTimeout(promise, ms) {
     }
 }
 
-async function fetchWithRetry(url, maxRetries = 3, timeout = 12000) {
+async function fetchWithRetry(url, maxRetries = 2, timeout = 8000) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const res = await withTimeout(signal => fetch(url, { signal }), timeout);
@@ -308,19 +308,18 @@ async function fetchSeries(seriesId) {
         return dataCache[seriesId].data;
     }
 
-    // Use CORS proxies for GitHub Pages
+    // Use faster CORS proxies for GitHub Pages - ordered by speed/reliability
     const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000`;
     const proxies = [
         'https://api.allorigins.win/raw?url=',
-        'https://thingproxy.freeboard.io/fetch/',
-        'https://cors.isomorphic-git.org/'
+        'https://thingproxy.freeboard.io/fetch/'
     ];
 
     for (let i = 0; i < proxies.length; i++) {
         const proxyUrl = proxies[i] + encodeURIComponent(url);
         try {
             console.log(`[${seriesId}] Trying proxy ${i + 1}/${proxies.length}...`);
-            const res = await fetchWithRetry(proxyUrl, 2, 12000);
+            const res = await fetchWithRetry(proxyUrl, 2, 6000);
             const data = await res.json();
             if (data.observations && data.observations.length) {
                 dataCache[seriesId] = { data: data.observations, timestamp: Date.now() };
@@ -837,6 +836,12 @@ function renderEmploymentChart() {
 
     const ctx = canvas.getContext('2d');
     const empData = parseEmploymentData();
+    
+    // Check if data is available before rendering
+    if (!empData || (!empData.tyler || empData.tyler.length === 0) && (!empData.texas || empData.texas.length === 0)) {
+        console.warn('Employment data not available yet');
+        return;
+    }
     
     // Filter by date range
     const { startDate, endDate } = getDateRange();
@@ -2694,7 +2699,25 @@ function init() {
     wireEvents();
     setupTabs();
     setupShareButtons();
-    loadData(); // Only load US indicators initially
+    
+    // Load main data with 15-second timeout before showing fallback
+    const dataLoadPromise = loadData();
+    const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+            if (!cachedData || !cachedData.gdp || cachedData.gdp.length === 0) {
+                console.warn('Data load taking longer than expected, ensuring fallback is ready...');
+                cachedData = { ...SAMPLE_DATA };
+                dataSource = 'sample';
+                setStatus('⚠️ Using sample data - Live APIs loading...', 'warn');
+                renderCharts(filterData());
+            }
+            resolve();
+        }, 15000);
+    });
+    
+    Promise.race([dataLoadPromise, timeoutPromise]).catch(err => {
+        console.error('Data load error:', err);
+    });
     
     console.log('Dashboard initialized successfully');
 }
