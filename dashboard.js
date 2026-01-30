@@ -5,7 +5,6 @@ const PAYEMS_ID = 'PAYEMS';
 const MEDIAN_PRICE_ID = 'MEDLISPRIMM46340';
 const MORTGAGE30_ID = 'MORTGAGE30US';
 const MORTGAGE15_ID = 'MORTGAGE15US';
-const FRED_FUNCTION = '/.netlify/functions/fred-proxy';
 const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
 const FRED_URL = 'https://api.stlouisfed.org/fred/series/observations';
 
@@ -306,24 +305,7 @@ async function fetchSeries(seriesId) {
         return dataCache[seriesId].data;
     }
 
-    // Try Netlify function first (most reliable)
-    try {
-        const url = `${FRED_FUNCTION}?seriesId=${seriesId}`;
-        console.log(`[${seriesId}] Trying Netlify function...`);
-        const res = await fetchWithRetry(url, 2, 12000);
-        const data = await res.json();
-        const observations = data.observations || [];
-        if (observations.length > 0) {
-            dataCache[seriesId] = { data: observations, timestamp: Date.now() };
-            console.log(`[${seriesId}] Successfully fetched ${observations.length} records from Netlify`);
-            return observations;
-        }
-        throw new Error('No observations returned');
-    } catch (err) {
-        console.warn(`[${seriesId}] Netlify function failed: ${err.message}`);
-    }
-
-    // Fallback to CORS proxies
+    // Use CORS proxies for GitHub Pages
     const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000`;
     const proxies = [
         'https://api.allorigins.win/raw?url=',
@@ -1264,6 +1246,14 @@ async function loadMortgageData() {
         
         console.log('MORTGAGE30US data points:', data30?.length || 0);
         console.log('MORTGAGE15US data points:', data15?.length || 0);
+        
+        // Log sample of first data point for each
+        if (data30 && data30.length > 0) {
+            console.log('MORTGAGE30US sample:', data30[0]);
+        }
+        if (data15 && data15.length > 0) {
+            console.log('MORTGAGE15US sample:', data15[0]);
+        }
         
         if (!data30 || data30.length === 0) {
             console.warn('No 30-year mortgage data received');
