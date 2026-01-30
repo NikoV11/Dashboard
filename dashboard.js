@@ -856,22 +856,35 @@ function renderEmploymentChart() {
 
     const showLabels = filteredTyler.length <= 15;
 
+    // Combine dates from both series to ensure alignment
+    const allDates = new Set([
+        ...filteredTyler.map(d => d.date),
+        ...filteredTexas.map(d => d.date)
+    ]);
+    const sortedDates = Array.from(allDates).sort((a, b) => new Date(a) - new Date(b));
+
     destroyChart(employmentChart);
     
     employmentChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: filteredTyler.map(d => formatMonthLabel(d.date)),
+            labels: sortedDates.map(d => formatMonthLabel(d)),
             datasets: [
                 {
-                    label: 'Tyler',
-                    data: filteredTyler.map(d => d.value),
+                    label: 'Tyler MSA (% Change Annual Rate)',
+                    data: sortedDates.map(date => {
+                        const entry = filteredTyler.find(d => d.date === date);
+                        return entry ? entry.value : null;
+                    }),
                     backgroundColor: '#CB6015',
                     borderRadius: 6
                 },
                 {
-                    label: 'Texas',
-                    data: filteredTexas.map(d => d.value),
+                    label: 'Texas (% Change, SA)',
+                    data: sortedDates.map(date => {
+                        const entry = filteredTexas.find(d => d.date === date);
+                        return entry ? entry.value : null;
+                    }),
                     backgroundColor: '#002F6C',
                     borderRadius: 6
                 }
@@ -902,7 +915,10 @@ function renderEmploymentChart() {
                     align: 'end',
                     font: { weight: 'bold', size: 11 },
                     color: '#0f172a',
-                    formatter: (value) => value.toFixed(1) + '%'
+                    formatter: (value, context) => {
+                        // Both Tyler and Texas show percent changes
+                        return value.toFixed(1) + '%';
+                    }
                 } : { display: false },
                 tooltip: {
                     enabled: true,
@@ -912,7 +928,10 @@ function renderEmploymentChart() {
                     borderColor: '#CB6015',
                     borderWidth: 1,
                     callbacks: {
-                        label: (context) => `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`
+                        label: (context) => {
+                            // Both show percent changes
+                            return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                        }
                     }
                 }
             },
@@ -931,9 +950,15 @@ function renderEmploymentChart() {
                 y: {
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
-                        callback: (value) => `${value}%`,
+                        callback: (value) => `${value.toFixed(1)}%`,
                         font: { size: 12, weight: '500' },
                         color: '#475569'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Percent Change (Seasonally Adjusted)',
+                        font: { size: 11, weight: '600' },
+                        color: '#64748b'
                     }
                 }
             }
@@ -1328,6 +1353,14 @@ async function loadEmploymentData() {
         console.log('TYLSA158MFRBDAL data points:', tylerRaw?.length || 0);
         console.log('TX0000000M175FRBDAL data points:', texasRaw?.length || 0);
         
+        // Log first few entries to verify data
+        if (tylerRaw && tylerRaw.length > 0) {
+            console.log('Tyler sample data:', tylerRaw.slice(0, 3));
+        }
+        if (texasRaw && texasRaw.length > 0) {
+            console.log('Texas sample data:', texasRaw.slice(0, 3));
+        }
+        
         if (!tylerRaw || tylerRaw.length === 0) {
             console.warn('No Tyler payroll data received');
         }
@@ -1335,28 +1368,34 @@ async function loadEmploymentData() {
             console.warn('No Texas payroll data received');
         }
         
-        // Combine the data by date
+        // Combine the data by date (both should be percent changes from FRED)
         const dateMap = new Map();
         
-        tylerRaw.forEach(point => {
-            dateMap.set(point.date, { 
-                date: point.date, 
-                tyler: parseFloat(point.value),
-                texas: null 
-            });
-        });
-        
-        texasRaw.forEach(point => {
-            if (dateMap.has(point.date)) {
-                dateMap.get(point.date).texas = parseFloat(point.value);
-            } else {
-                dateMap.set(point.date, {
-                    date: point.date,
-                    tyler: null,
-                    texas: parseFloat(point.value)
+        if (tylerRaw && tylerRaw.length > 0) {
+            tylerRaw.forEach(point => {
+                const normalizedDate = point.date.trim();
+                dateMap.set(normalizedDate, { 
+                    date: normalizedDate, 
+                    tyler: parseFloat(point.value),
+                    texas: null 
                 });
-            }
-        });
+            });
+        }
+        
+        if (texasRaw && texasRaw.length > 0) {
+            texasRaw.forEach(point => {
+                const normalizedDate = point.date.trim();
+                if (dateMap.has(normalizedDate)) {
+                    dateMap.get(normalizedDate).texas = parseFloat(point.value);
+                } else {
+                    dateMap.set(normalizedDate, {
+                        date: normalizedDate,
+                        tyler: null,
+                        texas: parseFloat(point.value)
+                    });
+                }
+            });
+        }
         
         employmentData = Array.from(dateMap.values()).sort((a, b) => 
             new Date(a.date) - new Date(b.date)
@@ -1366,6 +1405,7 @@ async function loadEmploymentData() {
         if (employmentData.length > 0) {
             console.log('First Employment:', employmentData[0]);
             console.log('Latest Employment:', employmentData[employmentData.length - 1]);
+            console.log('Sample combined data:', employmentData.slice(0, 3));
         }
         
         employmentLoaded = true;
