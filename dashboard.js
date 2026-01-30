@@ -1820,8 +1820,15 @@ function handlePayemsDownload() {
 
 // Parse date string as local time to avoid timezone shifting
 function parseLocalDate(dateStr) {
-    const parts = dateStr.split('-');
-    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1);
+    // Handle both "YYYY-MM-DD" and "M/D/YYYY" formats
+    if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1);
+    } else if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]) || 1);
+    }
+    return new Date(dateStr);
 }
 
 function formatQuarterLabel(dateStr) {
