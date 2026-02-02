@@ -1587,3 +1587,35 @@ footer {
         padding: 5px 10px;
     }
 }
+/* ========== CHARTIST.JS OVERRIDES ========== */
+.ct-chart {
+    height: 340px;
+}
+
+.ct-series-a .ct-line {
+    stroke: #CB6015;
+    stroke-width: 3px;
+}
+
+.ct-series-a .ct-point {
+    stroke: #CB6015;
+    stroke-width: 4px;
+    fill: #fff;
+}
+
+.ct-grid {
+    stroke: rgba(100, 116, 139, 0.12);
+    stroke-dasharray: 0;
+}
+
+.ct-label {
+    font-size: 12px;
+    color: #64748b;
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.ct-axis-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+}

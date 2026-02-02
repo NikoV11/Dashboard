@@ -2961,9 +2961,40 @@ if (document.readyState === 'loading') {
     init();
 }
 
+// Chartist.js Test Function (Experimental)
+function renderGDPChartistTest(filtered) {
+    const canvas = document.getElementById('gdpChart');
+    if (!canvas || typeof Chartist === 'undefined') return;
 
+    const data = {
+        labels: filtered.gdp.map(d => formatQuarterLabel(d.date)),
+        series: [filtered.gdp.map(d => d.value)]
+    };
 
+    const options = {
+        height: 340,
+        showPoint: true,
+        showLine: true,
+        fullWidth: true,
+        chartPadding: {
+            top: 15,
+            right: 15,
+            bottom: 0,
+            left: 50
+        },
+        axisX: {
+            labelInterpolationFnc: (val, idx) => idx % Math.ceil(filtered.gdp.length / 6) === 0 ? val : null
+        }
+    };
 
+    try {
+        // Create Chartist line chart
+        new Chartist.Line(canvas, data, options);
+        console.log('Chartist.js GDP chart rendered successfully');
+    } catch (e) {
+        console.warn('Chartist rendering failed, falling back to Chart.js:', e);
+    }
+}
 
 
 
