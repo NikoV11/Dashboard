@@ -1,0 +1,317 @@
+{
+  "generatedAt": "2026-02-02T17:35:41.389Z",
+  "categories": [
+    {
+      "category": "Sales Taxes",
+      "best": {
+        "id": "TXINSURTAX",
+        "title": "State Government Tax Collections, Insurance Premiums - Selective Sales Taxes in Texas",
+        "units": "Thousands of Dollars",
+        "frequency": "Annual",
+        "mape": 0.1672311845409448,
+        "scale": 1,
+        "overlap": 22
+      },
+      "topMatches": [
+        {
+          "id": "TXINSURTAX",
+          "title": "State Government Tax Collections, Insurance Premiums - Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 0.1672311845409448,
+          "scale": 1,
+          "overlap": 22
+        },
+        {
+          "id": "TXTOBACTAX",
+          "title": "State Government Tax Collections, Tobacco Products - Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 0.44012269473512294,
+          "scale": 1,
+          "overlap": 22
+        },
+        {
+          "id": "QTAXT14QTAXCAT3TXNO",
+          "title": "State Tax Collections: T14 Pari-Mutuels Sales Tax for Texas",
+          "units": "Millions of U.S. Dollars",
+          "frequency": "Quarterly",
+          "mape": 0.501798258121715,
+          "scale": 1000000,
+          "overlap": 74
+        },
+        {
+          "id": "TXFUELTAX",
+          "title": "State Government Tax Collections, Motor Fuels - Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 0.5406358150807331,
+          "scale": 1,
+          "overlap": 22
+        },
+        {
+          "id": "TXALCOTAX",
+          "title": "State Government Tax Collections, Alcoholic Beverages - Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 0.5501870876075411,
+          "scale": 1,
+          "overlap": 22
+        }
+      ],
+      "status": "frequency-mismatch"
+    },
+    {
+      "category": "Motor Vehicle Sales and Rental Taxes",
+      "best": null,
+      "topMatches": [],
+      "status": "no-series-found"
+    },
+    {
+      "category": "Motor Fuels Taxes",
+      "best": {
+        "id": "QTAXT13QTAXCAT3TXNO",
+        "title": "State Tax Collections: T13 Motor Fuels Sales Tax for Texas",
+        "units": "Millions of U.S. Dollars",
+        "frequency": "Quarterly",
+        "mape": 0.997026614025143,
+        "scale": 1,
+        "overlap": 56
+      },
+      "topMatches": [
+        {
+          "id": "QTAXT13QTAXCAT3TXNO",
+          "title": "State Tax Collections: T13 Motor Fuels Sales Tax for Texas",
+          "units": "Millions of U.S. Dollars",
+          "frequency": "Quarterly",
+          "mape": 0.997026614025143,
+          "scale": 1,
+          "overlap": 56
+        },
+        {
+          "id": "TXFUELTAX",
+          "title": "State Government Tax Collections, Motor Fuels - Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 11.138526209404512,
+          "scale": 1,
+          "overlap": 14
+        }
+      ],
+      "status": "frequency-mismatch"
+    },
+    {
+      "category": "Franchise Tax",
+      "best": null,
+      "topMatches": [],
+      "status": "no-series-found"
+    },
+    {
+      "category": "Insurance Taxes",
+      "best": {
+        "id": "QTAXT12QTAXCAT3TXNO",
+        "title": "State Tax Collections: T12 Insurance Premiums Sales Tax for Texas",
+        "units": "Millions of U.S. Dollars",
+        "frequency": "Quarterly",
+        "mape": 0.9822687191943916,
+        "scale": 1,
+        "overlap": 91
+      },
+      "topMatches": [
+        {
+          "id": "QTAXT12QTAXCAT3TXNO",
+          "title": "State Tax Collections: T12 Insurance Premiums Sales Tax for Texas",
+          "units": "Millions of U.S. Dollars",
+          "frequency": "Quarterly",
+          "mape": 0.9822687191943916,
+          "scale": 1,
+          "overlap": 91
+        },
+        {
+          "id": "TXINSURTAX",
+          "title": "State Government Tax Collections, Insurance Premiums - Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 115.40293872888392,
+          "scale": 1,
+          "overlap": 22
+        }
+      ],
+      "status": "frequency-mismatch"
+    },
+    {
+      "category": "Natural Gas Production Tax",
+      "best": null,
+      "topMatches": [],
+      "status": "no-series-found"
+    },
+    {
+      "category": "Cigarette and Tobacco Taxes",
+      "best": {
+        "id": "QTAXT16QTAXCAT3TXNO",
+        "title": "State Tax Collections: T16 Tobacco Products Sales Tax for Texas",
+        "units": "Millions of U.S. Dollars",
+        "frequency": "Quarterly",
+        "mape": 0.9968470778923715,
+        "scale": 1,
+        "overlap": 91
+      },
+      "topMatches": [
+        {
+          "id": "QTAXT16QTAXCAT3TXNO",
+          "title": "State Tax Collections: T16 Tobacco Products Sales Tax for Texas",
+          "units": "Millions of U.S. Dollars",
+          "frequency": "Quarterly",
+          "mape": 0.9968470778923715,
+          "scale": 1,
+          "overlap": 91
+        },
+        {
+          "id": "TXTOBACTAX",
+          "title": "State Government Tax Collections, Tobacco Products - Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 12.281805030792464,
+          "scale": 1,
+          "overlap": 22
+        }
+      ],
+      "status": "frequency-mismatch"
+    },
+    {
+      "category": "Alcoholic Beverage Taxes",
+      "best": {
+        "id": "TXALCLICTAX",
+        "title": "State Government Tax Collections, Alcoholic Beverages Licenses in Texas",
+        "units": "Thousands of Dollars",
+        "frequency": "Annual",
+        "mape": 0.27668297132486436,
+        "scale": 1,
+        "overlap": 22
+      },
+      "topMatches": [
+        {
+          "id": "TXALCLICTAX",
+          "title": "State Government Tax Collections, Alcoholic Beverages Licenses in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 0.27668297132486436,
+          "scale": 1,
+          "overlap": 22
+        },
+        {
+          "id": "QTAXT20QTAXCAT3TXNO",
+          "title": "State Tax Collections: T20 Alcoholic Beverages License for Texas",
+          "units": "Millions of U.S. Dollars",
+          "frequency": "Quarterly",
+          "mape": 0.8079703582253422,
+          "scale": 1000,
+          "overlap": 91
+        },
+        {
+          "id": "QTAXT10QTAXCAT3TXNO",
+          "title": "State Tax Collections: T10 Alcoholic Beverages Sales Tax for Texas",
+          "units": "Millions of U.S. Dollars",
+          "frequency": "Quarterly",
+          "mape": 0.9970414610520727,
+          "scale": 1,
+          "overlap": 91
+        },
+        {
+          "id": "TXALCOTAX",
+          "title": "State Government Tax Collections, Alcoholic Beverages - Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 10.127726874717263,
+          "scale": 1,
+          "overlap": 22
+        }
+      ],
+      "status": "frequency-mismatch"
+    },
+    {
+      "category": "Oil Production Tax",
+      "best": null,
+      "topMatches": [],
+      "status": "no-series-found"
+    },
+    {
+      "category": "Utility Taxes",
+      "best": null,
+      "topMatches": [],
+      "status": "no-series-found"
+    },
+    {
+      "category": "Hotel Occupancy Tax",
+      "best": null,
+      "topMatches": [],
+      "status": "no-series-found"
+    },
+    {
+      "category": "Other Taxes",
+      "best": null,
+      "topMatches": [],
+      "status": "no-series-found"
+    },
+    {
+      "category": "Total Tax Collections",
+      "best": {
+        "id": "TXTLOTHTAX",
+        "title": "State Government Tax Collections, Total Other Taxes in Texas",
+        "units": "Thousands of Dollars",
+        "frequency": "Annual",
+        "mape": 0.26127969694196856,
+        "scale": 1,
+        "overlap": 22
+      },
+      "topMatches": [
+        {
+          "id": "TXTLOTHTAX",
+          "title": "State Government Tax Collections, Total Other Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 0.26127969694196856,
+          "scale": 1,
+          "overlap": 22
+        },
+        {
+          "id": "TXTLLICTAX",
+          "title": "State Government Tax Collections, Total License Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 0.5969663396624791,
+          "scale": 1,
+          "overlap": 22
+        },
+        {
+          "id": "QTAXTOTALQTAXCAT3TXNO",
+          "title": "State Tax Collections: Total Taxes for Texas",
+          "units": "Millions of U.S. Dollars",
+          "frequency": "Quarterly",
+          "mape": 0.9964851461652633,
+          "scale": 1,
+          "overlap": 91
+        },
+        {
+          "id": "TXTLSLTAX",
+          "title": "State Government Tax Collections, Total Selective Sales Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 2.8910829795951685,
+          "scale": 1,
+          "overlap": 22
+        },
+        {
+          "id": "TXSLGRTAX",
+          "title": "State Government Tax Collections, Total Sales and Gross Receipts Taxes in Texas",
+          "units": "Thousands of Dollars",
+          "frequency": "Annual",
+          "mape": 11.174170155008296,
+          "scale": 1,
+          "overlap": 22
+        }
+      ],
+      "status": "frequency-mismatch"
+    }
+  ]
+}

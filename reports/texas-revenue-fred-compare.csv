@@ -1,0 +1,14 @@
+Category,Status,SeriesID,Title,Units,Frequency,ScaleFactor,MAPE,Overlap
+"Sales Taxes","frequency-mismatch","TXINSURTAX","State Government Tax Collections, Insurance Premiums - Selective Sales Taxes in Texas","Thousands of Dollars","Annual",1,"0.167231",22
+"Motor Vehicle Sales and Rental Taxes",no-series-found,,,,,,,
+"Motor Fuels Taxes","frequency-mismatch","QTAXT13QTAXCAT3TXNO","State Tax Collections: T13 Motor Fuels Sales Tax for Texas","Millions of U.S. Dollars","Quarterly",1,"0.997027",56
+"Franchise Tax",no-series-found,,,,,,,
+"Insurance Taxes","frequency-mismatch","QTAXT12QTAXCAT3TXNO","State Tax Collections: T12 Insurance Premiums Sales Tax for Texas","Millions of U.S. Dollars","Quarterly",1,"0.982269",91
+"Natural Gas Production Tax",no-series-found,,,,,,,
+"Cigarette and Tobacco Taxes","frequency-mismatch","QTAXT16QTAXCAT3TXNO","State Tax Collections: T16 Tobacco Products Sales Tax for Texas","Millions of U.S. Dollars","Quarterly",1,"0.996847",91
+"Alcoholic Beverage Taxes","frequency-mismatch","TXALCLICTAX","State Government Tax Collections, Alcoholic Beverages Licenses in Texas","Thousands of Dollars","Annual",1,"0.276683",22
+"Oil Production Tax",no-series-found,,,,,,,
+"Utility Taxes",no-series-found,,,,,,,
+"Hotel Occupancy Tax",no-series-found,,,,,,,
+"Other Taxes",no-series-found,,,,,,,
+"Total Tax Collections","frequency-mismatch","TXTLOTHTAX","State Government Tax Collections, Total Other Taxes in Texas","Thousands of Dollars","Annual",1,"0.261280",22
