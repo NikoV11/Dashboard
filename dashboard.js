@@ -1,6 +1,8 @@
 ﻿const GDP_ID = 'A191RL1Q225SBEA';
 const CPI_ID = 'CPIAUCSL';
 const UNEMPLOYMENT_ID = 'UNRATE';
+const TEXAS_UNEMPLOYMENT_ID = 'TXUR';
+const TYLER_UNEMPLOYMENT_ID = 'TYLE348UR';
 const PAYEMS_ID = 'PAYEMS';
 const MEDIAN_PRICE_ID = 'MEDLISPRIMM46340';
 const MORTGAGE30_ID = 'MORTGAGE30US';
@@ -343,6 +345,8 @@ async function loadData() {
             fetchSeries(GDP_ID),
             fetchSeries(CPI_ID),
             fetchSeries(UNEMPLOYMENT_ID),
+            fetchSeries(TEXAS_UNEMPLOYMENT_ID),
+            fetchSeries(TYLER_UNEMPLOYMENT_ID),
             fetchSeries(PAYEMS_ID)
         ]);
 
@@ -350,6 +354,8 @@ async function loadData() {
         let gdpRaw = [];
         let cpiRaw = [];
         let unemploymentRaw = [];
+        let texasUnemploymentRaw = [];
+        let tylerUnemploymentRaw = [];
         let payemsRaw = [];
 
         if (results[0].status === 'fulfilled' && results[0].value?.length) {
@@ -367,11 +373,23 @@ async function loadData() {
         if (results[2].status === 'fulfilled' && results[2].value?.length) {
             unemploymentRaw = results[2].value;
         } else {
-            console.warn('Unemployment fetch failed, will use sample data');
+            console.warn('US Unemployment fetch failed, will use sample data');
         }
 
         if (results[3].status === 'fulfilled' && results[3].value?.length) {
-            payemsRaw = results[3].value;
+            texasUnemploymentRaw = results[3].value;
+        } else {
+            console.warn('Texas unemployment fetch failed');
+        }
+
+        if (results[4].status === 'fulfilled' && results[4].value?.length) {
+            tylerUnemploymentRaw = results[4].value;
+        } else {
+            console.warn('Tyler unemployment fetch failed');
+        }
+
+        if (results[5].status === 'fulfilled' && results[5].value?.length) {
+            payemsRaw = results[5].value;
         } else {
             console.warn('PAYEMS fetch failed, will use sample data');
         }
@@ -387,8 +405,8 @@ async function loadData() {
             .filter(d => !Number.isNaN(d.value))
             .sort((a, b) => new Date(a.date) - new Date(b.date));
         
-        // Parse unemployment data and shift dates forward by 1 month (data is released 1 month behind)
-        const unemploymentShifted = (unemploymentRaw || [])
+        // Parse US unemployment data and shift dates forward by 1 month (data is released 1 month behind)
+        const usUnemploymentShifted = (unemploymentRaw || [])
             .map(o => {
                 const dateStr = o.date;
                 const parts = dateStr.split('-');
@@ -399,13 +417,46 @@ async function loadData() {
             .filter(d => !Number.isNaN(d.value))
             .sort((a, b) => new Date(a.date) - new Date(b.date));
         
-        // Remove duplicate dates, keeping the latest value
-        const seen = {};
-        const unemployment = unemploymentShifted.filter(d => {
-            if (seen[d.date]) return false;
-            seen[d.date] = true;
+        // Remove duplicate US unemployment dates, keeping the latest value
+        const seenUS = {};
+        const usUnemployment = usUnemploymentShifted.filter(d => {
+            if (seenUS[d.date]) return false;
+            seenUS[d.date] = true;
             return true;
         });
+
+        // Parse Tyler unemployment data (already in correct format)
+        const tylerUnemployment = (tylerUnemploymentRaw || [])
+            .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+            .filter(d => !Number.isNaN(d.value))
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // Parse Texas unemployment data
+        const texasUnemployment = (texasUnemploymentRaw || [])
+            .map(o => ({ date: o.date, value: parseFloat(o.value) }))
+            .filter(d => !Number.isNaN(d.value))
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // Combine US, Texas, and Tyler unemployment data by date
+        const unemploymentMap = new Map();
+        usUnemployment.forEach(d => {
+            unemploymentMap.set(d.date, { date: d.date, us: d.value, texas: null, tyler: null });
+        });
+        texasUnemployment.forEach(d => {
+            if (unemploymentMap.has(d.date)) {
+                unemploymentMap.get(d.date).texas = d.value;
+            } else {
+                unemploymentMap.set(d.date, { date: d.date, us: null, texas: d.value, tyler: null });
+            }
+        });
+        tylerUnemployment.forEach(d => {
+            if (unemploymentMap.has(d.date)) {
+                unemploymentMap.get(d.date).tyler = d.value;
+            } else {
+                unemploymentMap.set(d.date, { date: d.date, us: null, texas: null, tyler: d.value });
+            }
+        });
+        const unemployment = Array.from(unemploymentMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
 
         // Sort CPI data by date first
         const sortedCpiRaw = (cpiRaw || [])
@@ -462,10 +513,25 @@ async function loadData() {
             console.log('Latest CPI:', cpi[cpi.length - 1]);
         }
         
-        console.log(`Unemployment data points: ${unemployment.length}`);
+        console.log(`US Unemployment data points: ${usUnemployment.length}`);
+        console.log(`Texas Unemployment data points: ${texasUnemployment.length}`);
+        console.log(`Tyler Unemployment data points: ${tylerUnemployment.length}`);
+        console.log(`Combined Unemployment data points: ${unemployment.length}`);
+        
+        // Show sample data from each series
+        if (usUnemployment.length > 0) {
+            console.log('US sample:', usUnemployment.slice(-3));
+        }
+        if (texasUnemployment.length > 0) {
+            console.log('Texas sample:', texasUnemployment.slice(-3));
+        }
+        if (tylerUnemployment.length > 0) {
+            console.log('Tyler sample:', tylerUnemployment.slice(-3));
+        }
+        
         if (unemployment.length > 0) {
-            console.log('First Unemployment:', unemployment[0]);
-            console.log('Latest Unemployment:', unemployment[unemployment.length - 1]);
+            console.log('First Combined:', unemployment[0]);
+            console.log('Latest Combined:', unemployment[unemployment.length - 1]);
         }
         
         setStatus(`Ready - Loaded ${gdp.length} GDP quarters, ${cpi.length} CPI months, ${unemployment.length} unemployment months, ${payems.length} employment months`, 'success');
@@ -764,45 +830,91 @@ function renderUnemploymentChart(filtered) {
         type: 'line',
         data: {
             labels: filtered.unemployment.map(d => formatMonthLabel(d.date)),
-            datasets: [{
-                label: 'Unemployment Rate',
-                data: filtered.unemployment.map(d => d.value),
-                borderColor: '#CB6015',
-                backgroundColor: 'rgba(203, 96, 21, 0.1)',
-                borderWidth: 2,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 0,
-                pointBackgroundColor: '#CB6015',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverRadius: 8,
-                pointHoverBackgroundColor: '#CB6015'
-            }]
+            datasets: [
+                {
+                    label: 'US Unemployment Rate',
+                    data: filtered.unemployment.map(d => d.us),
+                    borderColor: '#002F6C',
+                    backgroundColor: 'rgba(0, 47, 108, 0.08)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#002F6C',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#002F6C'
+                },
+                {
+                    label: 'Texas Unemployment Rate',
+                    data: filtered.unemployment.map(d => d.texas),
+                    borderColor: '#0EA5E9',
+                    backgroundColor: 'rgba(14, 165, 233, 0.08)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#0EA5E9',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#0EA5E9'
+                },
+                {
+                    label: 'Tyler, TX Unemployment Rate',
+                    data: filtered.unemployment.map(d => d.tyler),
+                    borderColor: '#CB6015',
+                    backgroundColor: 'rgba(203, 96, 21, 0.08)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#CB6015',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: '#CB6015'
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 400 },
+            animation: { duration: 300 },
             interaction: {
                 mode: 'index',
                 intersect: false
             },
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20,
+                        font: { size: 14, weight: '600' },
+                        color: '#0f172a',
+                        boxWidth: 8,
+                        boxHeight: 8
+                    }
+                },
                 datalabels: { display: false },
                 tooltip: {
                     enabled: true,
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    padding: 12,
-                    cornerRadius: 8,
+                    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+                    padding: 14,
+                    cornerRadius: 6,
+                    borderColor: '#0f172a',
+                    borderWidth: 1,
                     titleFont: { size: 13, weight: 'bold' },
                     bodyFont: { size: 12 },
-                    borderColor: '#CB6015',
-                    borderWidth: 1,
                     callbacks: {
                         title: (context) => context[0].label,
-                        label: (context) => `Rate: ${context.parsed.y.toFixed(2)}%`
+                        label: (context) => {
+                            if (context.parsed.y === null) return `${context.dataset.label}: N/A`;
+                            return `${context.dataset.label}: ${context.parsed.y.toFixed(2)}%`;
+                        }
                     }
                 }
             },
@@ -815,16 +927,17 @@ function renderUnemploymentChart(filtered) {
                         autoSkip: true,
                         maxTicksLimit: 15,
                         font: { size: 12, weight: '500' },
-                        color: '#475569'
+                        color: '#64748b'
                     }
                 },
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                    grid: { color: 'rgba(100, 116, 139, 0.12)', drawBorder: true },
                     ticks: {
                         callback: (value) => `${value}%`,
                         font: { size: 12, weight: '500' },
-                        color: '#475569'
+                        color: '#64748b',
+                        padding: 8
                     }
                 }
             }
