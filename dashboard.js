@@ -390,8 +390,10 @@ async function loadData() {
         // Parse unemployment data and shift dates forward by 1 month (data is released 1 month behind)
         const unemploymentShifted = (unemploymentRaw || [])
             .map(o => {
-                const date = new Date(o.date);
-                date.setMonth(date.getMonth() + 1);
+                const dateStr = o.date;
+                const parts = dateStr.split('-');
+                const date = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1));
+                date.setUTCMonth(date.getUTCMonth() + 1);
                 return { date: date.toISOString().split('T')[0], value: parseFloat(o.value) };
             })
             .filter(d => !Number.isNaN(d.value))
@@ -2098,41 +2100,41 @@ function handlePayemsDownload() {
 
 // ========== Date Formatting and Parsing ==========
 
-// Parse date string as local time to avoid timezone shifting
+// Parse date string in UTC to show most recent data
 function parseLocalDate(dateStr) {
     // Handle both "YYYY-MM-DD" and "M/D/YYYY" formats
     if (dateStr.includes('-')) {
         const parts = dateStr.split('-');
-        // Create date at noon to avoid timezone issues
-        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1, 12, 0, 0, 0);
+        // Create UTC date
+        return new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1, 0, 0, 0, 0));
     } else if (dateStr.includes('/')) {
         const parts = dateStr.split('/');
-        // Create date at noon to avoid timezone issues
-        return new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]) || 1, 12, 0, 0, 0);
+        // Create UTC date
+        return new Date(Date.UTC(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]) || 1, 0, 0, 0, 0));
     }
-    const d = new Date(dateStr);
-    d.setHours(12, 0, 0, 0);
-    return d;
+    return new Date(dateStr);
 }
 
 function formatQuarterLabel(dateStr) {
-    const d = new Date(dateStr);
-    const month = d.getUTCMonth(); // Use UTC to avoid timezone issues
+    const d = parseLocalDate(dateStr);
+    const month = d.getUTCMonth(); // Use UTC methods
     const year = d.getUTCFullYear();
     const q = Math.floor(month / 3) + 1;
     return `Q${q} ${year}`;
 }
 
 function formatMonthLabel(dateStr) {
-    // Parse as local date to avoid timezone shifting
+    // Parse as UTC date for consistent display
     const d = parseLocalDate(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const options = { month: 'short', year: 'numeric', timeZone: 'UTC' };
+    return d.toLocaleDateString('en-US', options);
 }
 
 function formatDateDisplay(dateStr) {
-    // Parse as local date to avoid timezone shifting
+    // Parse as UTC date for consistent display
     const d = parseLocalDate(dateStr);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    const options = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
+    return d.toLocaleDateString('en-US', options);
 }
 
 function handleEmploymentDownload() {
