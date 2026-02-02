@@ -2129,6 +2129,7 @@ async function renderAll() {
         console.error('Revenue load failed:', e);
     }
     hideLoadingIndicator();
+    document.body.classList.remove('is-loading');
 }
 
 function handleGDPDownload() {
@@ -2928,6 +2929,8 @@ function init() {
     setupTabs();
     setupShareButtons();
     
+    document.body.classList.add('is-loading');
+
     // Load main data with 15-second timeout before showing fallback
     const dataLoadPromise = loadData();
     const timeoutPromise = new Promise((resolve) => {
