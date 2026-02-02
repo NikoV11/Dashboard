@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-label="Hibbs Monitor">
+  <rect width="100" height="100" rx="18" fill="#CB6015"/>
+  <rect x="26" y="20" width="12" height="60" fill="#FFFFFF"/>
+  <rect x="62" y="20" width="12" height="60" fill="#FFFFFF"/>
+  <rect x="26" y="44" width="48" height="12" fill="#FFFFFF"/>
+  <rect x="4" y="4" width="92" height="92" rx="16" fill="none" stroke="#002F6C" stroke-width="4"/>
+</svg>
