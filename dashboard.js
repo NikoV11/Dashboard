@@ -916,6 +916,9 @@ function renderEmploymentChart() {
                     font: { weight: 'bold', size: 11 },
                     color: '#0f172a',
                     formatter: (value, context) => {
+                        // Skip null values (missing data for this date)
+                        if (value === null) return '';
+                        
                         // Tyler: already percent from FRED (e.g., 1.5 for 1.5%)
                         // Texas: decimal form (0.015 for 1.5%), multiply by 100 for display
                         if (context.datasetIndex === 0) {
@@ -936,6 +939,11 @@ function renderEmploymentChart() {
                     borderWidth: 1,
                     callbacks: {
                         label: (context) => {
+                            // Handle null values (missing data for this date)
+                            if (context.parsed.y === null) {
+                                return `${context.dataset.label}: N/A`;
+                            }
+                            
                             // Tyler: already percent from FRED (e.g., 1.5 for 1.5%)
                             // Texas: decimal form (0.015 for 1.5%), multiply by 100 for display
                             let displayValue;
