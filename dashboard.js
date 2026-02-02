@@ -916,9 +916,15 @@ function renderEmploymentChart() {
                     font: { weight: 'bold', size: 11 },
                     color: '#0f172a',
                     formatter: (value, context) => {
-                        // Both Tyler and Texas show percent changes
-                        // Texas value is decimal form, so multiply by 100 for display
-                        return (value * 100).toFixed(2) + '%';
+                        // Tyler: already percent from FRED (e.g., 1.5 for 1.5%)
+                        // Texas: decimal form (0.015 for 1.5%), multiply by 100 for display
+                        if (context.datasetIndex === 0) {
+                            // Tyler MSA - use as-is
+                            return value.toFixed(2) + '%';
+                        } else {
+                            // Texas - multiply by 100
+                            return (value * 100).toFixed(2) + '%';
+                        }
                     }
                 } : { display: false },
                 tooltip: {
@@ -930,9 +936,16 @@ function renderEmploymentChart() {
                     borderWidth: 1,
                     callbacks: {
                         label: (context) => {
-                            // Both show percent changes
-                            // Texas value is decimal form, so multiply by 100 for display
-                            const displayValue = (context.parsed.y * 100).toFixed(2);
+                            // Tyler: already percent from FRED (e.g., 1.5 for 1.5%)
+                            // Texas: decimal form (0.015 for 1.5%), multiply by 100 for display
+                            let displayValue;
+                            if (context.datasetIndex === 0) {
+                                // Tyler MSA - use as-is
+                                displayValue = context.parsed.y.toFixed(2);
+                            } else {
+                                // Texas - multiply by 100
+                                displayValue = (context.parsed.y * 100).toFixed(2);
+                            }
                             return `${context.dataset.label}: ${displayValue}%`;
                         }
                     }
@@ -953,7 +966,13 @@ function renderEmploymentChart() {
                 y: {
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
-                        callback: (value) => `${(value * 100).toFixed(2)}%`,
+                        callback: (value) => {
+                            // Y-axis shows the range for both datasets
+                            // Since Tyler is already percent, show it as-is
+                            // Texas values are decimal but small, so multiply by 100 conceptually
+                            // Use Tyler scale (already percent)
+                            return `${value.toFixed(2)}%`;
+                        },
                         font: { size: 12, weight: '500' },
                         color: '#475569'
                     },
@@ -1371,10 +1390,11 @@ async function loadEmploymentData() {
             console.warn('No Texas payroll data received');
         }
         
-        // Tyler data is already in percent change - use as-is
+        // Tyler data is already in percent change from FRED (not decimal!) - use as-is
+        // Format: 1.5 means 1.5%, not 0.015
         const tylerPercent = tylerRaw ? tylerRaw.map(d => ({
             date: d.date.trim(),
-            value: parseFloat(d.value)
+            value: parseFloat(d.value)  // Already percent from FRED API
         })) : [];
         
         // Calculate month-over-month percent change for Texas (from employment levels in thousands)
