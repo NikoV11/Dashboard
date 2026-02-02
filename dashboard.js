@@ -917,7 +917,8 @@ function renderEmploymentChart() {
                     color: '#0f172a',
                     formatter: (value, context) => {
                         // Both Tyler and Texas show percent changes
-                        return value.toFixed(1) + '%';
+                        // Texas value is decimal form, so multiply by 100 for display
+                        return (value * 100).toFixed(2) + '%';
                     }
                 } : { display: false },
                 tooltip: {
@@ -930,7 +931,9 @@ function renderEmploymentChart() {
                     callbacks: {
                         label: (context) => {
                             // Both show percent changes
-                            return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                            // Texas value is decimal form, so multiply by 100 for display
+                            const displayValue = (context.parsed.y * 100).toFixed(2);
+                            return `${context.dataset.label}: ${displayValue}%`;
                         }
                     }
                 }
@@ -950,7 +953,7 @@ function renderEmploymentChart() {
                 y: {
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
-                        callback: (value) => `${value.toFixed(1)}%`,
+                        callback: (value) => `${(value * 100).toFixed(2)}%`,
                         font: { size: 12, weight: '500' },
                         color: '#475569'
                     },
@@ -1386,15 +1389,19 @@ async function loadEmploymentData() {
                 .filter(d => !isNaN(d.value))
                 .sort((a, b) => new Date(a.date) - new Date(b.date));
             
+            // Need at least 2 data points to calculate change
+            if (sorted.length < 2) return [];
+            
             const percentChangeData = [];
+            // Start from index 1 since we need a previous month to calculate change
             for (let i = 1; i < sorted.length; i++) {
                 const current = sorted[i];
                 const previous = sorted[i - 1];
-                const percentChange = ((current.value - previous.value) / previous.value) * 100;
+                const percentChange = (current.value - previous.value) / previous.value;
                 
                 percentChangeData.push({
                     date: current.date,
-                    value: parseFloat(percentChange.toFixed(2))
+                    value: parseFloat(percentChange.toFixed(5))
                 });
             }
             
