@@ -10,7 +10,11 @@ An interactive, real-time economic dashboard tracking national and regional econ
 
 **Labor Market**
 - Unemployment Rate: National unemployment trends (FRED: UNRATE)
+- Texas Unemployment Rate (FRED: TXUR)
+- Tyler, TX Unemployment Rate (FRED: TYLE348UR)
 - Total Nonfarm Employment: Monthly employment change (FRED: PAYEMS)
+- Tyler MSA Employment (FRED: TYLSA158MFRBDAL)
+- Texas Employment (FRED: TX0000000M175FRBDAL)
 - Regional Employment: Tyler MSA employment data (BLS)
 
 **Housing Market**
@@ -23,7 +27,7 @@ An interactive, real-time economic dashboard tracking national and regional econ
 
 ## Data Sources
 
-- **Board of Governors of the Federal Reserve System** - Federal Reserve Economic Data (FRED)
+- **Board of Governors of the Federal Reserve System** - Federal Reserve Economic Data (FRED) — A191RL1Q225SBEA, CPIAUCSL, UNRATE, TXUR, TYLE348UR, PAYEMS, MEDLISPRIMM46340, TYLSA158MFRBDAL, TX0000000M175FRBDAL, MORTGAGE30US, MORTGAGE15US
 - **Freddie Mac** - Primary Mortgage Market Survey
 - **State Comptroller of Public Accounts, State of Texas** - Tax Collections
 - **U.S. Bureau of Labor Statistics** - Employment Data
