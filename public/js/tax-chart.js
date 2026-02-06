@@ -155,7 +155,11 @@ class TaxCategoryChart {
 
             // Skip if no category or if it's a total row
             if (!categoryName || typeof categoryName !== 'string') continue;
-            if (categoryName.toLowerCase().includes('total') || categoryName.toLowerCase().includes('grand')) continue;
+            const lowerCategory = categoryName.toLowerCase().trim();
+            if (lowerCategory.includes('total') || 
+                lowerCategory.includes('grand') || 
+                lowerCategory === 'total tax collections' ||
+                lowerCategory === 'tax collections') continue;
 
             const cleanCategory = categoryName.trim();
             categories.push(cleanCategory);
@@ -225,6 +229,31 @@ class TaxCategoryChart {
                 borderWidth: 1
             });
         }
+
+        // Calculate monthly totals for overlay line chart
+        const monthlyTotals = this.monthOrder.map(month => {
+            const monthObj = monthData.get(month) || {};
+            return categories.reduce((sum, cat) => sum + (monthObj[cat] || 0), 0);
+        });
+
+        // Add line dataset for monthly totals
+        datasets.push({
+            label: 'Monthly Total',
+            data: monthlyTotals,
+            type: 'line',
+            borderColor: '#1e293b',
+            backgroundColor: '#1e293b',
+            borderWidth: 3,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            pointBackgroundColor: '#1e293b',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            fill: false,
+            tension: 0.3,
+            order: 0, // Draw on top
+            yAxisID: 'y'
+        });
 
         return {
             labels: this.monthOrder,
@@ -300,25 +329,36 @@ class TaxCategoryChart {
                             label: function(context) {
                                 const label = context.dataset.label || '';
                                 const value = context.parsed.y || 0;
+                                
+                                // Special formatting for Monthly Total line
+                                if (label === 'Monthly Total') {
+                                    let formatted = value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                    if (value >= 1000000) {
+                                        formatted = (value / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'M';
+                                    }
+                                    return '📊 ' + label + ': $' + formatted;
+                                }
+                                
                                 let formatted = value.toLocaleString(undefined, { maximumFractionDigits: 0 });
                                 if (value >= 1000000) {
                                     formatted = (value / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'M';
                                 }
                                 return label + ': $' + formatted;
                             },
-                            afterLabel: function(context) {
-                                // Show total for month
-                                const month = context.label;
-                                const total = context.chart.data.datasets
-                                    .reduce((sum, ds) => {
-                                        const dataIdx = context.dataIndex;
-                                        return sum + (ds.data[dataIdx] || 0);
-                                    }, 0);
-                                let formatted = total.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                                if (total >= 1000000) {
-                                    formatted = (total / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'M';
+                            footer: function(context) {
+                                // Show percentage of total for stacked categories
+                                if (context[0].dataset.label !== 'Monthly Total') {
+                                    const value = context[0].parsed.y;
+                                    const total = context[0].chart.data.datasets
+                                        .find(ds => ds.label === 'Monthly Total')
+                                        ?.data[context[0].dataIndex] || 0;
+                                    
+                                    if (total > 0) {
+                                        const percentage = ((value / total) * 100).toFixed(1);
+                                        return percentage + '% of monthly total';
+                                    }
                                 }
-                                return 'Month Total: $' + formatted;
+                                return '';
                             }
                         }
                     },
