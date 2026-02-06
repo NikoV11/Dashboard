@@ -151,6 +151,7 @@
                 <nav class="sub-tab-nav" aria-label="Public Finances sections">
                     <button class="sub-tab-btn active" data-tab="sales-tax">Sales Tax</button>
                     <button class="sub-tab-btn" data-tab="state-revenue">State Revenue</button>
+                    <button class="sub-tab-btn" data-tab="tax-revenue">Tax Revenue Trends</button>
                 </nav>
             </div>
                 </nav>
@@ -358,6 +359,30 @@
                 </section>
             </div>
 
+            <!-- Tax Revenue Trends Tab -->
+            <div class="tab-content" id="tax-revenue">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas Historical Tax Revenue by Category</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">All Funds (Excluding Trusts) - Monthly Breakdown</p>
+                        </div>
+                    </div>
+                    <div style="margin: 20px 0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <label for="taxYearSelect" style="font-weight: 600; margin-right: 8px;">Select Fiscal Year:</label>
+                            <select id="taxYearSelect" style="padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: white; font-weight: 600; font-family: inherit; font-size: 14px; min-width: 150px;">
+                                <option>Loading...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Tax Revenue by Category (September - August)</h3>
+                        <canvas id="taxChart" role="img" aria-label="Stacked bar chart showing Texas tax revenue by category for selected fiscal year"></canvas>
+                    </div>
+                </section>
+            </div>
+
             <!-- Mortgage Rates Tab -->
             <div class="tab-content" id="mortgage-rates">
                 <section class="card">
@@ -399,6 +424,8 @@
 
     <script src="../data/employment-data.js"></script>
     <script src="../data/revenue-data.js"></script>
+    <script src="./js/excel-loader.js" defer></script>
+    <script src="./js/tax-chart.js" defer></script>
     <script src="../src/js/dashboard.js?v=40" defer></script>
 </body>
 </html>

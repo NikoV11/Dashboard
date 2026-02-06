@@ -1,3 +1,8 @@
 name = "fred-proxy"
 main = "src/index.js"
 compatibility_date = "2026-02-06"
+
+# R2 Bucket binding for Excel file storage
+r2_buckets = [
+  { binding = "EXCEL_BUCKET", bucket_name = "dashboard-excel-files" }
+]

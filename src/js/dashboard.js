@@ -3038,6 +3038,13 @@ function init() {
         console.error('Data load error:', err);
     });
     
+    // Initialize tax revenue chart from Excel data
+    if (typeof initTaxChart === 'function') {
+        initTaxChart().catch(error => {
+            console.error('Tax chart initialization failed:', error);
+        });
+    }
+
     console.log('Dashboard initialized successfully');
 }
 
