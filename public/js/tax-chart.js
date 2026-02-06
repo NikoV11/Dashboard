@@ -256,7 +256,8 @@ class TaxCategoryChart {
     }
 
     formatBillions(value) {
-        const billions = value / 1_000_000_000;
+        // Source values are in thousands of dollars
+        const billions = value / 1_000_000;
         return `$${billions.toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
     }
 
@@ -326,7 +327,7 @@ class TaxCategoryChart {
                         },
                         ticks: {
                             callback: function(value) {
-                                return `$${(value / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
+                                return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
                             }
                         }
                     }
@@ -351,13 +352,13 @@ class TaxCategoryChart {
                                 const label = context.dataset.label || '';
                                 const value = context.parsed.y || 0;
 
-                                const formatted = `$${(value / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
+                                const formatted = `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
                                 return `${label}: ${formatted}`;
                             },
                             footer: function(context) {
                                 const total = context[0].chart.data.monthlyTotals?.[context[0].dataIndex] || 0;
                                 if (total > 0) {
-                                    const formattedTotal = `$${(total / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
+                                    const formattedTotal = `$${(total / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
                                     const percentage = ((context[0].parsed.y / total) * 100).toFixed(1);
                                     return `Monthly total: ${formattedTotal} • ${percentage}%`;
                                 }
