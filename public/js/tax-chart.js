@@ -230,35 +230,22 @@ class TaxCategoryChart {
             });
         }
 
-        // Calculate monthly totals for overlay line chart
+        // Calculate monthly totals for labels
         const monthlyTotals = this.monthOrder.map(month => {
             const monthObj = monthData.get(month) || {};
             return categories.reduce((sum, cat) => sum + (monthObj[cat] || 0), 0);
         });
 
-        // Add line dataset for monthly totals
-        datasets.push({
-            label: 'Monthly Total',
-            data: monthlyTotals,
-            type: 'line',
-            borderColor: '#1e293b',
-            backgroundColor: '#1e293b',
-            borderWidth: 3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBackgroundColor: '#1e293b',
-            pointBorderColor: '#ffffff',
-            pointBorderWidth: 2,
-            fill: false,
-            tension: 0.3,
-            order: 0, // Draw on top
-            yAxisID: 'y'
-        });
-
         return {
             labels: this.monthOrder,
-            datasets: datasets
+            datasets: datasets,
+            monthlyTotals
         };
+    }
+
+    formatBillions(value) {
+        const billions = value / 1_000_000_000;
+        return `$${billions.toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
     }
 
     /**
@@ -276,6 +263,33 @@ class TaxCategoryChart {
         }
 
         const ctx = canvas.getContext('2d');
+
+        const totalLabelPlugin = {
+            id: 'monthlyTotalLabels',
+            afterDatasetsDraw: (chart) => {
+                const totals = chart.data.monthlyTotals || [];
+                if (!totals.length) return;
+
+                const { ctx, scales } = chart;
+                const xScale = scales.x;
+                const yScale = scales.y;
+
+                ctx.save();
+                ctx.fillStyle = '#0f172a';
+                ctx.font = '600 11px "IBM Plex Sans", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+
+                totals.forEach((total, index) => {
+                    if (!Number.isFinite(total) || total <= 0) return;
+                    const x = xScale.getPixelForValue(index);
+                    const y = yScale.getPixelForValue(total) - 6;
+                    ctx.fillText(this.formatBillions(total), x, y);
+                });
+
+                ctx.restore();
+            }
+        };
 
         this.chart = new Chart(ctx, {
             type: 'bar',
@@ -296,16 +310,11 @@ class TaxCategoryChart {
                         stacked: true,
                         title: {
                             display: true,
-                            text: 'Revenue'
+                            text: 'Revenue (Billions $)'
                         },
                         ticks: {
                             callback: function(value) {
-                                if (value >= 1000000) {
-                                    return '$' + (value / 1000000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'M';
-                                } else if (value >= 1000) {
-                                    return '$' + (value / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 }) + 'K';
-                                }
-                                return '$' + value.toLocaleString();
+                                return `$${(value / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
                             }
                         }
                     }
@@ -329,34 +338,16 @@ class TaxCategoryChart {
                             label: function(context) {
                                 const label = context.dataset.label || '';
                                 const value = context.parsed.y || 0;
-                                
-                                // Special formatting for Monthly Total line
-                                if (label === 'Monthly Total') {
-                                    let formatted = value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                                    if (value >= 1000000) {
-                                        formatted = (value / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'M';
-                                    }
-                                    return '📊 ' + label + ': $' + formatted;
-                                }
-                                
-                                let formatted = value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-                                if (value >= 1000000) {
-                                    formatted = (value / 1000000).toLocaleString(undefined, { maximumFractionDigits: 2 }) + 'M';
-                                }
-                                return label + ': $' + formatted;
+
+                                const formatted = `$${(value / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
+                                return `${label}: ${formatted}`;
                             },
                             footer: function(context) {
-                                // Show percentage of total for stacked categories
-                                if (context[0].dataset.label !== 'Monthly Total') {
-                                    const value = context[0].parsed.y;
-                                    const total = context[0].chart.data.datasets
-                                        .find(ds => ds.label === 'Monthly Total')
-                                        ?.data[context[0].dataIndex] || 0;
-                                    
-                                    if (total > 0) {
-                                        const percentage = ((value / total) * 100).toFixed(1);
-                                        return percentage + '% of monthly total';
-                                    }
+                                const total = context[0].chart.data.monthlyTotals?.[context[0].dataIndex] || 0;
+                                if (total > 0) {
+                                    const formattedTotal = `$${(total / 1_000_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
+                                    const percentage = ((context[0].parsed.y / total) * 100).toFixed(1);
+                                    return `Monthly total: ${formattedTotal} • ${percentage}%`;
                                 }
                                 return '';
                             }
@@ -366,7 +357,8 @@ class TaxCategoryChart {
                         display: false
                     }
                 }
-            }
+            },
+            plugins: [totalLabelPlugin]
         });
 
         console.log('[TaxChart] Chart created successfully');
