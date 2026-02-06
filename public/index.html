@@ -12,7 +12,7 @@
     <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="fred-proxy-base" content="https://fred-proxy.hibbsdashboard.workers.dev">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.stlouisfed.org https://api.allorigins.win https://thingproxy.freeboard.io https://*.workers.dev https://fred-proxy.hibbsdashboard.workers.dev https://data.texas.gov; frame-ancestors 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.stlouisfed.org https://api.allorigins.win https://thingproxy.freeboard.io https://*.workers.dev https://fred-proxy.hibbsdashboard.workers.dev https://data.texas.gov https://cdn.jsdelivr.net; frame-ancestors 'self';">
     <title>Hibbs Monitor - East Texas Economic Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
     <link rel="apple-touch-icon" href="../favicon.svg">
@@ -65,6 +65,10 @@
                         <label for="endDate">to</label>
                         <input type="month" id="endDate" min="1947-01" max="2099-12" value="2026-01" aria-label="End Month">
                         <button id="updateBtn" class="primary">Update</button>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="fullHistoryToggle" aria-label="View full history">
+                            Full history
+                        </label>
                     </div>
                     <p class="status" id="statusText" role="status" aria-live="polite">Loading data...</p>
                     <div class="data-badges" aria-label="Data badges">

@@ -24,7 +24,7 @@ class TaxCategoryChart {
             '#002F6C', // Primary navy
             '#FF6B6B', // Coral red
             '#4ECDC4', // Teal
-            '#95E1D3'  // Light teal
+            '#00ff04'  // Green
         ];
         
         this.otherColor = '#94A3B8'; // Neutral gray for "Other"

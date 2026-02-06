@@ -164,10 +164,20 @@ function validateYearRange(startYear, endYear) {
 function getDateRange() {
     const startDateEl = document.getElementById('startDate');
     const endDateEl = document.getElementById('endDate');
+    const fullHistoryToggle = document.getElementById('fullHistoryToggle');
+    
+    // Debug logging
+    console.log('[getDateRange] fullHistoryToggle exists?', !!fullHistoryToggle);
+    if (fullHistoryToggle) {
+        console.log('[getDateRange] fullHistoryToggle.checked:', fullHistoryToggle.checked);
+    }
     
     // Month inputs return YYYY-MM format
-    const startValue = startDateEl?.value || '2023-01';
+    // If full history is checked, use 1947 (earliest FRED data), otherwise use user value or default 2023
+    const startValue = fullHistoryToggle?.checked ? '1947-01' : (startDateEl?.value || '2023-01');
     const endValue = endDateEl?.value || '2026-01';
+    
+    console.log('[getDateRange] startValue:', startValue, 'endValue:', endValue);
     
     const [startYear, startMonth] = startValue.split('-').map(Number);
     const [endYear, endMonth] = endValue.split('-').map(Number);
@@ -178,7 +188,12 @@ function getDateRange() {
     // End date: last day of the month at end of day
     const endDate = new Date(endYear, endMonth, 0, 23, 59, 59, 999);
     
-    return { startDate, endDate };
+    // Return object with isFullHistory flag
+    return { 
+        startDate, 
+        endDate,
+        isFullHistory: fullHistoryToggle?.checked || false
+    };
 }
 
 // Helper function to check if a date is within range
@@ -359,7 +374,9 @@ async function fetchWithRetry(url, maxRetries = 2, timeout = 12000) {
 
 async function fetchSeries(seriesId, options = {}) {
     const baseRange = options.range || getDateRange();
-    const bufferedRange = options.useRange === false ? null : getBufferedRange(baseRange, options.bufferMonths ?? 24);
+    // Disable buffering when in full history mode, use 0 buffer months instead
+    const bufferMonths = baseRange.isFullHistory ? 0 : (options.bufferMonths ?? 24);
+    const bufferedRange = options.useRange === false ? null : getBufferedRange(baseRange, bufferMonths);
     const rangeKey = bufferedRange
         ? `${formatDateForFRED(bufferedRange.startDate)}_${formatDateForFRED(bufferedRange.endDate)}`
         : 'all';
@@ -384,8 +401,11 @@ async function fetchSeries(seriesId, options = {}) {
     targetUrl.searchParams.set('file_type', 'json');
     targetUrl.searchParams.set('limit', '10000');
     if (bufferedRange) {
-        targetUrl.searchParams.set('observation_start', formatDateForFRED(bufferedRange.startDate));
-        targetUrl.searchParams.set('observation_end', formatDateForFRED(bufferedRange.endDate));
+        const startStr = formatDateForFRED(bufferedRange.startDate);
+        const endStr = formatDateForFRED(bufferedRange.endDate);
+        targetUrl.searchParams.set('observation_start', startStr);
+        targetUrl.searchParams.set('observation_end', endStr);
+        console.log(`[${seriesId}] Querying FRED: ${startStr} to ${endStr}`);
     }
 
     const directUrl = targetUrl.toString();
@@ -409,6 +429,12 @@ async function fetchSeries(seriesId, options = {}) {
                 dataCache[cacheKey] = payload;
                 writeLocalCache(cacheKey, payload);
                 console.log(`[${seriesId}] Fetched ${data.observations.length} records`);
+                // Log first and last dates to verify the range
+                if (data.observations.length > 0) {
+                    const firstDate = data.observations[0].date;
+                    const lastDate = data.observations[data.observations.length - 1].date;
+                    console.log(`[${seriesId}] Date range: ${firstDate} to ${lastDate}`);
+                }
                 return data.observations;
             }
             throw new Error('No observations');
@@ -913,6 +939,15 @@ function renderUnemploymentChart(filtered) {
     const ctx = canvas.getContext('2d');
 
     destroyChart(unemploymentChart);
+
+    const allUnemploymentValues = (filtered.unemployment || [])
+        .flatMap(d => [d.us, d.texas, d.tyler])
+        .filter(v => Number.isFinite(v));
+
+    const minValue = allUnemploymentValues.length ? Math.min(...allUnemploymentValues) : 2;
+    const maxValue = allUnemploymentValues.length ? Math.max(...allUnemploymentValues) : 5;
+    const suggestedMin = Math.min(2, minValue - 0.5);
+    const suggestedMax = Math.max(5, maxValue + 0.5);
     
     unemploymentChart = new Chart(ctx, {
         type: 'line',
@@ -1019,7 +1054,9 @@ function renderUnemploymentChart(filtered) {
                     }
                 },
                 y: {
-                    beginAtZero: true,
+                    beginAtZero: false,
+                    suggestedMin,
+                    suggestedMax,
                     grid: { color: 'rgba(100, 116, 139, 0.12)', drawBorder: true },
                     ticks: {
                         callback: (value) => `${value}%`,
@@ -2474,6 +2511,33 @@ function handleMortgageDownload() {
 }
 
 function wireEvents() {
+    // Full history toggle - disable/enable start date input and trigger update
+    const fullHistoryToggle = document.getElementById('fullHistoryToggle');
+    const startDateEl = document.getElementById('startDate');
+    if (fullHistoryToggle) {
+        fullHistoryToggle.addEventListener('change', (e) => {
+            if (startDateEl) {
+                startDateEl.disabled = e.target.checked;
+            }
+            // Clear cache when toggling full history to force fresh fetch
+            for (const key in dataCache) {
+                delete dataCache[key];
+            }
+            const now = Date.now();
+            const storagePrefixLen = STORAGE_PREFIX.length + 1; // +1 for the colon
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(STORAGE_PREFIX + ':')) {
+                    localStorage.removeItem(key);
+                }
+            }
+            console.log('[FullHistory] Cache cleared');
+            
+            // Re-fetch data with new date range instead of just re-filtering
+            loadData();
+        });
+    }
+    
     // Update button with validation
     document.getElementById('updateBtn')?.addEventListener('click', () => {
         const { startDate, endDate } = getDateRange();
@@ -2481,7 +2545,20 @@ function wireEvents() {
         const endYear = endDate.getFullYear();
         
         if (validateYearRange(startYear, endYear)) {
-            renderAll();
+            // Clear cache to force fresh FRED API fetch with new date range
+            for (const key in dataCache) {
+                delete dataCache[key];
+            }
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(STORAGE_PREFIX + ':')) {
+                    localStorage.removeItem(key);
+                }
+            }
+            console.log('[UpdateBtn] Cache cleared, refetching data...');
+            
+            // Re-fetch data with new date range
+            loadData();
         }
     });
     
