@@ -126,11 +126,13 @@ class TaxCategoryChart {
     processSheetData(sheetData) {
         const monthData = new Map();
         const categoryTotals = new Map();
+        const monthHasData = new Map();
         let categories = [];
 
         // Initialize month map
         this.monthOrder.forEach(month => {
             monthData.set(month, {});
+            monthHasData.set(month, false);
         });
 
         // Skip header rows and find data
@@ -187,6 +189,10 @@ class TaxCategoryChart {
 
                 if (monthData.has(month)) {
                     monthData.get(month)[cleanCategory] = value;
+                }
+
+                if (value !== 0) {
+                    monthHasData.set(month, true);
                 }
 
                 categoryTotal += value;
@@ -251,7 +257,8 @@ class TaxCategoryChart {
         return {
             labels: this.monthOrder,
             datasets: datasets,
-            monthlyTotals
+            monthlyTotals,
+            monthHasData
         };
     }
 
@@ -281,6 +288,7 @@ class TaxCategoryChart {
             id: 'monthlyTotalLabels',
             afterDatasetsDraw: (chart) => {
                 const totals = chart.data.monthlyTotals || [];
+            const monthHasData = chart.data.monthHasData || new Map();
                 if (!totals.length) return;
 
                 const { ctx, scales } = chart;
@@ -294,8 +302,16 @@ class TaxCategoryChart {
                 ctx.textBaseline = 'bottom';
 
                 totals.forEach((total, index) => {
-                    if (!Number.isFinite(total) || total <= 0) return;
+                    if (!Number.isFinite(total)) return;
                     const x = xScale.getPixelForValue(index);
+                    const hasData = monthHasData.get(this.monthOrder[index]);
+                    if (!hasData) {
+                        ctx.fillStyle = '#94A3B8';
+                        ctx.fillText('No data', x, yScale.getPixelForValue(0) - 6);
+                        ctx.fillStyle = '#0f172a';
+                        return;
+                    }
+                    if (total <= 0) return;
                     const y = yScale.getPixelForValue(total) - 6;
                     ctx.fillText(this.formatBillions(total), x, y);
                 });
@@ -357,6 +373,10 @@ class TaxCategoryChart {
                             },
                             footer: function(context) {
                                 const total = context[0].chart.data.monthlyTotals?.[context[0].dataIndex] || 0;
+                                const hasData = context[0].chart.data.monthHasData?.get(context[0].label);
+                                if (!hasData) {
+                                    return 'No data reported for this month';
+                                }
                                 if (total > 0) {
                                     const formattedTotal = `$${(total / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}B`;
                                     const percentage = ((context[0].parsed.y / total) * 100).toFixed(1);
