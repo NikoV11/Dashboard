@@ -18,21 +18,16 @@ class TaxCategoryChart {
             'May', 'June', 'July', 'August'
         ];
         
-        // Color palette for different tax categories
-        this.categoryColors = {
-            'Sales Taxes': '#CB6015',
-            'Franchise Tax': '#002F6C',
-            'Motor Fuels Tax': '#FF6B6B',
-            'Motor Vehicle Sales Tax': '#4ECDC4',
-            'Alcoholic Beverage Taxes': '#95E1D3',
-            'Natural Gas Production Tax': '#FFE66D',
-            'Oil Production Tax': '#A8E6CF',
-            'Cigarette Tax': '#FF8CC3',
-            'Tobacco Tax': '#FFB84D',
-            'Inheritance Tax': '#B19CD9',
-            'Utility Tax': '#87CEEB',
-            'Other Taxes': '#DDA0DD'
-        };
+        // Top 5 categories + Other color palette (matching dashboard theme)
+        this.topColors = [
+            '#CB6015', // Primary orange
+            '#002F6C', // Primary navy
+            '#FF6B6B', // Coral red
+            '#4ECDC4', // Teal
+            '#95E1D3'  // Light teal
+        ];
+        
+        this.otherColor = '#94A3B8'; // Neutral gray for "Other"
     }
 
     /**
@@ -130,6 +125,7 @@ class TaxCategoryChart {
      */
     processSheetData(sheetData) {
         const monthData = new Map();
+        const categoryTotals = new Map();
         let categories = [];
 
         // Initialize month map
@@ -151,7 +147,7 @@ class TaxCategoryChart {
 
         console.log(`[TaxChart] Data starts at row ${dataStartIdx}`);
 
-        // Process data rows
+        // Process data rows and calculate totals
         for (let i = dataStartIdx; i < sheetData.length; i++) {
             const row = sheetData[i];
             const rowKeys = Object.keys(row);
@@ -164,6 +160,8 @@ class TaxCategoryChart {
             const cleanCategory = categoryName.trim();
             categories.push(cleanCategory);
 
+            let categoryTotal = 0;
+
             // Extract monthly values
             let monthIdx = 0;
             for (let j = 1; j < rowKeys.length && monthIdx < this.monthOrder.length; j++) {
@@ -174,57 +172,64 @@ class TaxCategoryChart {
                     monthData.get(month)[cleanCategory] = value;
                 }
 
+                categoryTotal += value;
                 monthIdx++;
             }
+
+            // Track total for this category
+            categoryTotals.set(cleanCategory, categoryTotal);
         }
 
         // Remove duplicates from categories
-        categories = [...new Set(categories)].sort();
+        categories = [...new Set(categories)];
 
-        console.log(`[TaxChart] Found ${categories.length} categories, ${monthData.size} months`);
-        if (categories.length > 0) {
-            console.log(`[TaxChart] Categories:`, categories);
-        }
+        // Sort categories by total and get top 5
+        const sortedCategories = categories
+            .map(cat => ({ name: cat, total: categoryTotals.get(cat) || 0 }))
+            .sort((a, b) => b.total - a.total);
 
-        // Create datasets for each category
-        const datasets = categories.map(category => {
+        const top5Categories = sortedCategories.slice(0, 5).map(c => c.name);
+        const otherCategories = sortedCategories.slice(5).map(c => c.name);
+
+        console.log(`[TaxChart] Top 5 categories:`, top5Categories);
+        console.log(`[TaxChart] Grouping ${otherCategories.length} categories into "Other"`);
+
+        // Create datasets for top 5 categories
+        const datasets = top5Categories.map((category, idx) => {
             const data = this.monthOrder.map(month => {
                 const monthObj = monthData.get(month) || {};
                 return monthObj[category] || 0;
             });
 
-            const color = this.getColor(category);
-
             return {
                 label: category,
                 data: data,
-                backgroundColor: color,
-                borderColor: color,
+                backgroundColor: this.topColors[idx],
+                borderColor: this.topColors[idx],
                 borderWidth: 1
             };
         });
+
+        // Add "Other" category if there are more than 5
+        if (otherCategories.length > 0) {
+            const otherData = this.monthOrder.map(month => {
+                const monthObj = monthData.get(month) || {};
+                return otherCategories.reduce((sum, cat) => sum + (monthObj[cat] || 0), 0);
+            });
+
+            datasets.push({
+                label: 'Other',
+                data: otherData,
+                backgroundColor: this.otherColor,
+                borderColor: this.otherColor,
+                borderWidth: 1
+            });
+        }
 
         return {
             labels: this.monthOrder,
             datasets: datasets
         };
-    }
-
-    /**
-     * Get color for a category (use predefined or generate)
-     */
-    getColor(category) {
-        if (this.categoryColors[category]) {
-            return this.categoryColors[category];
-        }
-
-        // Generate a consistent color for unknown categories
-        const hash = category.split('').reduce((acc, char) => {
-            return ((acc << 5) - acc) + char.charCodeAt(0);
-        }, 0);
-
-        const colors = ['#FF6B6B', '#4ECDC4', '#95E1D3', '#FFE66D', '#A8E6CF', '#FF8CC3', '#FFB84D', '#B19CD9', '#87CEEB', '#DDA0DD'];
-        return colors[Math.abs(hash) % colors.length];
     }
 
     /**
