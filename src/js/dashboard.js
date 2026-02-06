@@ -9,8 +9,24 @@ const MORTGAGE30_ID = 'MORTGAGE30US';
 const MORTGAGE15_ID = 'MORTGAGE15US';
 const TYLER_PAYROLL_ID = 'TYLSA158MFRBDAL';
 const TEXAS_PAYROLL_ID = 'TX0000000M175FRBDAL';
-const FRED_API_KEY = '313359708686770c608dab3d05c3077f';
-const FRED_URL = 'https://api.stlouisfed.org/fred/series/observations';
+const FRED_PROXY_BASE = (() => {
+    const meta = document.querySelector('meta[name="fred-proxy-base"]');
+    const metaValue = meta?.getAttribute('content')?.trim();
+
+    if (metaValue) {
+        return metaValue;
+    }
+
+    if (window.APP_CONFIG?.fredProxyBase) {
+        return String(window.APP_CONFIG.fredProxyBase).trim();
+    }
+
+    return '';
+})();
+
+const FRED_URL = FRED_PROXY_BASE
+    ? `${FRED_PROXY_BASE.replace(/\/$/, '')}/fred/series/observations`
+    : '/api/fred/series/observations';
 
 const SAMPLE_DATA = {
     gdp: [
@@ -268,7 +284,45 @@ function registerPlugins() {
 
 // Data cache for resilience
 const dataCache = {};
-const CACHE_DURATION = 3600000; // 1 hour
+const CACHE_DURATION = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_VERSION = 'v2';
+const STORAGE_PREFIX = 'fredCache';
+
+function formatDateForFRED(date) {
+    return date.toISOString().slice(0, 10);
+}
+
+function buildCacheKey(seriesId, rangeKey) {
+    return `${CACHE_VERSION}:${seriesId}:${rangeKey}`;
+}
+
+function readLocalCache(key) {
+    try {
+        const raw = localStorage.getItem(`${STORAGE_PREFIX}:${key}`);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.data)) return null;
+        return parsed;
+    } catch (error) {
+        console.warn('Failed to read local cache:', error);
+        return null;
+    }
+}
+
+function writeLocalCache(key, payload) {
+    try {
+        localStorage.setItem(`${STORAGE_PREFIX}:${key}`, JSON.stringify(payload));
+    } catch (error) {
+        console.warn('Failed to write local cache:', error);
+    }
+}
+
+function getBufferedRange(range, bufferMonths = 24) {
+    if (!range?.startDate || !range?.endDate) return null;
+    const bufferedStart = new Date(range.startDate);
+    bufferedStart.setMonth(bufferedStart.getMonth() - bufferMonths);
+    return { startDate: bufferedStart, endDate: range.endDate };
+}
 
 async function withTimeout(promise, ms) {
     const controller = new AbortController();
@@ -303,35 +357,69 @@ async function fetchWithRetry(url, maxRetries = 2, timeout = 12000) {
     }
 }
 
-async function fetchSeries(seriesId) {
-    // Check cache first
-    if (dataCache[seriesId] && Date.now() - dataCache[seriesId].timestamp < CACHE_DURATION) {
-        console.log(`[${seriesId}] Using cached data`);
-        return dataCache[seriesId].data;
+async function fetchSeries(seriesId, options = {}) {
+    const baseRange = options.range || getDateRange();
+    const bufferedRange = options.useRange === false ? null : getBufferedRange(baseRange, options.bufferMonths ?? 24);
+    const rangeKey = bufferedRange
+        ? `${formatDateForFRED(bufferedRange.startDate)}_${formatDateForFRED(bufferedRange.endDate)}`
+        : 'all';
+    const cacheKey = buildCacheKey(seriesId, rangeKey);
+    const now = Date.now();
+
+    const memoryCache = dataCache[cacheKey];
+    if (memoryCache && now - memoryCache.timestamp < CACHE_DURATION) {
+        console.log(`[${seriesId}] Using in-memory cache`);
+        return memoryCache.data;
     }
 
-    // Use faster CORS proxies for GitHub Pages - ordered by speed/reliability
-    const url = `${FRED_URL}?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&limit=10000`;
-    const proxies = [
-        'https://api.allorigins.win/raw?url=',
-        'https://thingproxy.freeboard.io/fetch/'
-    ];
+    const localCache = readLocalCache(cacheKey);
+    if (localCache && now - localCache.timestamp < CACHE_DURATION) {
+        dataCache[cacheKey] = localCache;
+        console.log(`[${seriesId}] Using local cache`);
+        return localCache.data;
+    }
 
-    for (let i = 0; i < proxies.length; i++) {
-        const proxyUrl = proxies[i] + encodeURIComponent(url);
+    const targetUrl = new URL(FRED_URL, window.location.origin);
+    targetUrl.searchParams.set('series_id', seriesId);
+    targetUrl.searchParams.set('file_type', 'json');
+    targetUrl.searchParams.set('limit', '10000');
+    if (bufferedRange) {
+        targetUrl.searchParams.set('observation_start', formatDateForFRED(bufferedRange.startDate));
+        targetUrl.searchParams.set('observation_end', formatDateForFRED(bufferedRange.endDate));
+    }
+
+    const directUrl = targetUrl.toString();
+    const requestUrls = FRED_PROXY_BASE
+        ? [directUrl]
+        : [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(directUrl)}`,
+            `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(directUrl)}`
+        ];
+
+    const staleCache = memoryCache || localCache;
+
+    for (let i = 0; i < requestUrls.length; i++) {
+        const requestUrl = requestUrls[i];
         try {
-            console.log(`[${seriesId}] Trying proxy ${i + 1}/${proxies.length}...`);
-            const res = await fetchWithRetry(proxyUrl, 1, 10000);
+            console.log(`[${seriesId}] Fetching ${i + 1}/${requestUrls.length}...`);
+            const res = await fetchWithRetry(requestUrl, 2, 10000);
             const data = await res.json();
             if (data.observations && data.observations.length) {
-                dataCache[seriesId] = { data: data.observations, timestamp: Date.now() };
-                console.log(`[${seriesId}] Successfully fetched ${data.observations.length} records from proxy ${i + 1}`);
+                const payload = { data: data.observations, timestamp: now };
+                dataCache[cacheKey] = payload;
+                writeLocalCache(cacheKey, payload);
+                console.log(`[${seriesId}] Fetched ${data.observations.length} records`);
                 return data.observations;
             }
             throw new Error('No observations');
         } catch (err) {
-            console.warn(`[${seriesId}] Proxy ${i + 1} failed: ${err.message}`);
+            console.warn(`[${seriesId}] Fetch failed: ${err.message}`);
         }
+    }
+
+    if (staleCache?.data?.length) {
+        console.warn(`[${seriesId}] Using stale cached data after fetch failure`);
+        return staleCache.data;
     }
 
     throw new Error(`All fetch attempts failed for ${seriesId}`);
