@@ -147,6 +147,19 @@ class TaxCategoryChart {
 
         console.log(`[TaxChart] Data starts at row ${dataStartIdx}`);
 
+        // Build month-to-column map from header row to avoid shifting values
+        const headerRow = dataStartIdx > 0 ? sheetData[dataStartIdx - 1] : null;
+        const monthKeyMap = new Map();
+        if (headerRow) {
+            Object.entries(headerRow).forEach(([key, value]) => {
+                if (typeof value !== 'string') return;
+                const label = value.trim();
+                if (this.monthOrder.includes(label)) {
+                    monthKeyMap.set(label, key);
+                }
+            });
+        }
+
         // Process data rows and calculate totals
         for (let i = dataStartIdx; i < sheetData.length; i++) {
             const row = sheetData[i];
@@ -166,19 +179,18 @@ class TaxCategoryChart {
 
             let categoryTotal = 0;
 
-            // Extract monthly values
-            let monthIdx = 0;
-            for (let j = 1; j < rowKeys.length && monthIdx < this.monthOrder.length; j++) {
-                const value = parseFloat(row[rowKeys[j]]) || 0;
-                const month = this.monthOrder[monthIdx];
+            // Extract monthly values using header map (prevents total column drift)
+            this.monthOrder.forEach(month => {
+                const key = monthKeyMap.get(month);
+                const rawValue = key ? row[key] : null;
+                const value = Number.isFinite(rawValue) ? rawValue : (parseFloat(rawValue) || 0);
 
                 if (monthData.has(month)) {
                     monthData.get(month)[cleanCategory] = value;
                 }
 
                 categoryTotal += value;
-                monthIdx++;
-            }
+            });
 
             // Track total for this category
             categoryTotals.set(cleanCategory, categoryTotal);
