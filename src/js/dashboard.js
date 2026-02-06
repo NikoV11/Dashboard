@@ -311,6 +311,32 @@ function buildCacheKey(seriesId, rangeKey) {
     return `${CACHE_VERSION}:${seriesId}:${rangeKey}`;
 }
 
+function getAdaptiveAxisTicks(count) {
+    if (!Number.isFinite(count) || count <= 0) {
+        return { autoSkip: true, maxTicksLimit: 6, maxRotation: 0, minRotation: 0 };
+    }
+    if (count <= 6) {
+        return { autoSkip: false, maxTicksLimit: count, maxRotation: 0, minRotation: 0 };
+    }
+    if (count <= 12) {
+        return { autoSkip: true, maxTicksLimit: 12, maxRotation: 0, minRotation: 0 };
+    }
+    if (count <= 24) {
+        return { autoSkip: true, maxTicksLimit: 12, maxRotation: 30, minRotation: 0 };
+    }
+    if (count <= 60) {
+        return { autoSkip: true, maxTicksLimit: 10, maxRotation: 45, minRotation: 45 };
+    }
+    return { autoSkip: true, maxTicksLimit: 8, maxRotation: 60, minRotation: 60 };
+}
+
+function getAdaptiveTickFont(count, baseSize = 12) {
+    if (!Number.isFinite(count)) return baseSize;
+    if (count > 60) return Math.max(9, baseSize - 2);
+    if (count > 24) return Math.max(10, baseSize - 1);
+    return baseSize;
+}
+
 function readLocalCache(key) {
     try {
         const raw = localStorage.getItem(`${STORAGE_PREFIX}:${key}`);
@@ -864,7 +890,7 @@ function renderCharts(filtered) {
     const showGDPLabels = filtered.gdp.length <= 15;
     const showCPILabels = filtered.cpi.length <= 15;
 
-    const sharedOptions = (showLabels) => ({
+    const sharedOptions = (showLabels, labelCount) => ({
         responsive: true,
         maintainAspectRatio: false,
         animation: {
@@ -893,6 +919,14 @@ function renderCharts(filtered) {
             } : { display: false }
         },
         scales: {
+            x: {
+                grid: { display: false },
+                ticks: {
+                    ...getAdaptiveAxisTicks(labelCount),
+                    font: { size: getAdaptiveTickFont(labelCount, 12), weight: '500' },
+                    color: '#64748b'
+                }
+            },
             y: {
                 beginAtZero: true,
                 ticks: { callback: v => `${v}%` }
@@ -911,7 +945,7 @@ function renderCharts(filtered) {
                 borderRadius: 6
             }]
         },
-        options: sharedOptions(showGDPLabels)
+        options: sharedOptions(showGDPLabels, filtered.gdp.length)
     });
 
     cpiChart = new Chart(cpiCtx, {
@@ -925,7 +959,7 @@ function renderCharts(filtered) {
                 borderRadius: 6
             }]
         },
-        options: sharedOptions(showCPILabels)
+        options: sharedOptions(showCPILabels, filtered.cpi.length)
     });
 
     // Note: Unemployment, Payems, and Employment charts are rendered on-demand when their tabs are activated
@@ -937,6 +971,8 @@ function renderUnemploymentChart(filtered) {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
+    const tickConfig = getAdaptiveAxisTicks(filtered.unemployment.length);
+    const tickFontSize = getAdaptiveTickFont(filtered.unemployment.length, 12);
 
     destroyChart(unemploymentChart);
 
@@ -1045,11 +1081,8 @@ function renderUnemploymentChart(filtered) {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 15,
-                        font: { size: 12, weight: '500' },
+                        ...tickConfig,
+                        font: { size: tickFontSize, weight: '500' },
                         color: '#64748b'
                     }
                 },
@@ -1102,6 +1135,8 @@ function renderEmploymentChart() {
         ...filteredTexas.map(d => d.date)
     ]);
     const sortedDates = Array.from(allDates).sort((a, b) => new Date(a) - new Date(b));
+    const tickConfig = getAdaptiveAxisTicks(sortedDates.length);
+    const tickFontSize = getAdaptiveTickFont(sortedDates.length, 12);
 
     destroyChart(employmentChart);
     
@@ -1159,15 +1194,8 @@ function renderEmploymentChart() {
                         // Skip null values (missing data for this date)
                         if (value === null) return '';
                         
-                        // Tyler: already percent from FRED (e.g., 1.5 for 1.5%)
-                        // Texas: decimal form (0.015 for 1.5%), multiply by 100 for display
-                        if (context.datasetIndex === 0) {
-                            // Tyler MSA - use as-is
-                            return value.toFixed(2) + '%';
-                        } else {
-                            // Texas - multiply by 100
-                            return (value * 100).toFixed(2) + '%';
-                        }
+                        // Both Tyler and Texas are now in percent form (e.g., 2.4 for 2.4%)
+                        return value.toFixed(2) + '%';
                     }
                 } : { display: false },
                 tooltip: {
@@ -1184,16 +1212,8 @@ function renderEmploymentChart() {
                                 return `${context.dataset.label}: N/A`;
                             }
                             
-                            // Tyler: already percent from FRED (e.g., 1.5 for 1.5%)
-                            // Texas: decimal form (0.015 for 1.5%), multiply by 100 for display
-                            let displayValue;
-                            if (context.datasetIndex === 0) {
-                                // Tyler MSA - use as-is
-                                displayValue = context.parsed.y.toFixed(2);
-                            } else {
-                                // Texas - multiply by 100
-                                displayValue = (context.parsed.y * 100).toFixed(2);
-                            }
+                            // Both Tyler and Texas are now in percent form (e.g., 2.4 for 2.4%)
+                            const displayValue = context.parsed.y.toFixed(2);
                             return `${context.dataset.label}: ${displayValue}%`;
                         }
                     }
@@ -1203,11 +1223,8 @@ function renderEmploymentChart() {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 20,
-                        font: { size: 12, weight: '500' },
+                        ...tickConfig,
+                        font: { size: tickFontSize, weight: '500' },
                         color: '#475569'
                     }
                 },
@@ -1259,6 +1276,8 @@ function renderSalesTaxChart() {
     }
     
     const showLabels = filteredData.length <= 15;
+    const tickConfig = getAdaptiveAxisTicks(filteredData.length);
+    const tickFontSize = getAdaptiveTickFont(filteredData.length, 11);
 
     destroyChart(salesTaxChart);
     
@@ -1331,10 +1350,8 @@ function renderSalesTaxChart() {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        autoSkip: false,
-                        font: { size: 11, weight: '500' },
+                        ...tickConfig,
+                        font: { size: tickFontSize, weight: '500' },
                         color: '#475569'
                     }
                 },
@@ -1373,6 +1390,8 @@ function renderPayemsChart(filtered) {
 
     const ctx = canvas.getContext('2d');
     const showLabels = filtered.payems.length <= 15;
+    const tickConfig = getAdaptiveAxisTicks(filtered.payems.length);
+    const tickFontSize = getAdaptiveTickFont(filtered.payems.length, 11);
 
     destroyChart(payemsChart);
     
@@ -1427,11 +1446,8 @@ function renderPayemsChart(filtered) {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 15,
-                        font: { size: 11 },
+                        ...tickConfig,
+                        font: { size: tickFontSize },
                         color: '#64748b'
                     }
                 },
@@ -1465,6 +1481,8 @@ function renderMedianPriceChart() {
 
     // Data is already month-over-month percentage changes from FRED
     const showLabels = filteredData.length <= 15;
+    const tickConfig = getAdaptiveAxisTicks(filteredData.length);
+    const tickFontSize = getAdaptiveTickFont(filteredData.length, 12);
 
     destroyChart(medianPriceChart);
     
@@ -1515,11 +1533,8 @@ function renderMedianPriceChart() {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 15,
-                        font: { size: 12, weight: '500' },
+                        ...tickConfig,
+                        font: { size: tickFontSize, weight: '500' },
                         color: '#475569'
                     }
                 },
@@ -1645,7 +1660,7 @@ async function loadEmploymentData() {
             value: parseFloat(d.value)  // Already percent from FRED API
         })) : [];
         
-        // Calculate month-over-month percent change for Texas (from employment levels in thousands)
+        // Calculate month-over-month annualized percent change for Texas (from employment levels in thousands)
         function calculateTexasPercentChange(rawData) {
             if (!rawData || rawData.length === 0) return [];
             
@@ -1665,11 +1680,14 @@ async function loadEmploymentData() {
             for (let i = 1; i < sorted.length; i++) {
                 const current = sorted[i];
                 const previous = sorted[i - 1];
-                const percentChange = (current.value - previous.value) / previous.value;
+                const monthlyPercentChange = (current.value - previous.value) / previous.value;
+                
+                // Annualize the monthly percent change: ((1 + monthly%)^12 - 1) * 100
+                const annualizedPercentChange = (Math.pow(1 + monthlyPercentChange, 12) - 1) * 100;
                 
                 percentChangeData.push({
                     date: current.date,
-                    value: parseFloat(percentChange.toFixed(5))
+                    value: parseFloat(annualizedPercentChange.toFixed(2))
                 });
             }
             
@@ -1769,6 +1787,10 @@ function renderMortgageCharts() {
     const data15 = filteredByYear.filter(d => d.rate15yr !== null);
     console.log('30-year data points:', data30.length);
     console.log('15-year data points:', data15.length);
+    const tickConfig30 = getAdaptiveAxisTicks(data30.length);
+    const tickFontSize30 = getAdaptiveTickFont(data30.length, 12);
+    const tickConfig15 = getAdaptiveAxisTicks(data15.length);
+    const tickFontSize15 = getAdaptiveTickFont(data15.length, 12);
     
     // 30-Year Chart
     destroyChart(mortgage30Chart);
@@ -1820,11 +1842,8 @@ function renderMortgageCharts() {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 15,
-                        font: { size: 12, weight: '500' },
+                        ...tickConfig30,
+                        font: { size: tickFontSize30, weight: '500' },
                         color: '#475569'
                     }
                 },
@@ -1890,11 +1909,8 @@ function renderMortgageCharts() {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        maxRotation: 45,
-                        minRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 15,
-                        font: { size: 12, weight: '500' },
+                        ...tickConfig15,
+                        font: { size: tickFontSize15, weight: '500' },
                         color: '#475569'
                     }
                 },
