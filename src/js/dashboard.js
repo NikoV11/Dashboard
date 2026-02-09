@@ -2219,33 +2219,57 @@ function handleMortgageDownload() {
     URL.revokeObjectURL(url);
 }
 
-function handleTaxDownload() {
+async function handleTaxDownload() {
     try {
-        if (typeof window.taxChart === 'undefined' || !window.taxChart) {
-            alert('Tax chart not yet loaded. Please wait for data to load.');
+        if (typeof ExcelDataLoader === 'undefined') {
+            alert('Excel data loader not available. Please refresh and try again.');
             return;
         }
 
-        const chartData = window.taxChart.getChartDataForDownload();
-        if (!chartData) {
+        const dropdown = document.getElementById('taxYearSelect');
+        const fiscalYear = dropdown?.value;
+
+        if (!fiscalYear || fiscalYear === 'Loading...') {
+            alert('No fiscal year selected yet. Please wait for the data to load.');
+            return;
+        }
+
+        const sheetRows = await ExcelDataLoader.getSheet(fiscalYear);
+        if (!Array.isArray(sheetRows) || sheetRows.length === 0) {
             alert('No tax data available to download.');
             return;
         }
 
-        const { fiscalYear, monthLabels, datasets, monthlyTotals } = chartData;
-        
-        // Build CSV with categories as columns
-        let csv = 'Month,' + datasets.map(ds => ds.label).join(',') + ',Total\n';
-        
-        monthLabels.forEach((month, idx) => {
-            csv += month;
-            let monthTotal = 0;
-            datasets.forEach(ds => {
-                const value = ds.data[idx] || 0;
-                csv += ',' + (value > 0 ? value.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '0');
-                monthTotal += value;
+        const columnKeys = [];
+        const seenKeys = new Set();
+        sheetRows.forEach(row => {
+            Object.keys(row || {}).forEach(key => {
+                if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    columnKeys.push(key);
+                }
             });
-            csv += ',' + (monthTotal > 0 ? monthTotal.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '0') + '\n';
+        });
+
+        if (columnKeys.length === 0) {
+            alert('No tax data available to download.');
+            return;
+        }
+
+        const escapeCsvValue = (value) => {
+            if (value === null || value === undefined) return '';
+            const text = String(value);
+            if (/[",\n\r]/.test(text)) {
+                return `"${text.replace(/"/g, '""')}"`;
+            }
+            return text;
+        };
+
+        let csv = columnKeys.map(escapeCsvValue).join(',') + '\n';
+
+        sheetRows.forEach(row => {
+            const line = columnKeys.map(key => escapeCsvValue(row?.[key])).join(',');
+            csv += line + '\n';
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
