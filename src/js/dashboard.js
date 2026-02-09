@@ -105,12 +105,10 @@ let salesTaxChart = null;
 let medianPriceChart = null;
 let mortgage30Chart = null;
 let mortgage15Chart = null;
-let revenueChart = null;
 let cachedData = null;
 let salesTaxData = [];
 let medianPriceData = [];
 let mortgageData = [];
-let revenueData = [];
 let employmentData = [];
 let dataSource = 'sample';
 let salesTaxLoaded = false;
@@ -1929,305 +1927,6 @@ function renderMortgageCharts() {
 
 // ========== Texas Revenue Functions ==========
 
-function loadRevenueData() {
-    try {
-        // Validate data is loaded
-        if (typeof REVENUE_DATA === 'undefined' || !REVENUE_DATA || REVENUE_DATA.length === 0) {
-            console.error('REVENUE_DATA not available');
-            return false;
-        }
-        
-        revenueData = REVENUE_DATA;
-        console.log(`Revenue data loaded: ${revenueData.length} records`);
-        
-        // Get unique year-month combinations sorted by date (most recent first)
-        const monthsInOrder = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        
-        const yearMonthMap = new Map(); // year-month -> count
-        revenueData.forEach(d => {
-            const key = `${d.year}-${d.month}`;
-            if (!yearMonthMap.has(key)) {
-                yearMonthMap.set(key, { year: d.year, month: d.month });
-            }
-        });
-        
-        // Convert to array and sort by date (most recent first)
-        const availableYearMonths = Array.from(yearMonthMap.values())
-            .sort((a, b) => {
-                const aDate = new Date(a.year, monthsInOrder.indexOf(a.month));
-                const bDate = new Date(b.year, monthsInOrder.indexOf(b.month));
-                return bDate - aDate;
-            });
-        
-        console.log(`Available months: ${availableYearMonths.map(m => `${m.year} ${m.month}`).join(', ')}`);
-        
-        // Populate month dropdown with actual year and month
-        const monthSelect = document.getElementById('revenueMonth');
-        if (!monthSelect) {
-            console.error('revenueMonth select element not found');
-            return false;
-        }
-        
-        monthSelect.innerHTML = availableYearMonths.map(ym => 
-            `<option value="${ym.year}-${ym.month}">${ym.year} ${ym.month}</option>`
-        ).join('');
-        
-        // Set default to most recent month (December 2025)
-        if (availableYearMonths.length > 0) {
-            monthSelect.value = `${availableYearMonths[0].year}-${availableYearMonths[0].month}`;
-        }
-        
-        console.log('Revenue dropdown populated successfully');
-        
-        // Render initial chart
-        renderRevenueChart();
-        
-        return true;
-    } catch (error) {
-        console.error('Revenue data load failed:', error);
-        return false;
-    }
-}
-
-function renderRevenueChart() {
-    try {
-        const canvas = document.getElementById('revenueChart');
-        if (!canvas) {
-            console.error('revenueChart canvas not found');
-            return;
-        }
-        
-        if (!revenueData || revenueData.length === 0) {
-            console.warn('No revenue data available');
-            return;
-        }
-        
-        const monthSelect = document.getElementById('revenueMonth');
-        
-        if (!monthSelect) {
-            console.error('revenueMonth select element not found');
-            return;
-        }
-        
-        const monthValue = monthSelect.value; // Format: "2025-December"
-        
-        // Parse the month value
-        const [selectedYear, selectedMonth] = monthValue.split('-');
-        const calendarYear = parseInt(selectedYear);
-        
-        console.log(`Rendering chart for ${selectedYear} ${selectedMonth}`);
-        
-        // Filter for tax data in the selected month/year
-        const filteredData = revenueData.filter(d => {
-            const matchesYear = d.year === calendarYear;
-            const matchesMonth = d.month === selectedMonth;
-            const isTax = (d.category.includes('Tax') || d.category.includes('Taxes'));
-            const notTotal = !['Tax Collections', 'Total Tax Collections', 'Total Net Revenue', 'Total Revenue'].includes(d.category);
-            
-            return matchesYear && matchesMonth && isTax && notTotal;
-        });
-        
-        console.log(`Found ${filteredData.length} tax records for ${selectedYear} ${selectedMonth}`);
-        
-        if (filteredData.length === 0) {
-            console.warn(`No data for ${selectedYear} ${selectedMonth}`);
-            // Clear the chart
-            destroyChart(revenueChart);
-            return;
-        }
-        
-        // Aggregate by category
-        const categoryTotals = {};
-        filteredData.forEach(d => {
-            let category = d.category.trim();
-            
-            // Normalize similar category names
-            if (category.includes('Motor Fuel')) category = 'Motor Fuels Taxes';
-            else if (category.includes('Alcoholic Beverage')) category = 'Alcoholic Beverage Taxes';
-            else if (category.includes('Natural Gas')) category = 'Natural Gas Production Tax';
-            else if (category.includes('Oil Production')) category = 'Oil Production Tax';
-            else if (category.includes('Sales Tax')) category = 'Sales Tax';
-            
-            categoryTotals[category] = (categoryTotals[category] || 0) + d.value;
-        });
-        
-        console.log('Category totals:', categoryTotals);
-        
-        // Calculate grand total
-        const grandTotal = Object.values(categoryTotals).reduce((sum, val) => sum + val, 0);
-        
-        // Sort categories by value (descending)
-        const sortedCategories = Object.entries(categoryTotals)
-            .sort((a, b) => b[1] - a[1]);
-        
-        // Group small categories (<1%) into "Others"
-        const finalCategories = [];
-        let othersTotal = 0;
-        
-        sortedCategories.forEach(([category, value]) => {
-            const percentage = (value / grandTotal) * 100;
-            if (percentage >= 1.0) {
-                finalCategories.push({ category, value });
-            } else {
-                othersTotal += value;
-            }
-        });
-        
-        // Add "Others" if applicable
-        if (othersTotal > 0) {
-            finalCategories.push({ category: 'Others', value: othersTotal });
-        }
-        
-        const labels = finalCategories.map(d => d.category);
-        const values = finalCategories.map(d => d.value);
-        
-        // Color palette
-        const colors = [
-            '#CB6015', // Orange
-            '#002F6C', // Navy Blue
-            '#27AE60', // Green
-            '#8E44AD', // Purple
-            '#E74C3C', // Red
-            '#F1C40F', // Yellow
-            '#16A085', // Teal
-            '#3498DB', // Sky Blue
-            '#E67E22', // Carrot Orange
-            '#95A5A6', // Gray
-            '#1ABC9C', // Turquoise
-            '#9B59B6', // Amethyst
-            '#34495E', // Wet Asphalt
-            '#F39C12', // Orange
-            '#D35400'  // Pumpkin
-        ];
-        
-        // Destroy existing chart
-        destroyChart(revenueChart);
-        
-        const ctx = canvas.getContext('2d');
-        
-        // Create doughnut chart
-        revenueChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors.slice(0, labels.length),
-                    borderWidth: 2,
-                    borderColor: '#ffffff'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    datalabels: {
-                        display: false
-                    },
-                    legend: {
-                        display: true,
-                        position: 'right',
-                        labels: {
-                            padding: 12,
-                            font: { size: 11, weight: '500' },
-                            color: '#0f172a',
-                            generateLabels: (chart) => {
-                                const dataset = chart.data.datasets[0];
-                                const total = dataset.data.reduce((a, b) => a + b, 0);
-                                
-                                return chart.data.labels.map((label, i) => {
-                                    const value = dataset.data[i];
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    // Values are in thousands, convert to billions
-                                    const billions = (value / 1000000).toFixed(2);
-                                    
-                                    return {
-                                        text: `${label}: $${billions}B (${percentage}%)`,
-                                        fillStyle: dataset.backgroundColor[i],
-                                        hidden: false,
-                                        index: i
-                                    };
-                                });
-                            }
-                        }
-                    },
-                    tooltip: {
-                        enabled: true,
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                        padding: 12,
-                        cornerRadius: 8,
-                        titleFont: { size: 13, weight: 'bold' },
-                        bodyFont: { size: 12 },
-                        borderColor: '#CB6015',
-                        borderWidth: 1,
-                        callbacks: {
-                            label: (context) => {
-                                const value = context.parsed;
-                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                const percentage = ((value / total) * 100).toFixed(1);
-                                // Values are in thousands, convert to billions
-                                const billions = (value / 1000000).toFixed(2);
-                                
-                                return `${context.label}: $${billions}B (${percentage}%)`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        
-        console.log('Revenue chart rendered successfully');
-        
-    } catch (error) {
-        console.error('Revenue chart render failed:', error);
-    }
-}
-
-function handleRevenueDownload() {
-    const monthSelect = document.getElementById('revenueMonth');
-    
-    if (!monthSelect || !revenueData || revenueData.length === 0) {
-        alert('No revenue data available to download.');
-        return;
-    }
-    
-    const selectedValue = monthSelect.value; // Format: "2025-12"
-    if (!selectedValue || selectedValue === '') {
-        alert('Please select a month first.');
-        return;
-    }
-    
-    const [year, month] = selectedValue.split('-');
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    const monthName = monthNames[parseInt(month) - 1];
-    
-    const filteredData = revenueData.filter(d => 
-        d.year === parseInt(year) && d.month === monthName
-    );
-    
-    if (filteredData.length === 0) {
-        alert('No data available for the selected month.');
-        return;
-    }
-    
-    let csv = 'Category,Value ($ thousands)\n';
-    
-    filteredData.forEach(item => {
-        csv += `"${item.category}",${item.value.toFixed(2)}\n`;
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `texas_revenue_${year}_${monthName}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-}
-
 async function renderAll() {
     if (!cachedData) return;
     const filtered = filterData();
@@ -2263,12 +1962,6 @@ async function renderAll() {
         console.error('Mortgage load failed:', e);
     }
     
-    try {
-        loadRevenueData();
-        renderRevenueChart();
-    } catch (e) {
-        console.error('Revenue load failed:', e);
-    }
     hideLoadingIndicator();
     document.body.classList.remove('is-loading');
 }
@@ -2526,6 +2219,50 @@ function handleMortgageDownload() {
     URL.revokeObjectURL(url);
 }
 
+function handleTaxDownload() {
+    try {
+        if (typeof window.taxChart === 'undefined' || !window.taxChart) {
+            alert('Tax chart not yet loaded. Please wait for data to load.');
+            return;
+        }
+
+        const chartData = window.taxChart.getChartDataForDownload();
+        if (!chartData) {
+            alert('No tax data available to download.');
+            return;
+        }
+
+        const { fiscalYear, monthLabels, datasets, monthlyTotals } = chartData;
+        
+        // Build CSV with categories as columns
+        let csv = 'Month,' + datasets.map(ds => ds.label).join(',') + ',Total\n';
+        
+        monthLabels.forEach((month, idx) => {
+            csv += month;
+            let monthTotal = 0;
+            datasets.forEach(ds => {
+                const value = ds.data[idx] || 0;
+                csv += ',' + (value > 0 ? value.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '0');
+                monthTotal += value;
+            });
+            csv += ',' + (monthTotal > 0 ? monthTotal.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '0') + '\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `texas_tax_revenue_${fiscalYear}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Tax download failed:', error);
+        alert('Failed to download tax data. Please check the console for details.');
+    }
+}
+
 function wireEvents() {
     // Full history toggle - disable/enable start date input and trigger update
     const fullHistoryToggle = document.getElementById('fullHistoryToggle');
@@ -2586,10 +2323,7 @@ function wireEvents() {
     document.getElementById('downloadSalesTaxBtn')?.addEventListener('click', handleSalesTaxDownload);
     document.getElementById('downloadMedianPriceBtn')?.addEventListener('click', handleMedianPriceDownload);
     document.getElementById('downloadMortgageBtn')?.addEventListener('click', handleMortgageDownload);
-    document.getElementById('updateRevenueBtn')?.addEventListener('click', renderRevenueChart);
-    document.getElementById('downloadRevenueBtn')?.addEventListener('click', handleRevenueDownload);
-    document.getElementById('revenueYear')?.addEventListener('change', renderRevenueChart);
-    document.getElementById('revenueMonth')?.addEventListener('change', renderRevenueChart);
+    document.getElementById('downloadTaxBtn')?.addEventListener('click', handleTaxDownload);
 }
 
 // ========== Share Functionality ==========
@@ -2603,7 +2337,7 @@ function setupShareButtons() {
         { id: 'shareEmploymentBtn', chart: () => employmentChart, name: 'Employment Trends' },
         { id: 'shareSalesTaxBtn', chart: () => salesTaxChart, name: 'Tyler MSA Sales Tax' },
         { id: 'shareMedianPriceBtn', chart: () => medianPriceChart, name: 'Tyler Median Home Price' },
-        { id: 'shareRevenueBtn', chart: () => revenueChart, name: 'Texas Tax Collections' }
+        { id: 'shareTaxBtn', chart: () => (window.taxChart ? window.taxChart.getChart() : null), name: 'Texas Tax Revenue' }
     ];
 
     shareButtons.forEach(({ id, chart, name }) => {
@@ -3086,8 +2820,6 @@ function setupTabs() {
                         } else {
                             renderEmploymentChart();
                         }
-                    } else if (tabId === 'state-revenue') {
-                        renderRevenueChart();
                     }
                 }
             } else {

@@ -154,7 +154,6 @@
             <div class="sub-tabs-container" id="public-finances-tabs">
                 <nav class="sub-tab-nav" aria-label="Public Finances sections">
                     <button class="sub-tab-btn active" data-tab="sales-tax">Sales Tax</button>
-                    <button class="sub-tab-btn" data-tab="state-revenue">State Revenue</button>
                     <button class="sub-tab-btn" data-tab="tax-revenue">Tax Revenue Trends</button>
                 </nav>
             </div>
@@ -330,39 +329,6 @@
                 </section>
             </div>
 
-            <!-- State Revenue Tab -->
-            <div class="tab-content" id="state-revenue">
-                <section class="card">
-                    <div class="section-header">
-                        <div>
-                            <h2>Texas Tax Collections by Category</h2>
-                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Tax Collections Only - FY 2003-2025</p>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button id="shareRevenueBtn" class="ghost" title="Share chart">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
-                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                                </svg>
-                            </button>
-                            <button id="downloadRevenueBtn" class="ghost">Download CSV</button>
-                        </div>
-                    </div>
-                    <div class="revenue-controls" style="margin: 20px 0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
-                        <div>
-                            <label for="revenueMonth" style="font-weight: 600; margin-right: 8px;">Select Month:</label>
-                            <select id="revenueMonth" style="padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: white; font-weight: 600; font-family: inherit; font-size: 14px;">
-                                <!-- Months will be populated by JavaScript -->
-                            </select>
-                        </div>
-                        <button id="updateRevenueBtn" class="primary" style="padding: 10px 20px;">Update Chart</button>
-                    </div>
-                    <div class="chart-card" style="margin-top: 20px;">
-                        <h3 id="revenueChartTitle">Tax Collections Distribution by Category</h3>
-                        <canvas id="revenueChart" style="max-height: 500px;"></canvas>
-                    </div>
-                </section>
-            </div>
-
             <!-- Tax Revenue Trends Tab -->
             <div class="tab-content" id="tax-revenue">
                 <section class="card">
@@ -370,6 +336,14 @@
                         <div>
                             <h2>Texas Historical Tax Revenue by Category</h2>
                             <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">All Funds (Excluding Trusts) - Monthly Breakdown</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareTaxBtn" class="ghost" title="Share chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadTaxBtn" class="ghost">Download CSV</button>
                         </div>
                     </div>
                     <div style="margin: 20px 0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">

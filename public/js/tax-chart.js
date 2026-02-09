@@ -406,6 +406,26 @@ class TaxCategoryChart {
     }
 
     /**
+     * Get current chart data for download
+     */
+    getChartDataForDownload() {
+        if (!this.chart || !this.chart.data) {
+            return null;
+        }
+
+        const { datasets, labels, monthlyTotals } = this.chart.data;
+        const dropdown = document.getElementById(this.dropdownId);
+        const fiscalYear = dropdown ? dropdown.value : 'Unknown';
+
+        return {
+            fiscalYear,
+            monthLabels: labels,
+            datasets,
+            monthlyTotals
+        };
+    }
+
+    /**
      * Destroy chart
      */
     destroy() {
