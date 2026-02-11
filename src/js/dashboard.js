@@ -2359,6 +2359,32 @@ function wireEvents() {
 
 // ========== Share Functionality ==========
 
+function getChartImageWithBackground(chartInstance, scale = 2) {
+    // Get the original canvas
+    const originalCanvas = chartInstance.canvas;
+    const width = originalCanvas.width;
+    const height = originalCanvas.height;
+    
+    // Create a new canvas with white background
+    const canvas = document.createElement('canvas');
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext('2d');
+    
+    // Scale the context for higher quality
+    ctx.scale(scale, scale);
+    
+    // Fill with white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw the chart on top
+    ctx.drawImage(originalCanvas, 0, 0, width, height);
+    
+    // Return as base64
+    return canvas.toDataURL('image/png');
+}
+
 function setupShareButtons() {
     const shareButtons = [
         { id: 'shareGDPBtn', chart: () => gdpChart, name: 'Real GDP Growth' },
@@ -2392,8 +2418,8 @@ function shareChart(chartInstance, chartName) {
     }
 
     try {
-        // Get chart as base64 image with 2x scale for higher quality
-        const imageUrl = chartInstance.toBase64Image('image/png', 2);
+        // Get chart as base64 image with white background and 2x scale for higher quality
+        const imageUrl = getChartImageWithBackground(chartInstance, 2);
         
         // Create share URL
         const dashboardUrl = window.location.href.split('?')[0];
@@ -2441,9 +2467,9 @@ function shareMortgageCharts() {
     }
 
     try {
-        // Get both charts as base64 images with 2x scale for higher quality
-        const image30 = mortgage30Chart.toBase64Image('image/png', 2);
-        const image15 = mortgage15Chart.toBase64Image('image/png', 2);
+        // Get both charts as base64 images with white background and 2x scale for higher quality
+        const image30 = getChartImageWithBackground(mortgage30Chart, 2);
+        const image15 = getChartImageWithBackground(mortgage15Chart, 2);
         
         // Create share URL
         const dashboardUrl = window.location.href.split('?')[0];
