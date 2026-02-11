@@ -542,40 +542,31 @@ async function loadData() {
             .map(o => ({ date: o.date, value: parseFloat(o.value) }))
             .filter(d => !Number.isNaN(d.value))
             .sort((a, b) => new Date(a.date) - new Date(b.date));
+        // Helper function to parse date string to UTC Date object
+        const parseUTCDate = (dateStr) => {
+            const parts = dateStr.split('-');
+            return new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1));
+        };
         
-        // Parse US unemployment data and shift dates forward by 1 month (data is released 1 month behind)
-        const usUnemploymentShifted = (unemploymentRaw || [])
-            .map(o => {
-                const dateStr = o.date;
-                const parts = dateStr.split('-');
-                const date = new Date(Date.UTC(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) || 1));
-                date.setUTCMonth(date.getUTCMonth() + 1);
-                return { date: date.toISOString().split('T')[0], value: parseFloat(o.value) };
-            })
+        // Parse US unemployment data as-is from API
+        const usUnemployment = (unemploymentRaw || [])
+            .map(o => ({ date: o.date, value: parseFloat(o.value) }))
             .filter(d => !Number.isNaN(d.value))
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        // Remove duplicate US unemployment dates, keeping the latest value
-        const seenUS = {};
-        const usUnemployment = usUnemploymentShifted.filter(d => {
-            if (seenUS[d.date]) return false;
-            seenUS[d.date] = true;
-            return true;
-        });
+            .sort((a, b) => parseUTCDate(a.date) - parseUTCDate(b.date));
 
-        // Parse Tyler unemployment data (already in correct format)
+        // Parse Tyler unemployment data as-is from API
         const tylerUnemployment = (tylerUnemploymentRaw || [])
             .map(o => ({ date: o.date, value: parseFloat(o.value) }))
             .filter(d => !Number.isNaN(d.value))
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
+            .sort((a, b) => parseUTCDate(a.date) - parseUTCDate(b.date));
 
-        // Parse Texas unemployment data
+        // Parse Texas unemployment data as-is from API
         const texasUnemployment = (texasUnemploymentRaw || [])
             .map(o => ({ date: o.date, value: parseFloat(o.value) }))
             .filter(d => !Number.isNaN(d.value))
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
+            .sort((a, b) => parseUTCDate(a.date) - parseUTCDate(b.date));
 
-        // Combine US, Texas, and Tyler unemployment data by date
+        // Combine US, Texas, and Tyler unemployment data by date (with null values preserved)
         const unemploymentMap = new Map();
         usUnemployment.forEach(d => {
             unemploymentMap.set(d.date, { date: d.date, us: d.value, texas: null, tyler: null });
@@ -594,7 +585,10 @@ async function loadData() {
                 unemploymentMap.set(d.date, { date: d.date, us: null, texas: null, tyler: d.value });
             }
         });
-        const unemployment = Array.from(unemploymentMap.values()).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // Create unemployment array with UTC date sorting
+        const unemployment = Array.from(unemploymentMap.values())
+            .sort((a, b) => parseUTCDate(a.date) - parseUTCDate(b.date));
 
         // Sort CPI data by date first
         const sortedCpiRaw = (cpiRaw || [])
@@ -675,7 +669,17 @@ async function loadData() {
         setStatus(`Ready - Loaded ${gdp.length} GDP quarters, ${cpi.length} CPI months, ${unemployment.length} unemployment months, ${payems.length} employment months`, 'success');
     } catch (error) {
         console.error('All data fetch attempts failed, falling back to sample data:', error.message);
-        cachedData = { ...SAMPLE_DATA };
+        // Transform SAMPLE_DATA unemployment to match the live format (us/texas/tyler fields)
+        const transformedSampleData = {
+            ...SAMPLE_DATA,
+            unemployment: SAMPLE_DATA.unemployment.map(d => ({
+                date: d.date,
+                us: d.value,
+                texas: null,
+                tyler: null
+            }))
+        };
+        cachedData = transformedSampleData;
         dataSource = 'sample';
         setStatus('⚠️ Using sample data - Live API temporarily unavailable (retrying in 30s)', 'warn');
         
@@ -2010,16 +2014,19 @@ function handleUnemploymentDownload() {
     if (!cachedData) return;
     const filtered = filterData();
     
-    let csv = 'Date,Unemployment Rate (%)\n';
+    let csv = 'Date,US Unemployment Rate (%),Texas Unemployment Rate (%),Tyler Unemployment Rate (%)\n';
     filtered.unemployment.forEach(d => {
-        csv += `${formatMonthLabel(d.date)},${d.value.toFixed(1)}\n`;
+        const us = d.us !== null ? d.us.toFixed(1) : '';
+        const texas = d.texas !== null ? d.texas.toFixed(1) : '';
+        const tyler = d.tyler !== null ? d.tyler.toFixed(1) : '';
+        csv += `${formatMonthLabel(d.date)},${us},${texas},${tyler}\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `us_unemployment_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `unemployment_rates_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -2392,40 +2399,38 @@ function shareChart(chartInstance, chartName) {
         const dashboardUrl = window.location.href.split('?')[0];
         const shareText = `${chartName} - Hibbs Monitor Dashboard`;
         
-        // Check if Web Share API is available (mobile devices)
-        if (navigator.share && navigator.canShare) {
-            // Convert base64 to blob for sharing
-            fetch(imageUrl)
-                .then(res => res.blob())
-                .then(blob => {
-                    const file = new File([blob], `${chartName.replace(/\s+/g, '_')}.png`, { type: 'image/png' });
-                    
-                    navigator.share({
-                        title: shareText,
-                        text: `Check out this chart from UT Tyler Hibbs Institute Economic Dashboard`,
-                        url: dashboardUrl,
-                        files: [file]
-                    }).catch(err => {
-                        if (err.name !== 'AbortError') {
-                            console.error('Share failed:', err);
-                            fallbackShare(imageUrl, shareText, dashboardUrl);
-                        }
-                    });
-                })
-                .catch(() => {
-                    // If file sharing fails, try without file
-                    navigator.share({
-                        title: shareText,
-                        text: `Check out this chart from UT Tyler Hibbs Institute Economic Dashboard`,
-                        url: dashboardUrl
-                    }).catch(() => fallbackShare(imageUrl, shareText, dashboardUrl));
-                });
+        // Convert base64 to blob using a more reliable method
+        const base64Data = imageUrl.split(',')[1];
+        const byteCharacters = atob(base64Data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'image/png' });
+        
+        const file = new File([blob], `${chartName.replace(/\s+/g, '_')}.png`, { type: 'image/png' });
+        
+        // Check if Web Share API with files is available (mainly mobile)
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+                title: shareText,
+                text: `Check out this chart from UT Tyler Hibbs Institute Economic Dashboard`,
+                url: dashboardUrl,
+                files: [file]
+            }).catch(err => {
+                if (err.name !== 'AbortError') {
+                    console.error('Share failed:', err);
+                    fallbackShare(imageUrl, blob, shareText, dashboardUrl, chartName);
+                }
+            });
         } else {
-            fallbackShare(imageUrl, shareText, dashboardUrl);
+            // Show share modal with download and social options
+            fallbackShare(imageUrl, blob, shareText, dashboardUrl, chartName);
         }
     } catch (error) {
         console.error('Error sharing chart:', error);
-        alert('Unable to share chart. Please try downloading the data instead.');
+        alert('Unable to share chart. Please try again.');
     }
 }
 
@@ -2444,15 +2449,34 @@ function shareMortgageCharts() {
         const dashboardUrl = window.location.href.split('?')[0];
         const shareText = 'Mortgage Rates - Hibbs Monitor Dashboard';
         
+        // Convert base64 to blobs using a more reliable method
+        const base64Data30 = image30.split(',')[1];
+        const byteCharacters30 = atob(base64Data30);
+        const byteNumbers30 = new Array(byteCharacters30.length);
+        for (let i = 0; i < byteCharacters30.length; i++) {
+            byteNumbers30[i] = byteCharacters30.charCodeAt(i);
+        }
+        const byteArray30 = new Uint8Array(byteNumbers30);
+        const blob30 = new Blob([byteArray30], { type: 'image/png' });
+        
+        const base64Data15 = image15.split(',')[1];
+        const byteCharacters15 = atob(base64Data15);
+        const byteNumbers15 = new Array(byteCharacters15.length);
+        for (let i = 0; i < byteCharacters15.length; i++) {
+            byteNumbers15[i] = byteCharacters15.charCodeAt(i);
+        }
+        const byteArray15 = new Uint8Array(byteNumbers15);
+        const blob15 = new Blob([byteArray15], { type: 'image/png' });
+        
         // For mortgage rates, show both charts in the modal
-        fallbackShareMortgage(image30, image15, shareText, dashboardUrl);
+        fallbackShareMortgage(image30, image15, blob30, blob15, shareText, dashboardUrl);
     } catch (error) {
         console.error('Error sharing mortgage charts:', error);
-        alert('Unable to share charts. Please try downloading the data instead.');
+        alert('Unable to share charts. Please try again.');
     }
 }
 
-function fallbackShare(imageUrl, shareText, dashboardUrl) {
+function fallbackShare(imageUrl, imageBlob, shareText, dashboardUrl, chartName) {
     // Create modal for share options
     const modal = document.createElement('div');
     modal.style.cssText = `
@@ -2492,33 +2516,43 @@ function fallbackShare(imageUrl, shareText, dashboardUrl) {
         <div style="margin-bottom: ${isMobile ? '16px' : '20px'};">
             <img src="${imageUrl}" style="width: 100%; border-radius: 8px; border: 1px solid #e2e8f0;" alt="Chart preview">
         </div>
-        <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : 'repeat(auto-fit, minmax(130px, 1fr))'}; gap: ${isMobile ? '12px' : '10px'};">
-            <button id="postTwitter" style="${buttonStyle.replace('{bg}', '#000000')}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle; ${isMobile ? '' : 'margin-right: 4px;'}"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                <span>Post to X</span>
-            </button>
-            <button id="postLinkedIn" style="${buttonStyle.replace('{bg}', '#0A66C2')}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle; ${isMobile ? '' : 'margin-right: 4px;'}"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg>
-                <span>Post to LinkedIn</span>
-            </button>
-            <button id="postFacebook" style="${buttonStyle.replace('{bg}', '#1877F2')}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle; ${isMobile ? '' : 'margin-right: 4px;'}"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                <span>Post to Facebook</span>
-            </button>
-            <button id="postInstagram" style="padding: ${isMobile ? '12px 10px' : '10px 12px'}; background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 6px; min-height: ${isMobile ? '48px' : 'auto'}; touch-action: manipulation;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle; ${isMobile ? '' : 'margin-right: 4px;'}"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-                <span>Save for Instagram</span>
+        
+        <div style="margin-bottom: 16px;">
+            <button id="downloadImage" style="width: 100%; padding: ${isMobile ? '14px' : '12px'}; background: #CB6015; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: ${isMobile ? '52px' : 'auto'}; touch-action: manipulation; box-shadow: 0 2px 8px rgba(203, 96, 21, 0.3);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="vertical-align: middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download PNG Image
             </button>
         </div>
-        <div style="margin-top: 12px; display: ${isMobile ? 'flex' : 'flex'}; flex-direction: ${isMobile ? 'column' : 'row'}; gap: ${isMobile ? '10px' : '8px'};">
-            <button id="downloadImage" style="flex: 1; padding: ${isMobile ? '12px' : '10px 12px'}; background: #CB6015; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; min-height: ${isMobile ? '48px' : 'auto'}; touch-action: manipulation;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="vertical-align: middle; margin-right: 4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Download Image
-            </button>
-            <button id="closeModal" style="flex: 1; padding: ${isMobile ? '12px' : '10px 12px'}; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; min-height: ${isMobile ? '48px' : 'auto'}; touch-action: manipulation;">
+        
+        <div style="margin-bottom: 12px;">
+            <p style="margin: 0 0 10px 0; font-size: 13px; color: #64748b; font-weight: 500; text-align: center;">Share on social media:</p>
+            <div style="display: grid; grid-template-columns: ${isMobile ? '1fr' : 'repeat(2, 1fr)'}; gap: ${isMobile ? '10px' : '8px'};">
+                <button id="postTwitter" style="${buttonStyle.replace('{bg}', '#000000')}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle;"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    <span>X (Twitter)</span>
+                </button>
+                <button id="postLinkedIn" style="${buttonStyle.replace('{bg}', '#0A66C2')}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/></svg>
+                    <span>LinkedIn</span>
+                </button>
+                <button id="postFacebook" style="${buttonStyle.replace('{bg}', '#1877F2')}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="white" style="vertical-align: middle;"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    <span>Facebook</span>
+                </button>
+                <button id="copyImage" style="${buttonStyle.replace('{bg}', '#10b981')}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="vertical-align: middle;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span>Copy Image</span>
+                </button>
+            </div>
+        </div>
+        
+        <div style="margin-top: 12px;">
+            <button id="closeModal" style="width: 100%; padding: ${isMobile ? '12px' : '10px 12px'}; background: #f1f5f9; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px; min-height: ${isMobile ? '48px' : 'auto'}; touch-action: manipulation;">
                 Close
             </button>
         </div>
+        
+        <p style="margin: 12px 0 0 0; font-size: 11px; color: #94a3b8; text-align: center;">Tip: Download the image first, then upload to social media for best results</p>
     `;
     
     modal.appendChild(content);
@@ -2536,60 +2570,96 @@ function fallbackShare(imageUrl, shareText, dashboardUrl) {
         document.body.removeChild(modal);
     });
     
+    // Download image - Primary action
+    content.querySelector('#downloadImage').addEventListener('click', () => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(imageBlob);
+        a.download = `${chartName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.png`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        
+        // Show success message
+        const btn = content.querySelector('#downloadImage');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Downloaded!`;
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.style.background = '#CB6015';
+        }, 2000);
+    });
+    
+    // Copy image to clipboard
+    content.querySelector('#copyImage').addEventListener('click', async () => {
+        try {
+            if (navigator.clipboard && ClipboardItem) {
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'image/png': imageBlob
+                    })
+                ]);
+                
+                // Show success message
+                const btn = content.querySelector('#copyImage');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> <span>Copied!</span>`;
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                }, 2000);
+            } else {
+                alert('Copy to clipboard not supported in this browser. Please use Download instead.');
+            }
+        } catch (error) {
+            console.error('Failed to copy image:', error);
+            alert('Failed to copy image. Please use Download instead.');
+        }
+    });
+    
     // Post to X (Twitter) - Opens composer with text and URL
     content.querySelector('#postTwitter').addEventListener('click', () => {
         const postText = `${shareText} 📊\n\nCheck out this economic data from UT Tyler Hibbs Institute`;
         const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}&url=${encodeURIComponent(dashboardUrl)}`;
         window.open(twitterUrl, '_blank', 'width=550,height=600');
+        
+        // Show tip
+        showSocialTip(content, 'Download the image first, then attach it to your post on X');
     });
     
     // Post to LinkedIn - Opens share dialog
     content.querySelector('#postLinkedIn').addEventListener('click', () => {
         const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(dashboardUrl)}`;
         window.open(linkedInUrl, '_blank', 'width=550,height=600');
+        
+        // Show tip
+        showSocialTip(content, 'Download the image first, then attach it to your LinkedIn post');
     });
     
     // Post to Facebook - Opens share dialog
     content.querySelector('#postFacebook').addEventListener('click', () => {
-        const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(dashboardUrl)}&quote=${encodeURIComponent(shareText + ' - Economic data from UT Tyler Hibbs Institute')}`;
+        const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(dashboardUrl)}`;
         window.open(facebookUrl, '_blank', 'width=550,height=600');
-    });
-    
-    // Instagram - Download with instructions (Instagram doesn't support web posting)
-    content.querySelector('#postInstagram').addEventListener('click', () => {
-        const a = document.createElement('a');
-        a.href = imageUrl;
-        a.download = `${shareText.replace(/\s+/g, '_')}_Hibbs_Monitor.png`;
-        a.click();
         
-        // Show Instagram instructions
-        const instructionDiv = content.querySelector('#postInstagram').parentElement;
-        const existingInstructions = instructionDiv.querySelector('.instagram-instructions');
-        if (!existingInstructions) {
-            const instructions = document.createElement('p');
-            instructions.className = 'instagram-instructions';
-            instructions.style.cssText = 'margin-top: 8px; padding: 8px 12px; background: #f0f9ff; border-radius: 6px; font-size: 12px; color: #0c4a6e; text-align: center;';
-            instructions.innerHTML = '✓ Image saved! Open Instagram app and upload from your gallery.';
-            instructionDiv.appendChild(instructions);
-            setTimeout(() => {
-                if (instructions.parentElement) {
-                    instructions.remove();
-                }
-            }, 5000);
-        }
-    });
-    
-    // Download image
-    content.querySelector('#downloadImage').addEventListener('click', () => {
-        const a = document.createElement('a');
-        a.href = imageUrl;
-        a.download = `${shareText.replace(/\s+/g, '_')}.png`;
-        a.click();
-        document.body.removeChild(modal);
+        // Show tip
+        showSocialTip(content, 'Download the image first, then attach it to your Facebook post');
     });
 }
 
-function fallbackShareMortgage(image30Url, image15Url, shareText, dashboardUrl) {
+function showSocialTip(content, message) {
+    const existingTip = content.querySelector('.social-tip');
+    if (existingTip) existingTip.remove();
+    
+    const tip = document.createElement('div');
+    tip.className = 'social-tip';
+    tip.style.cssText = 'margin-top: 12px; padding: 10px 12px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; font-size: 12px; color: #78350f; text-align: center;';
+    tip.innerHTML = `💡 ${message}`;
+    content.querySelector('#closeModal').parentElement.insertAdjacentElement('beforebegin', tip);
+    
+    setTimeout(() => {
+        if (tip.parentElement) tip.remove();
+    }, 8000);
+}
+
+function fallbackShareMortgage(image30Url, image15Url, blob30, blob15, shareText, dashboardUrl) {
     // Create modal for share options
     const modal = document.createElement('div');
     modal.style.cssText = `
@@ -2696,23 +2766,62 @@ function fallbackShareMortgage(image30Url, image15Url, shareText, dashboardUrl) 
         window.open(facebookUrl, '_blank', 'width=550,height=600');
     });
     
-    // Download images - create a combined image or zip
+    // Instagram - Download both images
+    content.querySelector('#postInstagram').addEventListener('click', () => {
+        // Download 30-year chart
+        const a1 = document.createElement('a');
+        a1.href = URL.createObjectURL(blob30);
+        a1.download = `mortgage_30year_instagram_${new Date().toISOString().split('T')[0]}.png`;
+        a1.click();
+        URL.revokeObjectURL(a1.href);
+        
+        // Download 15-year chart
+        setTimeout(() => {
+            const a2 = document.createElement('a');
+            a2.href = URL.createObjectURL(blob15);
+            a2.download = `mortgage_15year_instagram_${new Date().toISOString().split('T')[0]}.png`;
+            a2.click();
+            URL.revokeObjectURL(a2.href);
+        }, 300);
+        
+        // Show Instagram instructions
+        const tip = document.createElement('div');
+        tip.style.cssText = 'margin-top: 12px; padding: 10px 12px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 6px; font-size: 12px; color: #78350f; text-align: center;';
+        tip.innerHTML = '✓ Images saved! Open Instagram app and upload from your gallery.';
+        content.querySelector('#closeModal').parentElement.insertAdjacentElement('beforebegin', tip);
+        
+        setTimeout(() => {
+            if (tip.parentElement) tip.remove();
+        }, 8000);
+    });
+    
+    // Download images - download both charts separately
     content.querySelector('#downloadImage').addEventListener('click', () => {
         // Download 30-year chart
         const a1 = document.createElement('a');
-        a1.href = image30Url;
+        a1.href = URL.createObjectURL(blob30);
         a1.download = `mortgage_30year_${new Date().toISOString().split('T')[0]}.png`;
         a1.click();
+        URL.revokeObjectURL(a1.href);
         
         // Download 15-year chart with a slight delay
         setTimeout(() => {
             const a2 = document.createElement('a');
-            a2.href = image15Url;
+            a2.href = URL.createObjectURL(blob15);
             a2.download = `mortgage_15year_${new Date().toISOString().split('T')[0]}.png`;
             a2.click();
-        }, 500);
+            URL.revokeObjectURL(a2.href);
+        }, 300);
         
-        document.body.removeChild(modal);
+        // Show success message
+        const btn = content.querySelector('#downloadImage');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Downloaded!`;
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.style.background = '#CB6015';
+        }, 2000);
     });
 }
 
@@ -2874,7 +2983,17 @@ function init() {
         setTimeout(() => {
             if (!cachedData || !cachedData.gdp || cachedData.gdp.length === 0) {
                 console.warn('Data load taking longer than expected, ensuring fallback is ready...');
-                cachedData = { ...SAMPLE_DATA };
+                // Transform SAMPLE_DATA unemployment to match the live format (us/texas/tyler fields)
+                const transformedSampleData = {
+                    ...SAMPLE_DATA,
+                    unemployment: SAMPLE_DATA.unemployment.map(d => ({
+                        date: d.date,
+                        us: d.value,
+                        texas: null,
+                        tyler: null
+                    }))
+                };
+                cachedData = transformedSampleData;
                 dataSource = 'sample';
                 setStatus('⚠️ Using sample data - Live APIs loading...', 'warn');
                 renderCharts(filterData());
