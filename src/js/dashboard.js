@@ -125,11 +125,11 @@ const RECESSION_PERIODS = [
 
 // ========== Utility Functions ==========
 
-// Create recession annotation boxes for charts
+// Create recession period boxes for charts (returns array for custom plugin)
 function getRecessionAnnotations(dataLabels, isQuarterly = false) {
-    if (!dataLabels || dataLabels.length === 0) return {};
+    if (!dataLabels || dataLabels.length === 0) return [];
     
-    const annotations = {};
+    const periods = [];
     
     RECESSION_PERIODS.forEach((period, index) => {
         const startDate = parseLocalDate(period.start);
@@ -149,11 +149,23 @@ function getRecessionAnnotations(dataLabels, isQuarterly = false) {
                     const quarter = parseInt(match[1]);
                     const year = parseInt(match[2]);
                     const month = (quarter - 1) * 3;
-                    labelDate = new Date(year, month, 1);
+                    labelDate = new Date(Date.UTC(year, month, 1));
                 }
             } else {
-                // Format: "Jan 2020"
-                labelDate = new Date(label);
+                // Format: "Jan 2020" - parse from locale string
+                labelDate = new Date(label + ' 2020'); // Add year as fallback
+                if (isNaN(labelDate.getTime())) {
+                    // Try parsing as a full date string
+                    const parts = label.split(' ');
+                    if (parts.length === 2) {
+                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const monthIdx = monthNames.indexOf(parts[0]);
+                        if (monthIdx >= 0) {
+                            const year = parseInt(parts[1]);
+                            labelDate = new Date(Date.UTC(year, monthIdx, 1));
+                        }
+                    }
+                }
             }
             
             if (labelDate && labelDate >= startDate && xMin === null) {
@@ -165,20 +177,14 @@ function getRecessionAnnotations(dataLabels, isQuarterly = false) {
         });
         
         if (xMin !== null && xMax !== null && xMax >= xMin) {
-            annotations[`recession${index}`] = {
-                type: 'box',
+            periods.push({
                 xMin: xMin,
-                xMax: xMax,
-                backgroundColor: 'rgba(156, 163, 175, 0.15)',
-                borderWidth: 0,
-                label: {
-                    display: false
-                }
-            };
+                xMax: xMax
+            });
         }
     });
     
-    return annotations;
+    return periods;
 }
 
 // Validate that required data files are loaded
@@ -356,6 +362,32 @@ function registerPlugins() {
     if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
         Chart.register(ChartDataLabels);
     }
+    
+    // Register custom recession plugin
+    Chart.register({
+        id: 'recessionBackground',
+        afterDatasetsDraw(chart) {
+            if (!chart.options.plugins?.recession?.periods) return;
+            
+            const ctx = chart.ctx;
+            const xScale = chart.scales.x;
+            const yScale = chart.scales.y;
+            
+            if (!xScale || !yScale) return;
+            
+            chart.options.plugins.recession.periods.forEach(period => {
+                if (period.xMin !== null && period.xMax !== null) {
+                    const x0 = xScale.getPixelForValue(period.xMin);
+                    const x1 = xScale.getPixelForValue(period.xMax);
+                    
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(156, 163, 175, 0.12)';
+                    ctx.fillRect(x0, yScale.top, x1 - x0, yScale.bottom - yScale.top);
+                    ctx.restore();
+                }
+            });
+        }
+    });
 }
 
 // Data cache for resilience
@@ -982,7 +1014,7 @@ function renderCharts(filtered) {
     const showCPILabels = filtered.cpi.length <= 15;
 
     const sharedOptions = (showLabels, labelCount, labels, isQuarterly = false) => {
-        const recessionAnnotations = getRecessionAnnotations(labels, isQuarterly);
+        const recessionPeriods = getRecessionAnnotations(labels, isQuarterly);
         
         return {
             responsive: true,
@@ -992,6 +1024,9 @@ function renderCharts(filtered) {
             },
             plugins: {
                 legend: { display: false },
+                recession: {
+                    periods: Object.values(recessionPeriods)
+                },
                 tooltip: {
                     enabled: true,
                     backgroundColor: 'rgba(15, 23, 42, 0.95)',
@@ -1002,9 +1037,6 @@ function renderCharts(filtered) {
                     callbacks: {
                         label: ctx => `${ctx.parsed.y.toFixed(2)}%`
                     }
-                },
-                annotation: {
-                    annotations: recessionAnnotations
                 },
                 datalabels: showLabels ? {
                     display: true,
@@ -1159,8 +1191,8 @@ function renderUnemploymentChart(filtered) {
                         boxHeight: 8
                     }
                 },
-                annotation: {
-                    annotations: getRecessionAnnotations(filtered.unemployment.map(d => formatMonthLabel(d.date)), false)
+                recession: {
+                    periods: Object.values(getRecessionAnnotations(filtered.unemployment.map(d => formatMonthLabel(d.date)), false))
                 },
                 datalabels: { display: false },
                 tooltip: {
