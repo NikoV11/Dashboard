@@ -116,7 +116,70 @@ let medianPriceLoaded = false;
 let mortgageLoaded = false;
 let employmentLoaded = false;
 
+// NBER Recession Periods (Peak to Trough)
+const RECESSION_PERIODS = [
+    { start: '2001-03-01', end: '2001-11-01' },
+    { start: '2007-12-01', end: '2009-06-01' },
+    { start: '2020-02-01', end: '2020-04-01' }
+];
+
 // ========== Utility Functions ==========
+
+// Create recession annotation boxes for charts
+function getRecessionAnnotations(dataLabels, isQuarterly = false) {
+    if (!dataLabels || dataLabels.length === 0) return {};
+    
+    const annotations = {};
+    
+    RECESSION_PERIODS.forEach((period, index) => {
+        const startDate = parseLocalDate(period.start);
+        const endDate = parseLocalDate(period.end);
+        
+        // Find the indices where recession starts and ends in the data
+        let xMin = null;
+        let xMax = null;
+        
+        dataLabels.forEach((label, idx) => {
+            // Parse label back to date for comparison
+            let labelDate;
+            if (isQuarterly) {
+                // Format: "Q1 2020"
+                const match = label.match(/Q(\d) (\d{4})/);
+                if (match) {
+                    const quarter = parseInt(match[1]);
+                    const year = parseInt(match[2]);
+                    const month = (quarter - 1) * 3;
+                    labelDate = new Date(year, month, 1);
+                }
+            } else {
+                // Format: "Jan 2020"
+                labelDate = new Date(label);
+            }
+            
+            if (labelDate && labelDate >= startDate && xMin === null) {
+                xMin = idx - 0.5;
+            }
+            if (labelDate && labelDate <= endDate) {
+                xMax = idx + 0.5;
+            }
+        });
+        
+        if (xMin !== null && xMax !== null && xMax >= xMin) {
+            annotations[`recession${index}`] = {
+                type: 'box',
+                xMin: xMin,
+                xMax: xMax,
+                backgroundColor: 'rgba(156, 163, 175, 0.15)',
+                borderWidth: 0,
+                label: {
+                    display: false
+                }
+            };
+        }
+    });
+    
+    return annotations;
+}
 
 // Validate that required data files are loaded
 function validateDataSources() {
@@ -560,7 +623,7 @@ async function loadData() {
             .filter(d => !Number.isNaN(d.value))
             .sort((a, b) => parseUTCDate(a.date) - parseUTCDate(b.date));
 
-        // Parse Texas unemployment data as-is from API
+        // Parse Texas unemployment data as-is from API (no shifting)
         const texasUnemployment = (texasUnemploymentRaw || [])
             .map(o => ({ date: o.date, value: parseFloat(o.value) }))
             .filter(d => !Number.isNaN(d.value))
@@ -586,9 +649,35 @@ async function loadData() {
             }
         });
 
-        // Create unemployment array with UTC date sorting
-        const unemployment = Array.from(unemploymentMap.values())
+        // Create unemployment array with UTC date sorting, filling in missing months with null values
+        const unemploymentArray = Array.from(unemploymentMap.values())
             .sort((a, b) => parseUTCDate(a.date) - parseUTCDate(b.date));
+        
+        // Fill in any missing months to show gaps in the chart
+        const unemployment = [];
+        if (unemploymentArray.length > 0) {
+            const startDate = parseUTCDate(unemploymentArray[0].date);
+            const endDate = parseUTCDate(unemploymentArray[unemploymentArray.length - 1].date);
+            
+            let currentDate = new Date(startDate);
+            let dataIndex = 0;
+            
+            while (currentDate <= endDate) {
+                const dateStr = currentDate.toISOString().slice(0, 10);
+                const existingData = unemploymentArray[dataIndex];
+                
+                if (existingData && existingData.date === dateStr) {
+                    unemployment.push(existingData);
+                    dataIndex++;
+                } else {
+                    // Add missing month with null values to create visible gap
+                    unemployment.push({ date: dateStr, us: null, texas: null, tyler: null });
+                }
+                
+                // Move to next month
+                currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
+            }
+        }
 
         // Sort CPI data by date first
         const sortedCpiRaw = (cpiRaw || [])
@@ -892,49 +981,56 @@ function renderCharts(filtered) {
     const showGDPLabels = filtered.gdp.length <= 15;
     const showCPILabels = filtered.cpi.length <= 15;
 
-    const sharedOptions = (showLabels, labelCount) => ({
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: {
-            duration: 400
-        },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                enabled: true,
-                backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                padding: 12,
-                cornerRadius: 8,
-                borderColor: '#CB6015',
-                borderWidth: 1,
-                callbacks: {
-                    label: ctx => `${ctx.parsed.y.toFixed(2)}%`
-                }
+    const sharedOptions = (showLabels, labelCount, labels, isQuarterly = false) => {
+        const recessionAnnotations = getRecessionAnnotations(labels, isQuarterly);
+        
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 400
             },
-            datalabels: showLabels ? {
-                display: true,
-                anchor: 'end',
-                align: 'end',
-                font: { weight: 'bold', size: 11 },
-                color: '#0f172a',
-                formatter: (value) => value.toFixed(2) + '%'
-            } : { display: false }
-        },
-        scales: {
-            x: {
-                grid: { display: false },
-                ticks: {
-                    ...getAdaptiveAxisTicks(labelCount),
-                    font: { size: getAdaptiveTickFont(labelCount, 12), weight: '500' },
-                    color: '#64748b'
-                }
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    padding: 12,
+                    cornerRadius: 8,
+                    borderColor: '#CB6015',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: ctx => `${ctx.parsed.y.toFixed(2)}%`
+                    }
+                },
+                annotation: {
+                    annotations: recessionAnnotations
+                },
+                datalabels: showLabels ? {
+                    display: true,
+                    anchor: 'end',
+                    align: 'end',
+                    font: { weight: 'bold', size: 11 },
+                    color: '#0f172a',
+                    formatter: (value) => value.toFixed(2) + '%'
+                } : { display: false }
             },
-            y: {
-                beginAtZero: true,
-                ticks: { callback: v => `${v}%` }
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        ...getAdaptiveAxisTicks(labelCount),
+                        font: { size: getAdaptiveTickFont(labelCount, 12), weight: '500' },
+                        color: '#64748b'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: v => `${v}%` }
+                }
             }
-        }
-    });
+        };
+    };
 
     gdpChart = new Chart(gdpCtx, {
         type: 'bar',
@@ -947,7 +1043,7 @@ function renderCharts(filtered) {
                 borderRadius: 6
             }]
         },
-        options: sharedOptions(showGDPLabels, filtered.gdp.length)
+        options: sharedOptions(showGDPLabels, filtered.gdp.length, filtered.gdp.map(d => formatQuarterLabel(d.date)), true)
     });
 
     cpiChart = new Chart(cpiCtx, {
@@ -961,7 +1057,7 @@ function renderCharts(filtered) {
                 borderRadius: 6
             }]
         },
-        options: sharedOptions(showCPILabels, filtered.cpi.length)
+        options: sharedOptions(showCPILabels, filtered.cpi.length, filtered.cpi.map(d => formatMonthLabel(d.date)), false)
     });
 
     // Note: Unemployment, Payems, and Employment charts are rendered on-demand when their tabs are activated
@@ -1000,7 +1096,8 @@ function renderUnemploymentChart(filtered) {
                     borderWidth: 3,
                     fill: false,
                     tension: 0,
-                    pointRadius: 4,
+                    spanGaps: false,
+                    pointRadius: 0,
                     pointBackgroundColor: '#002F6C',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
@@ -1015,7 +1112,8 @@ function renderUnemploymentChart(filtered) {
                     borderWidth: 3,
                     fill: false,
                     tension: 0,
-                    pointRadius: 4,
+                    spanGaps: false,
+                    pointRadius: 0,
                     pointBackgroundColor: '#0EA5E9',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
@@ -1030,7 +1128,8 @@ function renderUnemploymentChart(filtered) {
                     borderWidth: 3,
                     fill: false,
                     tension: 0,
-                    pointRadius: 4,
+                    spanGaps: false,
+                    pointRadius: 0,
                     pointBackgroundColor: '#CB6015',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
@@ -1059,6 +1158,9 @@ function renderUnemploymentChart(filtered) {
                         boxWidth: 8,
                         boxHeight: 8
                     }
+                },
+                annotation: {
+                    annotations: getRecessionAnnotations(filtered.unemployment.map(d => formatMonthLabel(d.date)), false)
                 },
                 datalabels: { display: false },
                 tooltip: {
