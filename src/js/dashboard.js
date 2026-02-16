@@ -357,6 +357,49 @@ function createChartSafely(canvasId, config) {
     }
 }
 
+// Download chart as high-quality PNG
+function downloadChartAsImage(chartInstance, filename = 'chart.png') {
+    if (!chartInstance) {
+        console.warn('No chart instance provided for download');
+        return;
+    }
+
+    try {
+        // Get the canvas and scale it for higher quality output
+        const canvas = chartInstance.canvas;
+        const scale = 2; // 2x scale for higher quality (4x total pixels)
+        
+        // Create a temporary canvas with scaled dimensions
+        const scaledCanvas = document.createElement('canvas');
+        scaledCanvas.width = canvas.width * scale;
+        scaledCanvas.height = canvas.height * scale;
+        
+        const ctx = scaledCanvas.getContext('2d');
+        ctx.scale(scale, scale);
+        
+        // Copy the chart to the scaled canvas
+        // Use Chart.js's built-in toBase64Image method for better quality
+        const imageData = chartInstance.toBase64Image();
+        
+        // Create image element to draw on canvas
+        const img = new Image();
+        img.onload = function() {
+            ctx.drawImage(img, 0, 0);
+            
+            // Download the scaled image
+            const link = document.createElement('a');
+            link.href = scaledCanvas.toDataURL('image/png');
+            link.download = filename;
+            link.click();
+        };
+        img.src = imageData;
+        
+    } catch (error) {
+        console.error('Error downloading chart:', error);
+        alert('Failed to download chart. Please try again.');
+    }
+}
+
 // Show loading indicator for lazy-loaded tabs
 function showLoadingIndicator(tabId) {
     const statusEl = document.getElementById('statusText');
@@ -2520,6 +2563,38 @@ function wireEvents() {
     document.getElementById('downloadMedianPriceBtn')?.addEventListener('click', handleMedianPriceDownload);
     document.getElementById('downloadMortgageBtn')?.addEventListener('click', handleMortgageDownload);
     document.getElementById('downloadTaxBtn')?.addEventListener('click', handleTaxDownload);
+
+    // PNG Download Event Listeners
+    document.getElementById('downloadGDPPngBtn')?.addEventListener('click', () => {
+        downloadChartAsImage(gdpChart, `us_gdp_${new Date().toISOString().split('T')[0]}.png`);
+    });
+    document.getElementById('downloadCPIPngBtn')?.addEventListener('click', () => {
+        downloadChartAsImage(cpiChart, `us_cpi_${new Date().toISOString().split('T')[0]}.png`);
+    });
+    document.getElementById('downloadUnemploymentPngBtn')?.addEventListener('click', () => {
+        downloadChartAsImage(unemploymentChart, `unemployment_rates_${new Date().toISOString().split('T')[0]}.png`);
+    });
+    document.getElementById('downloadPayemsPngBtn')?.addEventListener('click', () => {
+        downloadChartAsImage(payemsChart, `us_payroll_employment_${new Date().toISOString().split('T')[0]}.png`);
+    });
+    document.getElementById('downloadEmploymentPngBtn')?.addEventListener('click', () => {
+        downloadChartAsImage(employmentChart, `employment_data_${new Date().toISOString().split('T')[0]}.png`);
+    });
+    document.getElementById('downloadSalesTaxPngBtn')?.addEventListener('click', () => {
+        downloadChartAsImage(salesTaxChart, `tyler_sales_tax_${new Date().toISOString().split('T')[0]}.png`);
+    });
+    document.getElementById('downloadMedianPricePngBtn')?.addEventListener('click', () => {
+        downloadChartAsImage(medianPriceChart, `tyler_median_home_price_${new Date().toISOString().split('T')[0]}.png`);
+    });
+    document.getElementById('downloadMortgage30PngBtn')?.addEventListener('click', () => {
+        downloadChartAsImage(mortgage30Chart, `us_mortgage_30yr_${new Date().toISOString().split('T')[0]}.png`);
+    });
+    document.getElementById('downloadTaxPngBtn')?.addEventListener('click', () => {
+        if (window.taxChart) {
+            const chart = window.taxChart.getChart();
+            downloadChartAsImage(chart, `texas_tax_revenue_${new Date().toISOString().split('T')[0]}.png`);
+        }
+    });
 }
 
 // ========== Share Functionality ==========
