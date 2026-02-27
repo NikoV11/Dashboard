@@ -263,6 +263,19 @@ function getDateRange() {
     const startDateEl = document.getElementById('startDate');
     const endDateEl = document.getElementById('endDate');
     const fullHistoryToggle = document.getElementById('fullHistoryToggle');
+    const currentMonth = getCurrentMonthInputValue();
+
+    if (startDateEl) {
+        startDateEl.max = currentMonth;
+        if (startDateEl.value > currentMonth) {
+            startDateEl.value = currentMonth;
+        }
+    }
+
+    if (endDateEl) {
+        endDateEl.max = currentMonth;
+        endDateEl.value = currentMonth;
+    }
     
     // Debug logging
     console.log('[getDateRange] fullHistoryToggle exists?', !!fullHistoryToggle);
@@ -273,7 +286,7 @@ function getDateRange() {
     // Month inputs return YYYY-MM format
     // If full history is checked, use 1947 (earliest FRED data), otherwise use user value or default 2023
     const startValue = fullHistoryToggle?.checked ? '1947-01' : (startDateEl?.value || '2023-01');
-    const endValue = endDateEl?.value || '2026-01';
+    const endValue = endDateEl?.value || currentMonth;
     
     console.log('[getDateRange] startValue:', startValue, 'endValue:', endValue);
     
@@ -425,11 +438,26 @@ function setStatus(text, tone = 'muted') {
     }
 }
 
+function getCurrentMonthInputValue() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function ensureDefaults() {
     const start = document.getElementById('startDate');
     const end = document.getElementById('endDate');
-    if (start && !start.value) start.value = '2023-01';
-    if (end && !end.value) end.value = '2026-01';
+    const currentMonth = getCurrentMonthInputValue();
+
+    if (start) {
+        start.max = currentMonth;
+        if (!start.value) start.value = '2023-01';
+        if (start.value > currentMonth) start.value = currentMonth;
+    }
+
+    if (end) {
+        end.max = currentMonth;
+        end.value = currentMonth;
+    }
 }
 
 function registerPlugins() {
@@ -472,6 +500,17 @@ const STORAGE_PREFIX = 'fredCache';
 
 function formatDateForFRED(date) {
     return date.toISOString().slice(0, 10);
+}
+
+function formatRoundedNumber(value, maxDecimals = 2) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return '';
+    return parseFloat(numericValue.toFixed(maxDecimals)).toString();
+}
+
+function formatPercent(value, maxDecimals = 2) {
+    const formatted = formatRoundedNumber(value, maxDecimals);
+    return formatted === '' ? '' : `${formatted}%`;
 }
 
 function buildCacheKey(seriesId, rangeKey) {
@@ -1132,7 +1171,7 @@ function renderCharts(filtered) {
                 },
                 y: {
                     beginAtZero: true,
-                    ticks: { callback: v => `${v}%` }
+                    ticks: { callback: v => formatPercent(v, 2) }
                 }
             }
         };
@@ -1302,7 +1341,7 @@ function renderUnemploymentChart(filtered) {
                     suggestedMax,
                     grid: { color: 'rgba(100, 116, 139, 0.12)', drawBorder: true },
                     ticks: {
-                        callback: (value) => `${value}%`,
+                        callback: (value) => formatPercent(value, 2),
                         font: { size: 12, weight: '500' },
                         color: '#64748b',
                         padding: 8
@@ -1751,7 +1790,7 @@ function renderMedianPriceChart() {
                 y: {
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
-                        callback: (value) => `${value}%`,
+                        callback: (value) => formatPercent(value, 2),
                         font: { size: 12, weight: '500' },
                         color: '#475569'
                     }
@@ -2044,7 +2083,7 @@ function renderMortgageCharts() {
                     borderColor: '#CB6015',
                     borderWidth: 1,
                     callbacks: {
-                        label: (context) => `Rate: ${context.parsed.y.toFixed(2)}%`
+                        label: (context) => `Rate: ${context.parsed.y.toFixed(1)}%`
                     }
                 }
             },
@@ -2060,7 +2099,7 @@ function renderMortgageCharts() {
                 y: {
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
-                        callback: (value) => `${value}%`,
+                        callback: (value) => formatPercent(value, 1),
                         font: { size: 12, weight: '500' },
                         color: '#475569'
                     }
@@ -2111,7 +2150,7 @@ function renderMortgageCharts() {
                     borderColor: '#002F6C',
                     borderWidth: 1,
                     callbacks: {
-                        label: (context) => `Rate: ${context.parsed.y.toFixed(2)}%`
+                        label: (context) => `Rate: ${context.parsed.y.toFixed(1)}%`
                     }
                 }
             },
@@ -2127,7 +2166,7 @@ function renderMortgageCharts() {
                 y: {
                     grid: { color: 'rgba(0, 0, 0, 0.05)' },
                     ticks: {
-                        callback: (value) => `${value}%`,
+                        callback: (value) => formatPercent(value, 1),
                         font: { size: 12, weight: '500' },
                         color: '#475569'
                     }
