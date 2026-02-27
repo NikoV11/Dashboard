@@ -8,8 +8,21 @@
  */
 
 const ExcelDataLoader = {
-    // Configure your Worker endpoint here
-    ENDPOINT: 'https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data',
+    // Configure endpoint via meta tag, app config, or fallback
+    ENDPOINT: (() => {
+        const meta = document.querySelector('meta[name="excel-data-endpoint"]');
+        const metaValue = meta?.getAttribute('content')?.trim();
+
+        if (metaValue) {
+            return metaValue;
+        }
+
+        if (window.APP_CONFIG?.excelDataEndpoint) {
+            return String(window.APP_CONFIG.excelDataEndpoint).trim();
+        }
+
+        return 'https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data';
+    })(),
     // Alternative for local testing:
     // ENDPOINT: '/api/excel-data',
 

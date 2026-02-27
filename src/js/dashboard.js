@@ -183,18 +183,14 @@ function getRecessionAnnotations(dataLabels, isQuarterly = false) {
                     labelDate = new Date(Date.UTC(year, month, 1));
                 }
             } else {
-                // Format: "Jan 2020" - parse from locale string
-                labelDate = new Date(label + ' 2020'); // Add year as fallback
-                if (isNaN(labelDate.getTime())) {
-                    // Try parsing as a full date string
-                    const parts = label.split(' ');
-                    if (parts.length === 2) {
-                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        const monthIdx = monthNames.indexOf(parts[0]);
-                        if (monthIdx >= 0) {
-                            const year = parseInt(parts[1]);
-                            labelDate = new Date(Date.UTC(year, monthIdx, 1));
-                        }
+                // Format: "Jan 2020"
+                const parts = label.split(' ');
+                if (parts.length === 2) {
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const monthIdx = monthNames.indexOf(parts[0]);
+                    const year = parseInt(parts[1], 10);
+                    if (monthIdx >= 0 && Number.isFinite(year)) {
+                        labelDate = new Date(Date.UTC(year, monthIdx, 1));
                     }
                 }
             }
@@ -274,21 +270,15 @@ function getDateRange() {
 
     if (endDateEl) {
         endDateEl.max = currentMonth;
-        endDateEl.value = currentMonth;
-    }
-    
-    // Debug logging
-    console.log('[getDateRange] fullHistoryToggle exists?', !!fullHistoryToggle);
-    if (fullHistoryToggle) {
-        console.log('[getDateRange] fullHistoryToggle.checked:', fullHistoryToggle.checked);
+        if (!endDateEl.value || endDateEl.value > currentMonth) {
+            endDateEl.value = currentMonth;
+        }
     }
     
     // Month inputs return YYYY-MM format
     // If full history is checked, use 1947 (earliest FRED data), otherwise use user value or default 2023
     const startValue = fullHistoryToggle?.checked ? '1947-01' : (startDateEl?.value || '2023-01');
     const endValue = endDateEl?.value || currentMonth;
-    
-    console.log('[getDateRange] startValue:', startValue, 'endValue:', endValue);
     
     const [startYear, startMonth] = startValue.split('-').map(Number);
     const [endYear, endMonth] = endValue.split('-').map(Number);
