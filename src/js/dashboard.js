@@ -491,6 +491,77 @@ function downloadChartAsImage(chartInstance, filename = 'chart.png') {
     }
 }
 
+// Download multiple charts into one PNG image (graph-only export)
+function downloadChartsAsCompositeImage(charts, filename = 'charts.png', options = {}) {
+    const validCharts = (charts || []).filter((chart) => chart && chart.canvas);
+    if (!validCharts.length) {
+        console.warn('No chart instances provided for composite download');
+        return;
+    }
+
+    try {
+        const scale = 2;
+        const padding = options.padding ?? 24;
+        const gap = options.gap ?? 20;
+        const title = options.title || '';
+        const titleSpace = title ? 52 : 0;
+        const chartLabels = Array.isArray(options.chartLabels) ? options.chartLabels : [];
+        const labelSpace = 28;
+        const useLabels = chartLabels.length === validCharts.length;
+
+        const chartWidths = validCharts.map((chart) => chart.canvas.width);
+        const chartHeights = validCharts.map((chart) => chart.canvas.height);
+        const contentWidth = Math.max(...chartWidths);
+        const chartsHeight = chartHeights.reduce((sum, height) => sum + height, 0) + (gap * (validCharts.length - 1));
+        const labelsHeight = useLabels ? labelSpace * validCharts.length : 0;
+
+        const outputWidth = (padding * 2) + contentWidth;
+        const outputHeight = (padding * 2) + titleSpace + labelsHeight + chartsHeight;
+
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = outputWidth * scale;
+        exportCanvas.height = outputHeight * scale;
+
+        const ctx = exportCanvas.getContext('2d');
+        ctx.scale(scale, scale);
+
+        // White background keeps exports readable across viewers.
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, outputWidth, outputHeight);
+
+        let yCursor = padding;
+
+        if (title) {
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 24px "IBM Plex Sans", sans-serif';
+            ctx.fillText(title, padding, yCursor + 24);
+            yCursor += titleSpace;
+        }
+
+        validCharts.forEach((chart, index) => {
+            if (useLabels) {
+                ctx.fillStyle = '#334155';
+                ctx.font = '600 15px "IBM Plex Sans", sans-serif';
+                ctx.fillText(chartLabels[index], padding, yCursor + 16);
+                yCursor += labelSpace;
+            }
+
+            const chartCanvas = chart.canvas;
+            const x = padding + ((contentWidth - chartCanvas.width) / 2);
+            ctx.drawImage(chartCanvas, x, yCursor, chartCanvas.width, chartCanvas.height);
+            yCursor += chartCanvas.height + gap;
+        });
+
+        const link = document.createElement('a');
+        link.href = exportCanvas.toDataURL('image/png');
+        link.download = filename;
+        link.click();
+    } catch (error) {
+        console.error('Error downloading composite chart image:', error);
+        alert('Failed to download charts as PNG. Please try again.');
+    }
+}
+
 // Regional demographics comparison
 let regionalDemoAgeChart = null;
 let regionalDemoRaceChart = null;
@@ -582,14 +653,20 @@ function formatRegionalPercent(value) {
 
             const ageGroups = [...DEMOGRAPHICS_DATA.ageGroups].reverse();
             const ageLabels = ageGroups.map((group) => group.label);
-            const leftAgeCounts = ageGroups.map((group) => {
+            const leftAgeShares = ageGroups.map((group) => {
                 const share = Number(leftRecord.ageDistribution[group.key] || 0);
-                return -Math.round((leftRecord.totalPopulation * share) / 100);
+                return -share;
             });
-            const rightAgeCounts = ageGroups.map((group) => {
+            const rightAgeShares = ageGroups.map((group) => {
                 const share = Number(rightRecord.ageDistribution[group.key] || 0);
-                return Math.round((rightRecord.totalPopulation * share) / 100);
+                return share;
             });
+            const allAgeShares = ageGroups.flatMap((group) => [
+                Number(leftRecord.ageDistribution[group.key] || 0),
+                Number(rightRecord.ageDistribution[group.key] || 0)
+            ]);
+            const maxAgeShare = Math.max(1, ...allAgeShares);
+            const ageAxisLimit = Math.ceil(maxAgeShare / 5) * 5;
 
             regionalDemoAgeChart = destroyChart(regionalDemoAgeChart);
             regionalDemoAgeChart = createChartSafely('regionalDemoAgeChart', {
@@ -599,7 +676,7 @@ function formatRegionalPercent(value) {
                     datasets: [
                         {
                             label: leftLocation,
-                            data: leftAgeCounts,
+                            data: leftAgeShares,
                             backgroundColor: 'rgba(203, 96, 21, 0.82)',
                             borderColor: '#CB6015',
                             borderWidth: 1,
@@ -608,7 +685,7 @@ function formatRegionalPercent(value) {
                         },
                         {
                             label: rightLocation,
-                            data: rightAgeCounts,
+                            data: rightAgeShares,
                             backgroundColor: 'rgba(0, 47, 108, 0.82)',
                             borderColor: '#002F6C',
                             borderWidth: 1,
@@ -624,8 +701,10 @@ function formatRegionalPercent(value) {
                     scales: {
                         x: {
                             stacked: false,
+                            min: -ageAxisLimit,
+                            max: ageAxisLimit,
                             ticks: {
-                                callback: (value) => Math.abs(Number(value)).toLocaleString('en-US')
+                                callback: (value) => `${Math.abs(Number(value)).toFixed(0)}%`
                             }
                         },
                         y: {
@@ -637,7 +716,7 @@ function formatRegionalPercent(value) {
                         datalabels: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: (context) => `${context.dataset.label}: ${Math.abs(Number(context.parsed.x)).toLocaleString('en-US')}`
+                                label: (context) => `${context.dataset.label}: ${Math.abs(Number(context.parsed.x)).toFixed(1)}%`
                             }
                         }
                     }
@@ -792,12 +871,20 @@ function formatRegionalPercent(value) {
         }
 
         function handleRegionalDemographicsPngDownload() {
-            if (!regionalDemoAgeChart) {
+            const chartSet = [regionalDemoAgeChart, regionalDemoCommunityChart, regionalDemoRaceChart].filter(Boolean);
+            if (!chartSet.length) {
                 alert('Regional demographics chart is not ready yet.');
                 return;
             }
 
-            downloadChartAsImage(regionalDemoAgeChart, `regional_demographics_${regionalDemographicsState.year}_${new Date().toISOString().split('T')[0]}.png`);
+            downloadChartsAsCompositeImage(
+                chartSet,
+                `regional_demographics_${regionalDemographicsState.year}_${new Date().toISOString().split('T')[0]}.png`,
+                {
+                    title: `${regionalDemographicsState.leftLocation} vs ${regionalDemographicsState.rightLocation} (${regionalDemographicsState.year})`,
+                    chartLabels: ['Age Distribution', 'Community Profile Shares', 'Race Composition']
+                }
+            );
         }
 
         function initRegionalDemographics() {
@@ -3767,13 +3854,31 @@ function handleTexasCompareDownload() {
 }
 
 function handleTexasComparePngDownload() {
-    const targetChart = txCompareCountyChart || txCompareTrendChart;
-    if (!targetChart) {
+    const leftLocation = getTxLocationById(txCompareState.leftId);
+    const rightLocation = getTxLocationById(txCompareState.rightId);
+    const metric = getTxMetricConfig(txCompareState.metric);
+    const chartSet = [txCompareCountyChart, txCompareTrendChart].filter(Boolean);
+
+    if (!chartSet.length) {
         alert('Texas comparison chart is not ready yet.');
         return;
     }
 
-    downloadChartAsImage(targetChart, `texas_compare_${txCompareState.metric}_${new Date().toISOString().split('T')[0]}.png`);
+    const titleParts = [
+        leftLocation?.name,
+        'vs',
+        rightLocation?.name,
+        `(${txCompareState.year})`
+    ].filter(Boolean);
+
+    downloadChartsAsCompositeImage(
+        chartSet,
+        `texas_compare_${txCompareState.metric}_${new Date().toISOString().split('T')[0]}.png`,
+        {
+            title: `${titleParts.join(' ')} - ${metric?.label || 'Texas Comparison'}`,
+            chartLabels: ['County Breakdown', 'Trend Over Time']
+        }
+    );
 }
 
 function handleTexasMapGeoJsonDownload() {
