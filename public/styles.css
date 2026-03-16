@@ -7,6 +7,193 @@
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Texas County/MSA Comparison */
+.tx-compare-workflow {
+    display: grid;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.tx-compare-step {
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.tx-step-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 800;
+    color: #475569;
+    margin-bottom: 10px;
+}
+
+.tx-compare-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.tx-compare-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tx-compare-control-group label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.tx-compare-control-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.tx-compare-control-group select:focus-visible {
+    outline: 2px solid var(--cpi);
+    outline-offset: 1px;
+}
+
+.tx-category-nav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 8px;
+    margin: 0;
+}
+
+.tx-category-btn {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 12px;
+    min-height: 42px;
+}
+
+.tx-category-btn:hover {
+    border-color: var(--gdp);
+    box-shadow: 0 4px 10px rgba(203, 96, 21, 0.15);
+}
+
+.tx-category-btn.active {
+    background: linear-gradient(135deg, var(--gdp), var(--cpi));
+    color: #fff;
+    border-color: transparent;
+}
+
+.tx-compare-summary {
+    margin-bottom: 12px;
+    color: #475569;
+    font-size: 0.95rem;
+}
+
+.tx-compare-charts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.tx-map-card {
+    grid-column: 1 / -1;
+}
+
+.tx-map-wrap {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.tx-map-pane {
+    display: grid;
+    gap: 6px;
+}
+
+.tx-map-pane-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.tx-map {
+    height: 360px;
+    border: 1px solid #dbe3ee;
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.tx-map .leaflet-control-zoom {
+    border: 1px solid #d1d9e5;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.tx-map .leaflet-control-attribution {
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.86);
+}
+
+.tx-map-tooltip {
+    background: rgba(15, 23, 42, 0.96);
+    color: #f8fafc;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.tx-map-tooltip::before {
+    border-top-color: rgba(15, 23, 42, 0.96);
+}
+
+#tx-compare .section-header > div:last-child {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+    .tx-compare-charts {
+        grid-template-columns: 1fr;
+    }
+
+    .tx-compare-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .tx-category-nav {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    .tx-map-wrap {
+        grid-template-columns: 1fr;
+    }
+
+    .tx-map-card {
+        grid-column: auto;
+    }
+
+    .tx-map {
+        height: 300px;
+    }
+}
+
 :root {
     --gdp: #CB6015;
     --gdp-dark: #a34c0f;
@@ -556,6 +743,10 @@ button.ghost:focus-visible {
     margin-bottom: 22px;
 }
 
+.charts.tx-compare-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .chart-card {
     background: var(--glass);
     border: 1px solid var(--glass-border);
@@ -827,6 +1018,10 @@ footer {
     .charts {
         grid-template-columns: 1fr;
         gap: 16px;
+    }
+
+    .charts.tx-compare-charts {
+        grid-template-columns: 1fr;
     }
 
     .stat-cards {

@@ -115,6 +115,93 @@ let salesTaxLoaded = false;
 let medianPriceLoaded = false;
 let mortgageLoaded = false;
 let employmentLoaded = false;
+let txCompareCountyChart = null;
+let txCompareTrendChart = null;
+let txCompareMapLeft = null;
+let txCompareMapRight = null;
+let txCompareLayerLeft = null;
+let txCompareLayerRight = null;
+
+const TX_COMPARE_YEARS = [2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
+
+const TX_COMPARE_METRICS = {
+    smoking: { label: 'Adult Smoking', unit: '%', decimals: 1 },
+    obesity: { label: 'Adult Obesity', unit: '%', decimals: 1 },
+    mentalHealth: { label: 'Mental Health Coverage', unit: '%', decimals: 1 },
+    primaryCare: { label: 'Primary Care Physicians (per 100k)', unit: '', decimals: 0 },
+    prematureDeath: { label: 'Premature Death (Years of Potential Life Lost)', unit: '', decimals: 0 },
+    poorHealth: { label: 'Poor or Fair Health', unit: '%', decimals: 1 },
+    teenBirth: { label: 'Teen Births (per 1,000)', unit: '', decimals: 1 }
+};
+
+const TX_COMPARE_LOCATIONS = [
+    {
+        id: 'abilene-metro',
+        name: 'Abilene, TX Metro Area',
+        type: 'MSA',
+        countyNames: ['Callahan', 'Jones', 'Taylor']
+    },
+    {
+        id: 'dallas-fort-worth-metro',
+        name: 'Dallas-Fort Worth-Arlington, TX Metro Area',
+        type: 'MSA',
+        countyNames: ['Dallas', 'Tarrant', 'Collin', 'Denton']
+    },
+    {
+        id: 'houston-metro',
+        name: 'Houston-The Woodlands-Sugar Land, TX Metro Area',
+        type: 'MSA',
+        countyNames: ['Harris', 'Fort Bend', 'Montgomery']
+    },
+    {
+        id: 'austin-metro',
+        name: 'Austin-Round Rock-Georgetown, TX Metro Area',
+        type: 'MSA',
+        countyNames: ['Travis', 'Williamson', 'Hays', 'Bastrop', 'Caldwell']
+    },
+    {
+        id: 'el-paso-metro',
+        name: 'El Paso, TX Metro Area',
+        type: 'MSA',
+        countyNames: ['El Paso']
+    },
+    {
+        id: 'smith-county',
+        name: 'Smith County, TX',
+        type: 'County',
+        countyNames: ['Smith']
+    },
+    {
+        id: 'travis-county',
+        name: 'Travis County, TX',
+        type: 'County',
+        countyNames: ['Travis']
+    },
+    {
+        id: 'el-paso-county',
+        name: 'El Paso County, TX',
+        type: 'County',
+        countyNames: ['El Paso']
+    }
+];
+
+const txCompareState = {
+    leftId: 'abilene-metro',
+    rightId: 'dallas-fort-worth-metro',
+    metric: 'smoking',
+    year: 2024,
+    years: [...TX_COMPARE_YEARS],
+    ready: false,
+    loadError: ''
+};
+
+const txCompareStore = {
+    records: [],
+    countyFipsByName: new Map(),
+    byCountyYearMetric: new Map(),
+    countiesGeoJson: null,
+    locations: [...TX_COMPARE_LOCATIONS]
+};
 
 // NBER Recession Periods (Peak to Trough)
 const RECESSION_PERIODS = [
@@ -395,6 +482,7 @@ function downloadChartAsImage(chartInstance, filename = 'chart.png') {
             link.download = filename;
             link.click();
         };
+
         img.src = imageData;
         
     } catch (error) {
@@ -403,6 +491,375 @@ function downloadChartAsImage(chartInstance, filename = 'chart.png') {
     }
 }
 
+// Regional demographics comparison
+let regionalDemoAgeChart = null;
+let regionalDemoRaceChart = null;
+let regionalDemoCommunityChart = null;
+
+const regionalDemographicsState = {
+    leftLocation: 'Tyler, TX Metro Area',
+    rightLocation: 'Dallas-Fort Worth-Arlington, TX Metro Area',
+    year: 2024
+};
+
+function getRegionalDemographicsRecord(location, year) {
+    return DEMOGRAPHICS_DATA?.data?.[location]?.[year] || null;
+}
+
+function formatRegionalPopulation(value) {
+    if (!Number.isFinite(value)) {
+        return 'N/A';
+    }
+
+    return Math.round(value).toLocaleString('en-US');
+}
+
+function formatRegionalPercent(value) {
+    return Number.isFinite(value) ? `${Number(value).toFixed(1)}%` : 'N/A';
+}
+
+        function ensureDistinctRegionalDemographicsSelections(changedSide) {
+            if (regionalDemographicsState.leftLocation !== regionalDemographicsState.rightLocation) {
+                return;
+            }
+
+            const fallback = DEMOGRAPHICS_DATA.locations.find((location) => location !== regionalDemographicsState.leftLocation);
+            if (!fallback) {
+                return;
+            }
+
+            if (changedSide === 'left') {
+                regionalDemographicsState.rightLocation = fallback;
+                const rightSelect = document.getElementById('regionalDemoRightSelect');
+                if (rightSelect) {
+                    rightSelect.value = fallback;
+                }
+                return;
+            }
+
+            regionalDemographicsState.leftLocation = fallback;
+            const leftSelect = document.getElementById('regionalDemoLeftSelect');
+            if (leftSelect) {
+                leftSelect.value = fallback;
+            }
+        }
+
+        function updateRegionalDemographicsCards(prefix, location, record) {
+            document.getElementById(`regionalDemo${prefix}Title`).textContent = location;
+            document.getElementById(`regionalDemo${prefix}Population`).textContent = formatRegionalPopulation(record.totalPopulation);
+            document.getElementById(`regionalDemo${prefix}MedianAge`).textContent = Number.isFinite(record.medianAge) ? record.medianAge.toFixed(1) : 'N/A';
+            document.getElementById(`regionalDemo${prefix}Veteran`).textContent = formatRegionalPercent(record.veteranShare);
+            document.getElementById(`regionalDemo${prefix}Hispanic`).textContent = formatRegionalPercent(record.hispanicShare);
+        }
+
+        function renderRegionalDemographics() {
+            if (typeof DEMOGRAPHICS_DATA === 'undefined') {
+                return;
+            }
+
+            const leftLocation = regionalDemographicsState.leftLocation;
+            const rightLocation = regionalDemographicsState.rightLocation;
+            const year = regionalDemographicsState.year;
+            const leftRecord = getRegionalDemographicsRecord(leftLocation, year);
+            const rightRecord = getRegionalDemographicsRecord(rightLocation, year);
+            const summaryEl = document.getElementById('regionalDemographicsSummary');
+
+            if (!leftRecord || !rightRecord) {
+                if (summaryEl) {
+                    summaryEl.textContent = 'Demographics data is unavailable for the selected comparison.';
+                }
+                return;
+            }
+
+            updateRegionalDemographicsCards('Left', leftLocation, leftRecord);
+            updateRegionalDemographicsCards('Right', rightLocation, rightRecord);
+
+            if (summaryEl) {
+                const populationGap = rightRecord.totalPopulation - leftRecord.totalPopulation;
+                const largerLabel = populationGap >= 0 ? rightLocation : leftLocation;
+                summaryEl.textContent = `${leftLocation} vs ${rightLocation} (${year}). ${largerLabel} has the larger resident base, while the panels below compare age structure, race composition, veteran share, and Hispanic share.`;
+            }
+
+            const ageGroups = [...DEMOGRAPHICS_DATA.ageGroups].reverse();
+            const ageLabels = ageGroups.map((group) => group.label);
+            const leftAgeCounts = ageGroups.map((group) => {
+                const share = Number(leftRecord.ageDistribution[group.key] || 0);
+                return -Math.round((leftRecord.totalPopulation * share) / 100);
+            });
+            const rightAgeCounts = ageGroups.map((group) => {
+                const share = Number(rightRecord.ageDistribution[group.key] || 0);
+                return Math.round((rightRecord.totalPopulation * share) / 100);
+            });
+
+            regionalDemoAgeChart = destroyChart(regionalDemoAgeChart);
+            regionalDemoAgeChart = createChartSafely('regionalDemoAgeChart', {
+                type: 'bar',
+                data: {
+                    labels: ageLabels,
+                    datasets: [
+                        {
+                            label: leftLocation,
+                            data: leftAgeCounts,
+                            backgroundColor: 'rgba(203, 96, 21, 0.82)',
+                            borderColor: '#CB6015',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            barThickness: 22
+                        },
+                        {
+                            label: rightLocation,
+                            data: rightAgeCounts,
+                            backgroundColor: 'rgba(0, 47, 108, 0.82)',
+                            borderColor: '#002F6C',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            barThickness: 22
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: {
+                                callback: (value) => Math.abs(Number(value)).toLocaleString('en-US')
+                            }
+                        },
+                        y: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        datalabels: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${Math.abs(Number(context.parsed.x)).toLocaleString('en-US')}`
+                            }
+                        }
+                    }
+                }
+            });
+
+            regionalDemoCommunityChart = destroyChart(regionalDemoCommunityChart);
+            regionalDemoCommunityChart = createChartSafely('regionalDemoCommunityChart', {
+                type: 'bar',
+                data: {
+                    labels: ['Veteran Share', 'Hispanic Share'],
+                    datasets: [
+                        {
+                            label: leftLocation,
+                            data: [leftRecord.veteranShare, leftRecord.hispanicShare],
+                            backgroundColor: 'rgba(203, 96, 21, 0.82)',
+                            borderColor: '#CB6015',
+                            borderWidth: 1,
+                            borderRadius: 8
+                        },
+                        {
+                            label: rightLocation,
+                            data: [rightRecord.veteranShare, rightRecord.hispanicShare],
+                            backgroundColor: 'rgba(0, 47, 108, 0.82)',
+                            borderColor: '#002F6C',
+                            borderWidth: 1,
+                            borderRadius: 8
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: (value) => `${value}%`
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'end',
+                            color: '#0f172a',
+                            font: { weight: '700', size: 11 },
+                            formatter: (value) => `${Number(value).toFixed(1)}%`
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${Number(context.parsed.y).toFixed(1)}%`
+                            }
+                        }
+                    }
+                }
+            });
+
+            const raceLabels = [leftLocation, rightLocation];
+            regionalDemoRaceChart = destroyChart(regionalDemoRaceChart);
+            regionalDemoRaceChart = createChartSafely('regionalDemoRaceChart', {
+                type: 'bar',
+                data: {
+                    labels: raceLabels,
+                    datasets: DEMOGRAPHICS_DATA.raceGroups.map((group) => ({
+                        label: group.label,
+                        data: [leftRecord.raceComposition[group.key], rightRecord.raceComposition[group.key]],
+                        backgroundColor: group.color,
+                        borderColor: group.color,
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    scales: {
+                        x: {
+                            stacked: true,
+                            max: 100,
+                            ticks: {
+                                callback: (value) => `${value}%`
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        datalabels: {
+                            color: '#0f172a',
+                            font: { size: 10, weight: '700' },
+                            formatter: (value) => (Number(value) >= 6 ? `${Number(value).toFixed(1)}%` : ''),
+                            anchor: 'center',
+                            align: 'center',
+                            clamp: true
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${Number(context.parsed.x).toFixed(1)}%`
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function handleRegionalDemographicsDownload() {
+            const leftLocation = regionalDemographicsState.leftLocation;
+            const rightLocation = regionalDemographicsState.rightLocation;
+            const year = regionalDemographicsState.year;
+            const leftRecord = getRegionalDemographicsRecord(leftLocation, year);
+            const rightRecord = getRegionalDemographicsRecord(rightLocation, year);
+
+            if (!leftRecord || !rightRecord) {
+                return;
+            }
+
+            const rows = ['Location,Year,Section,Label,Value'];
+
+            [
+                [leftLocation, leftRecord],
+                [rightLocation, rightRecord]
+            ].forEach(([location, record]) => {
+                rows.push(`"${location}",${year},Summary,Population,${record.totalPopulation}`);
+                rows.push(`"${location}",${year},Summary,Median Age,${record.medianAge}`);
+                rows.push(`"${location}",${year},Summary,Veteran Share,${record.veteranShare}`);
+                rows.push(`"${location}",${year},Summary,Hispanic Share,${record.hispanicShare}`);
+
+                DEMOGRAPHICS_DATA.ageGroups.forEach((group) => {
+                    rows.push(`"${location}",${year},Age Distribution,${group.label},${record.ageDistribution[group.key]}`);
+                });
+
+                DEMOGRAPHICS_DATA.raceGroups.forEach((group) => {
+                    rows.push(`"${location}",${year},Race Composition,${group.label},${record.raceComposition[group.key]}`);
+                });
+            });
+
+            const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `regional_demographics_${year}_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleRegionalDemographicsPngDownload() {
+            if (!regionalDemoAgeChart) {
+                alert('Regional demographics chart is not ready yet.');
+                return;
+            }
+
+            downloadChartAsImage(regionalDemoAgeChart, `regional_demographics_${regionalDemographicsState.year}_${new Date().toISOString().split('T')[0]}.png`);
+        }
+
+        function initRegionalDemographics() {
+            if (typeof DEMOGRAPHICS_DATA === 'undefined') {
+                console.warn('[Demographics] DEMOGRAPHICS_DATA not loaded');
+                return;
+            }
+
+            const leftSelect = document.getElementById('regionalDemoLeftSelect');
+            const rightSelect = document.getElementById('regionalDemoRightSelect');
+            const yearSelect = document.getElementById('regionalDemoYearSelect');
+
+            if (!leftSelect || !rightSelect || !yearSelect) {
+                return;
+            }
+
+            const locationOptions = DEMOGRAPHICS_DATA.locations
+                .map((location) => `<option value="${location}">${location}</option>`)
+                .join('');
+            leftSelect.innerHTML = locationOptions;
+            rightSelect.innerHTML = locationOptions;
+            yearSelect.innerHTML = [...DEMOGRAPHICS_DATA.years]
+                .reverse()
+                .map((year) => `<option value="${year}">${year}</option>`)
+                .join('');
+
+            if (!DEMOGRAPHICS_DATA.locations.includes(regionalDemographicsState.leftLocation)) {
+                regionalDemographicsState.leftLocation = DEMOGRAPHICS_DATA.locations[0];
+            }
+            if (!DEMOGRAPHICS_DATA.locations.includes(regionalDemographicsState.rightLocation)) {
+                regionalDemographicsState.rightLocation = DEMOGRAPHICS_DATA.locations[1] || DEMOGRAPHICS_DATA.locations[0];
+            }
+            if (!DEMOGRAPHICS_DATA.years.includes(regionalDemographicsState.year)) {
+                regionalDemographicsState.year = DEMOGRAPHICS_DATA.years[DEMOGRAPHICS_DATA.years.length - 1];
+            }
+
+            leftSelect.value = regionalDemographicsState.leftLocation;
+            rightSelect.value = regionalDemographicsState.rightLocation;
+            yearSelect.value = String(regionalDemographicsState.year);
+
+            leftSelect.addEventListener('change', (event) => {
+                regionalDemographicsState.leftLocation = event.target.value;
+                ensureDistinctRegionalDemographicsSelections('left');
+                renderRegionalDemographics();
+            });
+
+            rightSelect.addEventListener('change', (event) => {
+                regionalDemographicsState.rightLocation = event.target.value;
+                ensureDistinctRegionalDemographicsSelections('right');
+                renderRegionalDemographics();
+            });
+
+            yearSelect.addEventListener('change', (event) => {
+                regionalDemographicsState.year = Number(event.target.value) || regionalDemographicsState.year;
+                renderRegionalDemographics();
+            });
+
+            document.getElementById('downloadRegionalDemoCsvBtn')?.addEventListener('click', handleRegionalDemographicsDownload);
+            document.getElementById('downloadRegionalDemoPngBtn')?.addEventListener('click', handleRegionalDemographicsPngDownload);
+
+            renderRegionalDemographics();
+        }
 // Show loading indicator for lazy-loaded tabs
 function showLoadingIndicator(tabId) {
     const statusEl = document.getElementById('statusText');
@@ -2531,6 +2988,822 @@ async function handleTaxDownload() {
     }
 }
 
+function getTxLocationById(locationId) {
+    return txCompareStore.locations.find((location) => location.id === locationId) || null;
+}
+
+function getTxLocations() {
+    return Array.isArray(txCompareStore.locations) && txCompareStore.locations.length > 0
+        ? txCompareStore.locations
+        : TX_COMPARE_LOCATIONS;
+}
+
+function slugifyTxLocation(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function buildTexasCountyLocationList() {
+    const presetCountyKeys = new Set(
+        TX_COMPARE_LOCATIONS
+            .filter((location) => location.type === 'County')
+            .map((location) => normalizeCountyName(location.countyNames[0]))
+    );
+
+    const countyNames = [...new Set(
+        txCompareStore.records
+            .map((record) => String(record?.county || '').trim())
+            .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b));
+
+    const generatedCountyLocations = countyNames
+        .filter((countyName) => !presetCountyKeys.has(normalizeCountyName(countyName)))
+        .map((countyName) => ({
+            id: `county-${slugifyTxLocation(countyName)}`,
+            name: `${countyName} County, TX`,
+            type: 'County',
+            countyNames: [countyName]
+        }));
+
+    txCompareStore.locations = [...TX_COMPARE_LOCATIONS, ...generatedCountyLocations];
+}
+
+function getTxMetricConfig(metricKey) {
+    return TX_COMPARE_METRICS[metricKey] || TX_COMPARE_METRICS.smoking;
+}
+
+function normalizeCountyName(name) {
+    return String(name || '').trim().toLowerCase();
+}
+
+function getTexasCompareApiBase() {
+    if (FRED_PROXY_BASE) {
+        return FRED_PROXY_BASE.replace(/\/$/, '');
+    }
+
+    return '';
+}
+
+function getTexasCompareEndpoint(path) {
+    const base = getTexasCompareApiBase();
+    return base ? `${base}${path}` : path;
+}
+
+async function fetchTexasCompareJson(path) {
+    const primaryUrl = getTexasCompareEndpoint(path);
+    const isAbsolutePrimary = /^https?:\/\//i.test(primaryUrl);
+
+    const urlsToTry = isAbsolutePrimary ? [primaryUrl, path] : [primaryUrl];
+    const host = window.location?.hostname || '';
+    const isLocalBrowserHost = host === 'localhost' || host === '127.0.0.1';
+    if (isLocalBrowserHost) {
+        urlsToTry.push(`http://localhost:3000${path}`);
+    }
+
+    const uniqueUrls = [...new Set(urlsToTry)];
+    let lastError = null;
+
+    for (const url of uniqueUrls) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                lastError = new Error(`Request failed (${response.status}) for ${url}`);
+                continue;
+            }
+
+            return await response.json();
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error('Unable to fetch Texas comparison API data.');
+}
+
+function getTxCountyMetricValueByName(countyName, metricKey, year) {
+    const countyKey = normalizeCountyName(countyName);
+    const fips = txCompareStore.countyFipsByName.get(countyKey);
+
+    if (!fips) {
+        return null;
+    }
+
+    return txCompareStore.byCountyYearMetric.get(`${fips}-${year}`)?.[metricKey] ?? null;
+}
+
+function getTxLocationCountiesWithValues(location, metricKey, year) {
+    if (!location || !Array.isArray(location.countyNames)) {
+        return [];
+    }
+
+    return location.countyNames.map((countyName) => {
+        const countyKey = normalizeCountyName(countyName);
+        const fips = txCompareStore.countyFipsByName.get(countyKey) || null;
+        const value = getTxCountyMetricValueByName(countyName, metricKey, year);
+        return {
+            county: countyName,
+            fips,
+            value
+        };
+    });
+}
+
+function getTxLocationAverage(location, metricKey, year) {
+    const countyValues = getTxLocationCountiesWithValues(location, metricKey, year)
+        .map((county) => county.value)
+        .filter((value) => Number.isFinite(value));
+
+    if (countyValues.length === 0) {
+        return null;
+    }
+
+    const total = countyValues.reduce((sum, value) => sum + value, 0);
+    return total / countyValues.length;
+}
+
+function formatTxMetricValue(metricKey, value) {
+    const metric = getTxMetricConfig(metricKey);
+
+    if (!Number.isFinite(value)) {
+        return 'N/A';
+    }
+
+    if (metricKey === 'prematureDeath') {
+        return `${Math.round(value).toLocaleString('en-US')}`;
+    }
+
+    if (metric.unit === '%') {
+        return `${value.toFixed(metric.decimals)}%`;
+    }
+
+    return value.toFixed(metric.decimals);
+}
+
+function formatTxGraphLabelValue(value) {
+    if (!Number.isFinite(value)) {
+        return 'N/A';
+    }
+
+    return Number(value).toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    });
+}
+
+function getTxMetricNarrative(metricKey) {
+    const metricDescriptions = {
+        smoking: 'County Health Rankings values (% adults reporting currently smoking).',
+        obesity: 'County Health Rankings values (% adults with obesity).',
+        mentalHealth: 'Derived from County Health Rankings uninsured rate (coverage = 100 - uninsured%).',
+        primaryCare: 'Higher values indicate better primary care physician availability.',
+        prematureDeath: 'Lower values indicate fewer years of potential life lost.',
+        poorHealth: 'County Health Rankings values (% fair or poor health).',
+        teenBirth: 'Lower values indicate fewer teen births per 1,000 population.'
+    };
+
+    return metricDescriptions[metricKey] || '';
+}
+
+async function loadTexasComparisonData() {
+    try {
+        const years = txCompareState.years.join(',');
+        const payload = await fetchTexasCompareJson(`/api/tx-health-compare?years=${encodeURIComponent(years)}`);
+        const records = Array.isArray(payload.records) ? payload.records : [];
+
+        txCompareStore.records = records;
+        txCompareStore.byCountyYearMetric.clear();
+        txCompareStore.countyFipsByName.clear();
+
+        records.forEach((record) => {
+            if (!record?.fips || !record?.county || !Number.isFinite(record?.year)) {
+                return;
+            }
+
+            const countyKey = normalizeCountyName(record.county);
+            txCompareStore.countyFipsByName.set(countyKey, record.fips);
+            txCompareStore.byCountyYearMetric.set(`${record.fips}-${record.year}`, record);
+        });
+
+        txCompareState.ready = records.length > 0;
+        txCompareState.loadError = records.length > 0 ? '' : 'Texas comparison API returned no records.';
+    } catch (error) {
+        console.error('Failed to load Texas comparison data:', error);
+        txCompareState.ready = false;
+        txCompareState.loadError = error?.message || 'Unable to load Texas comparison data.';
+    }
+}
+
+async function loadTexasCountiesGeoJson() {
+    try {
+        if (txCompareStore.countiesGeoJson) {
+            return;
+        }
+
+        txCompareStore.countiesGeoJson = await fetchTexasCompareJson('/api/us-counties-geojson');
+    } catch (error) {
+        console.error('Failed to load county GeoJSON:', error);
+        txCompareStore.countiesGeoJson = null;
+    }
+}
+
+function initTexasComparisonMaps() {
+    if (typeof L === 'undefined') {
+        return;
+    }
+
+    const leftContainer = document.getElementById('txCompareMapLeft');
+    const rightContainer = document.getElementById('txCompareMapRight');
+    if (!leftContainer || !rightContainer) {
+        return;
+    }
+
+    if (!txCompareMapLeft) {
+        txCompareMapLeft = L.map(leftContainer, { zoomControl: true, attributionControl: true }).setView([31.0, -99.3], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 11,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(txCompareMapLeft);
+    }
+
+    if (!txCompareMapRight) {
+        txCompareMapRight = L.map(rightContainer, { zoomControl: true, attributionControl: true }).setView([31.0, -99.3], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 11,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(txCompareMapRight);
+    }
+}
+
+function getTexasFeaturesForLocation(location) {
+    const collection = txCompareStore.countiesGeoJson;
+    if (!collection?.features || !location) {
+        return [];
+    }
+
+    const selectedFips = new Set(
+        location.countyNames
+            .map((countyName) => txCompareStore.countyFipsByName.get(normalizeCountyName(countyName)))
+            .filter(Boolean)
+    );
+
+    return collection.features.filter((feature) => selectedFips.has(String(feature.id)));
+}
+
+function hexToRgb(hexColor) {
+    const cleanHex = String(hexColor || '').replace('#', '').trim();
+    if (!/^[0-9a-fA-F]{6}$/.test(cleanHex)) {
+        return { r: 0, g: 0, b: 0 };
+    }
+
+    return {
+        r: Number.parseInt(cleanHex.slice(0, 2), 16),
+        g: Number.parseInt(cleanHex.slice(2, 4), 16),
+        b: Number.parseInt(cleanHex.slice(4, 6), 16)
+    };
+}
+
+function interpolateHexColor(startHex, endHex, weight) {
+    const ratio = Math.max(0, Math.min(1, Number.isFinite(weight) ? weight : 0));
+    const start = hexToRgb(startHex);
+    const end = hexToRgb(endHex);
+    const mixed = {
+        r: Math.round(start.r + (end.r - start.r) * ratio),
+        g: Math.round(start.g + (end.g - start.g) * ratio),
+        b: Math.round(start.b + (end.b - start.b) * ratio)
+    };
+
+    const toHex = (value) => value.toString(16).padStart(2, '0');
+    return `#${toHex(mixed.r)}${toHex(mixed.g)}${toHex(mixed.b)}`;
+}
+
+function getTxMetricRange(metricKey, year) {
+    const values = txCompareStore.records
+        .filter((record) => record?.year === year)
+        .map((record) => record?.[metricKey])
+        .filter((value) => Number.isFinite(value));
+
+    if (values.length === 0) {
+        return { min: null, max: null };
+    }
+
+    return {
+        min: Math.min(...values),
+        max: Math.max(...values)
+    };
+}
+
+function renderTexasMap(map, existingLayer, location, color, metricKey, year) {
+    if (!map) {
+        return null;
+    }
+
+    if (existingLayer) {
+        map.removeLayer(existingLayer);
+    }
+
+    const collection = txCompareStore.countiesGeoJson;
+    if (!collection?.features || !location) {
+        map.setView([31.0, -99.3], 6);
+        return null;
+    }
+
+    const texasFeatures = collection.features.filter((feature) => String(feature.id || '').startsWith('48'));
+    const selectedFeatures = getTexasFeaturesForLocation(location);
+
+    if (selectedFeatures.length === 0 || texasFeatures.length === 0) {
+        map.setView([31.0, -99.3], 6);
+        return null;
+    }
+
+    const selectedFips = new Set(selectedFeatures.map((feature) => String(feature.id)));
+    const valuesByFips = new Map();
+    location.countyNames.forEach((countyName) => {
+        const countyKey = normalizeCountyName(countyName);
+        const fips = txCompareStore.countyFipsByName.get(countyKey);
+        if (!fips) {
+            return;
+        }
+
+        const value = txCompareStore.byCountyYearMetric.get(`${fips}-${year}`)?.[metricKey] ?? null;
+        valuesByFips.set(String(fips), value);
+    });
+
+    const metricRange = getTxMetricRange(metricKey, year);
+    const hasRange = Number.isFinite(metricRange.min) && Number.isFinite(metricRange.max) && metricRange.max > metricRange.min;
+
+    const layer = L.geoJSON({ type: 'FeatureCollection', features: texasFeatures }, {
+        style: (feature) => {
+            const fips = String(feature.id || '');
+            const isSelected = selectedFips.has(fips);
+            const value = valuesByFips.get(fips);
+            const normalized = hasRange && Number.isFinite(value)
+                ? (value - metricRange.min) / (metricRange.max - metricRange.min)
+                : 0.5;
+
+            const fillColor = !isSelected
+                ? '#e9edf4'
+                : Number.isFinite(value)
+                    ? interpolateHexColor('#fff4ea', color, normalized)
+                    : '#fde68a';
+
+            return {
+                color: isSelected ? color : '#cbd5e1',
+                weight: isSelected ? 2.1 : 0.8,
+                opacity: isSelected ? 0.95 : 0.7,
+                fillColor,
+                fillOpacity: isSelected ? 0.75 : 0.4
+            };
+        },
+        onEachFeature: (feature, layerRef) => {
+            const fips = String(feature.id || '');
+            if (!selectedFips.has(fips)) {
+                return;
+            }
+
+            const countyName = feature?.properties?.NAME || feature?.properties?.name || fips;
+            const value = valuesByFips.get(fips);
+            const valueText = formatTxMetricValue(metricKey, value);
+            layerRef.bindTooltip(`${countyName}: ${valueText}`, {
+                sticky: true,
+                direction: 'top',
+                className: 'tx-map-tooltip'
+            });
+        }
+    }).addTo(map);
+
+    const selectionBounds = L.geoJSON({ type: 'FeatureCollection', features: selectedFeatures }).getBounds();
+    if (selectionBounds.isValid()) {
+        map.fitBounds(selectionBounds, {
+            padding: [24, 24],
+            maxZoom: selectedFeatures.length === 1 ? 8 : 9
+        });
+    }
+
+    return layer;
+}
+
+function populateTexasComparisonControls() {
+    const leftSelect = document.getElementById('compareLeftSelect');
+    const rightSelect = document.getElementById('compareRightSelect');
+    const yearSelect = document.getElementById('compareYearSelect');
+
+    if (!leftSelect || !rightSelect || !yearSelect) {
+        return;
+    }
+
+    const locations = getTxLocations();
+    const msaOptions = locations
+        .filter((location) => location.type === 'MSA')
+        .map((location) => `<option value="${location.id}">${location.name}</option>`)
+        .join('');
+    const countyOptions = locations
+        .filter((location) => location.type === 'County')
+        .map((location) => `<option value="${location.id}">${location.name}</option>`)
+        .join('');
+    const optionsHtml = [
+        `<optgroup label="Metro Areas">${msaOptions}</optgroup>`,
+        `<optgroup label="Counties">${countyOptions}</optgroup>`
+    ].join('');
+
+    leftSelect.innerHTML = optionsHtml;
+    rightSelect.innerHTML = optionsHtml;
+
+    yearSelect.innerHTML = TX_COMPARE_YEARS
+        .map((year) => `<option value="${year}">${year}</option>`)
+        .join('');
+
+    const hasLeft = locations.some((location) => location.id === txCompareState.leftId);
+    const hasRight = locations.some((location) => location.id === txCompareState.rightId);
+    if (!hasLeft && locations[0]) {
+        txCompareState.leftId = locations[0].id;
+    }
+    if (!hasRight && locations[1]) {
+        txCompareState.rightId = locations[1].id;
+    }
+
+    leftSelect.value = txCompareState.leftId;
+    rightSelect.value = txCompareState.rightId;
+    yearSelect.value = String(txCompareState.year);
+}
+
+function ensureDistinctTexasSelections(changedSide) {
+    if (txCompareState.leftId !== txCompareState.rightId) {
+        return;
+    }
+
+    const fallback = getTxLocations().find((location) => {
+        return location.id !== txCompareState.leftId;
+    });
+
+    if (!fallback) {
+        return;
+    }
+
+    if (changedSide === 'left') {
+        txCompareState.rightId = fallback.id;
+        const rightSelect = document.getElementById('compareRightSelect');
+        if (rightSelect) rightSelect.value = txCompareState.rightId;
+    } else {
+        txCompareState.leftId = fallback.id;
+        const leftSelect = document.getElementById('compareLeftSelect');
+        if (leftSelect) leftSelect.value = txCompareState.leftId;
+    }
+}
+
+function renderTexasComparison() {
+    const section = document.getElementById('tx-compare');
+    if (!section) return;
+
+    const leftLocation = getTxLocationById(txCompareState.leftId);
+    const rightLocation = getTxLocationById(txCompareState.rightId);
+    const metricKey = txCompareState.metric;
+    const metric = getTxMetricConfig(metricKey);
+
+    if (!leftLocation || !rightLocation) {
+        return;
+    }
+
+    const summaryEl = document.getElementById('txCompareSummary');
+    const countyTitleEl = document.getElementById('txCompareCountyTitle');
+    const trendTitleEl = document.getElementById('txCompareTrendTitle');
+    const tableLabelEl = document.getElementById('txCompareTableMetricLabel');
+    const mapTitleEl = document.getElementById('txCompareMapTitle');
+    const leftMapLabelEl = document.getElementById('txCompareMapLeftLabel');
+    const rightMapLabelEl = document.getElementById('txCompareMapRightLabel');
+
+    if (!txCompareState.ready) {
+        if (summaryEl) {
+            summaryEl.textContent = txCompareState.loadError
+                ? `Unable to load API data: ${txCompareState.loadError}`
+                : 'Loading live Texas county data from API...';
+        }
+        return;
+    }
+
+    const leftCountyRecords = getTxLocationCountiesWithValues(leftLocation, metricKey, txCompareState.year);
+    const rightCountyRecords = getTxLocationCountiesWithValues(rightLocation, metricKey, txCompareState.year);
+    const countyCoverage = [...leftCountyRecords, ...rightCountyRecords];
+    const availableCount = countyCoverage.filter((county) => Number.isFinite(county.value)).length;
+    const coverageText = `Data coverage: ${availableCount}/${countyCoverage.length} counties with values.`;
+
+    if (summaryEl) {
+        summaryEl.textContent = `${leftLocation.name} vs ${rightLocation.name} | ${metric.label} (${txCompareState.year}). ${coverageText} ${getTxMetricNarrative(metricKey)}`;
+    }
+    if (countyTitleEl) {
+        countyTitleEl.textContent = `${metric.label} by County (${txCompareState.year})`;
+    }
+    if (trendTitleEl) {
+        trendTitleEl.textContent = `${metric.label} Trend (${TX_COMPARE_YEARS[0]}-${TX_COMPARE_YEARS[TX_COMPARE_YEARS.length - 1]})`;
+    }
+    if (tableLabelEl) {
+        tableLabelEl.textContent = `${metric.label} (${txCompareState.year})`;
+    }
+    if (mapTitleEl) {
+        mapTitleEl.textContent = `${leftLocation.name} and ${rightLocation.name} County Footprint`;
+    }
+    if (leftMapLabelEl) {
+        leftMapLabelEl.textContent = leftLocation.name;
+    }
+    if (rightMapLabelEl) {
+        rightMapLabelEl.textContent = rightLocation.name;
+    }
+
+    const leftCountyLabels = leftCountyRecords.map((county) => `${county.county} (${leftLocation.type})`);
+    const rightCountyLabels = rightCountyRecords.map((county) => `${county.county} (${rightLocation.type})`);
+    const labels = [...leftCountyLabels, ...rightCountyLabels];
+
+    const leftValues = leftCountyRecords.map((county) => county.value);
+    const rightValues = rightCountyRecords.map((county) => county.value);
+
+    const countyValues = [...leftValues, ...rightValues];
+    const countyColors = [
+        ...leftValues.map(() => 'rgba(203, 96, 21, 0.8)'),
+        ...rightValues.map(() => 'rgba(0, 47, 108, 0.8)')
+    ];
+
+    txCompareCountyChart = destroyChart(txCompareCountyChart);
+    txCompareCountyChart = createChartSafely('txCompareCountyChart', {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: metric.label,
+                    data: countyValues,
+                    backgroundColor: countyColors,
+                    borderColor: countyColors,
+                    borderWidth: 1,
+                    borderRadius: 6,
+                    barThickness: 18
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    ticks: {
+                        callback: (value) => formatTxMetricValue(metricKey, Number(value))
+                    }
+                },
+                y: {
+                    grid: { display: false }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    display: (context) => Number.isFinite(context.dataset.data[context.dataIndex]),
+                    anchor: 'end',
+                    align: 'end',
+                    offset: 6,
+                    clamp: true,
+                    color: '#1f2937',
+                    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                    borderColor: 'rgba(148, 163, 184, 0.7)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    padding: { top: 2, bottom: 2, left: 5, right: 5 },
+                    font: { size: 11, weight: '700' },
+                    formatter: (value) => formatTxGraphLabelValue(value)
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `${metric.label}: ${formatTxMetricValue(metricKey, context.parsed.x)}`
+                    }
+                }
+            }
+        }
+    });
+
+    const leftTrend = TX_COMPARE_YEARS.map((year) => getTxLocationAverage(leftLocation, metricKey, year));
+    const rightTrend = TX_COMPARE_YEARS.map((year) => getTxLocationAverage(rightLocation, metricKey, year));
+
+    txCompareTrendChart = destroyChart(txCompareTrendChart);
+    txCompareTrendChart = createChartSafely('txCompareTrendChart', {
+        type: 'line',
+        data: {
+            labels: TX_COMPARE_YEARS,
+            datasets: [
+                {
+                    label: leftLocation.name,
+                    data: leftTrend,
+                    borderColor: '#CB6015',
+                    backgroundColor: 'rgba(203, 96, 21, 0.12)',
+                    tension: 0.28,
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    fill: false
+                },
+                {
+                    label: rightLocation.name,
+                    data: rightTrend,
+                    borderColor: '#002F6C',
+                    backgroundColor: 'rgba(0, 47, 108, 0.12)',
+                    tension: 0.28,
+                    borderWidth: 3,
+                    pointRadius: 3,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                datalabels: {
+                    display: (context) => Number.isFinite(context.dataset.data[context.dataIndex]),
+                    anchor: 'end',
+                    align: (context) => (context.datasetIndex === 0 ? 'top' : 'bottom'),
+                    offset: 6,
+                    clamp: true,
+                    color: '#0f172a',
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    borderColor: 'rgba(203, 213, 225, 0.9)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    padding: { top: 2, bottom: 2, left: 5, right: 5 },
+                    font: { size: 10, weight: '700' },
+                    formatter: (value) => formatTxGraphLabelValue(value)
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => `${context.dataset.label}: ${formatTxMetricValue(metricKey, context.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    ticks: {
+                        callback: (value) => formatTxMetricValue(metricKey, Number(value))
+                    }
+                }
+            }
+        }
+    });
+
+    const tableBody = document.getElementById('txCompareTableBody');
+    if (tableBody) {
+        const tableRows = [
+            ...leftCountyRecords.map((county) => ({
+                location: leftLocation.name,
+                county: county.county,
+                value: county.value
+            })),
+            ...rightCountyRecords.map((county) => ({
+                location: rightLocation.name,
+                county: county.county,
+                value: county.value
+            }))
+        ];
+
+        tableBody.innerHTML = tableRows.map((row) => {
+            return `<tr><td>${row.location}</td><td>${row.county}</td><td>${formatTxMetricValue(metricKey, row.value)}</td></tr>`;
+        }).join('');
+    }
+
+    if (txCompareStore.countiesGeoJson) {
+        txCompareLayerLeft = renderTexasMap(txCompareMapLeft, txCompareLayerLeft, leftLocation, '#CB6015', metricKey, txCompareState.year);
+        txCompareLayerRight = renderTexasMap(txCompareMapRight, txCompareLayerRight, rightLocation, '#002F6C', metricKey, txCompareState.year);
+
+        setTimeout(() => {
+            txCompareMapLeft?.invalidateSize();
+            txCompareMapRight?.invalidateSize();
+        }, 0);
+    }
+}
+
+async function initTexasComparison() {
+    const leftSelect = document.getElementById('compareLeftSelect');
+    const rightSelect = document.getElementById('compareRightSelect');
+    const yearSelect = document.getElementById('compareYearSelect');
+    const categoryButtons = document.querySelectorAll('.tx-category-btn');
+
+    if (!leftSelect || !rightSelect || !yearSelect) {
+        return;
+    }
+
+    await Promise.all([
+        loadTexasComparisonData(),
+        loadTexasCountiesGeoJson()
+    ]);
+
+    buildTexasCountyLocationList();
+    populateTexasComparisonControls();
+
+    leftSelect.addEventListener('change', (event) => {
+        txCompareState.leftId = event.target.value;
+        ensureDistinctTexasSelections('left');
+        renderTexasComparison();
+    });
+
+    rightSelect.addEventListener('change', (event) => {
+        txCompareState.rightId = event.target.value;
+        ensureDistinctTexasSelections('right');
+        renderTexasComparison();
+    });
+
+    yearSelect.addEventListener('change', (event) => {
+        txCompareState.year = Number(event.target.value) || 2024;
+        renderTexasComparison();
+    });
+
+    categoryButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            categoryButtons.forEach((btn) => btn.classList.remove('active'));
+            button.classList.add('active');
+            txCompareState.metric = button.dataset.category || 'smoking';
+            renderTexasComparison();
+        });
+    });
+
+    initTexasComparisonMaps();
+    renderTexasComparison();
+}
+
+function handleTexasCompareDownload() {
+    const leftLocation = getTxLocationById(txCompareState.leftId);
+    const rightLocation = getTxLocationById(txCompareState.rightId);
+    const metricKey = txCompareState.metric;
+    const metric = getTxMetricConfig(metricKey);
+
+    if (!leftLocation || !rightLocation) {
+        return;
+    }
+
+    let csv = `Location,County,Metric,Year,Value\n`;
+
+    [leftLocation, rightLocation].forEach((location) => {
+        const countyRows = getTxLocationCountiesWithValues(location, metricKey, txCompareState.year);
+        countyRows.forEach((county) => {
+            const selectedValue = county.value;
+            csv += `"${location.name}","${county.county}","${metric.label}",${txCompareState.year},${Number.isFinite(selectedValue) ? selectedValue.toFixed(metric.decimals) : ''}\n`;
+        });
+    });
+
+    csv += '\nLocation,Metric,Year,Average\n';
+    [leftLocation, rightLocation].forEach((location) => {
+        TX_COMPARE_YEARS.forEach((year) => {
+            const average = getTxLocationAverage(location, metricKey, year);
+            csv += `"${location.name}","${metric.label}",${year},${Number.isFinite(average) ? average.toFixed(metric.decimals) : ''}\n`;
+        });
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `texas_compare_${metricKey}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function handleTexasComparePngDownload() {
+    const targetChart = txCompareCountyChart || txCompareTrendChart;
+    if (!targetChart) {
+        alert('Texas comparison chart is not ready yet.');
+        return;
+    }
+
+    downloadChartAsImage(targetChart, `texas_compare_${txCompareState.metric}_${new Date().toISOString().split('T')[0]}.png`);
+}
+
+function handleTexasMapGeoJsonDownload() {
+    const leftLocation = getTxLocationById(txCompareState.leftId);
+    const rightLocation = getTxLocationById(txCompareState.rightId);
+
+    if (!leftLocation || !rightLocation || !txCompareStore.countiesGeoJson?.features) {
+        alert('Texas map data is not ready yet.');
+        return;
+    }
+
+    const leftFeatures = getTexasFeaturesForLocation(leftLocation);
+    const rightFeatures = getTexasFeaturesForLocation(rightLocation);
+
+    const featureCollection = {
+        type: 'FeatureCollection',
+        features: [...leftFeatures, ...rightFeatures]
+    };
+
+    const blob = new Blob([JSON.stringify(featureCollection, null, 2)], { type: 'application/geo+json;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `texas_compare_counties_${new Date().toISOString().split('T')[0]}.geojson`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 function wireEvents() {
     // Full history toggle - disable/enable start date input and trigger update
     const fullHistoryToggle = document.getElementById('fullHistoryToggle');
@@ -2592,6 +3865,9 @@ function wireEvents() {
     document.getElementById('downloadMedianPriceBtn')?.addEventListener('click', handleMedianPriceDownload);
     document.getElementById('downloadMortgageBtn')?.addEventListener('click', handleMortgageDownload);
     document.getElementById('downloadTaxBtn')?.addEventListener('click', handleTaxDownload);
+    document.getElementById('downloadTexasCompareBtn')?.addEventListener('click', handleTexasCompareDownload);
+    document.getElementById('downloadTexasComparePngBtn')?.addEventListener('click', handleTexasComparePngDownload);
+    document.getElementById('downloadTexasMapGeoJsonBtn')?.addEventListener('click', handleTexasMapGeoJsonDownload);
 
     // PNG Download Event Listeners
     document.getElementById('downloadGDPPngBtn')?.addEventListener('click', () => {
@@ -2663,7 +3939,8 @@ function setupShareButtons() {
         { id: 'shareEmploymentBtn', chart: () => employmentChart, name: 'Employment Trends' },
         { id: 'shareSalesTaxBtn', chart: () => salesTaxChart, name: 'Tyler MSA Sales Tax' },
         { id: 'shareMedianPriceBtn', chart: () => medianPriceChart, name: 'Tyler Median Home Price' },
-        { id: 'shareTaxBtn', chart: () => (window.taxChart ? window.taxChart.getChart() : null), name: 'Texas Tax Revenue' }
+        { id: 'shareTaxBtn', chart: () => (window.taxChart ? window.taxChart.getChart() : null), name: 'Texas Tax Revenue' },
+        { id: 'shareTexasCompareBtn', chart: () => txCompareCountyChart, name: 'Texas County Comparison' }
     ];
 
     shareButtons.forEach(({ id, chart, name }) => {
@@ -3120,6 +4397,195 @@ function fallbackShareMortgage(image30Url, image15Url, blob30, blob15, shareText
     });
 }
 
+// =============================================
+// Educational Attainment Charts
+// =============================================
+
+let eduLeftChart = null;
+let eduRightChart = null;
+
+const EDU_COLORS = {
+    bachelors:    '#002F6C',
+    highSchool:   '#4A9EE8',
+    noHighSchool: '#193C5A',
+    someCollege:  '#5C8F66',
+};
+
+const EDU_LABELS = {
+    bachelors:    "Bachelor's degree or higher",
+    highSchool:   'High School Diploma',
+    noHighSchool: 'No High School Diploma',
+    someCollege:  "Some College or Associate's",
+};
+
+function initEducationCharts() {
+    if (typeof EDUCATION_DATA === 'undefined') {
+        console.warn('[Edu] EDUCATION_DATA not loaded');
+        return;
+    }
+
+    const leftSel  = document.getElementById('eduLeftSelect');
+    const rightSel = document.getElementById('eduRightSelect');
+    const yearSel  = document.getElementById('eduYearSelect');
+
+    if (!leftSel || !rightSel || !yearSel) return;
+
+    // Populate location dropdowns
+    EDUCATION_DATA.locations.forEach((loc, i) => {
+        const optA = new Option(loc, loc);
+        const optB = new Option(loc, loc);
+        leftSel.appendChild(optA);
+        rightSel.appendChild(optB);
+        if (i === 0) optA.selected = true;
+        if (i === 2) optB.selected = true; // default to DFW
+    });
+
+    // Populate year dropdown
+    [...EDUCATION_DATA.years].reverse().forEach((yr, i) => {
+        const opt = new Option(yr, yr);
+        if (i === 0) opt.selected = true;
+        yearSel.appendChild(opt);
+    });
+
+    // Don't render yet — charts must render inside a visible tab
+    leftSel.addEventListener('change',  renderEducationCharts);
+    rightSel.addEventListener('change', renderEducationCharts);
+    yearSel.addEventListener('change',  renderEducationCharts);
+
+    // CSV download
+    document.getElementById('downloadEduCsvBtn')?.addEventListener('click', downloadEduCsv);
+
+    // PNG download
+    document.getElementById('downloadEduPngBtn')?.addEventListener('click', () => {
+        const canvas = document.getElementById('eduLeftChart');
+        if (!canvas) return;
+        const link = document.createElement('a');
+        link.download = 'educational-attainment.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+}
+
+function renderEducationCharts() {
+    if (typeof EDUCATION_DATA === 'undefined') return;
+
+    const leftLoc  = document.getElementById('eduLeftSelect')?.value;
+    const rightLoc = document.getElementById('eduRightSelect')?.value;
+    const year     = parseInt(document.getElementById('eduYearSelect')?.value, 10);
+
+    if (!leftLoc || !rightLoc || !year) return;
+
+    document.getElementById('eduLeftTitle').textContent  = leftLoc;
+    document.getElementById('eduRightTitle').textContent = rightLoc;
+
+    try {
+        eduLeftChart  = buildEduChart('eduLeftChart',  leftLoc,  year, eduLeftChart);
+        eduRightChart = buildEduChart('eduRightChart', rightLoc, year, eduRightChart);
+    } catch (error) {
+        console.error('[Edu] Failed to render educational attainment charts:', error);
+    }
+}
+
+function buildEduChart(canvasId, location, year, existingChart) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return existingChart;
+
+    const locData = EDUCATION_DATA.data[location]?.[year];
+    if (!locData) {
+        console.warn('[Edu] No data for', location, year);
+        return existingChart;
+    }
+
+    const races = ['White', 'Hispanic', 'Black'];
+
+    // Build datasets — stacked downward from 0% (reverse scale)
+    const keys = ['bachelors', 'highSchool', 'noHighSchool', 'someCollege'];
+    const datasets = keys.map(key => ({
+        label: EDU_LABELS[key],
+        data:  races.map(race => locData[race]?.[key] ?? 0),
+        backgroundColor: EDU_COLORS[key],
+        borderColor: 'rgba(255,255,255,0.35)',
+        borderWidth: 1,
+        borderRadius: 0,
+    }));
+
+    if (existingChart) existingChart.destroy();
+
+    return new Chart(canvas, {
+        type: 'bar',
+        data: { labels: races, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`,
+                    },
+                },
+                datalabels: {
+                    display: (ctx) => {
+                        const value = Number(ctx.dataset?.data?.[ctx.dataIndex]);
+                        return Number.isFinite(value) && value >= 5;
+                    },
+                    formatter: val => val.toFixed(2) + '%',
+                    color: '#fff',
+                    font: { size: 11, weight: '600' },
+                    anchor: 'center',
+                    align: 'center',
+                },
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: { display: false },
+                    ticks: { font: { size: 12, weight: '600' } },
+                    title: { display: true, text: 'Race', font: { size: 12, weight: '700' } },
+                },
+                y: {
+                    stacked: true,
+                    reverse: true,
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                        stepSize: 20,
+                        callback: val => val + '%',
+                        font: { size: 11 },
+                    },
+                    grid: { color: 'rgba(0,0,0,0.06)' },
+                },
+            },
+        },
+    });
+}
+
+function downloadEduCsv() {
+    if (typeof EDUCATION_DATA === 'undefined') return;
+
+    const year = parseInt(document.getElementById('eduYearSelect')?.value, 10);
+    const rows = ['Location,Year,Race,Metric,Value'];
+
+    EDUCATION_DATA.locations.forEach(loc => {
+        const yearData = EDUCATION_DATA.data[loc]?.[year];
+        if (!yearData) return;
+        ['White', 'Hispanic', 'Black'].forEach(race => {
+            const d = yearData[race];
+            if (!d) return;
+            Object.entries(d).forEach(([key, val]) => {
+                rows.push(`"${loc}",${year},${race},${EDU_LABELS[key]},${val}`);
+            });
+        });
+    });
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `educational-attainment-${year}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
 function setupTabs() {
     // Main tab handling
     const mainTabBtns = document.querySelectorAll('.main-tab-btn');
@@ -3181,6 +4647,24 @@ function setupTabs() {
             if (targetContent) {
                 targetContent.classList.add('active');
                 console.log('Activated tab:', tabId);
+
+                if (tabId === 'tx-compare') {
+                    renderTexasComparison();
+                } else if (tabId === 'regional-demographics') {
+                    requestAnimationFrame(() => {
+                        renderRegionalDemographics();
+                        if (regionalDemoAgeChart) regionalDemoAgeChart.resize();
+                        if (regionalDemoCommunityChart) regionalDemoCommunityChart.resize();
+                        if (regionalDemoRaceChart) regionalDemoRaceChart.resize();
+                    });
+                } else if (tabId === 'edu-attainment') {
+                    // Wait until the tab is visible and laid out before chart render.
+                    requestAnimationFrame(() => {
+                        renderEducationCharts();
+                        if (eduLeftChart) eduLeftChart.resize();
+                        if (eduRightChart) eduRightChart.resize();
+                    });
+                }
                 
                 // Trigger chart rendering for specific tabs with lazy loading
                 if (cachedData) {
@@ -3269,6 +4753,11 @@ function init() {
     wireEvents();
     setupTabs();
     setupShareButtons();
+    initRegionalDemographics();
+    initEducationCharts();
+    initTexasComparison().catch((error) => {
+        console.error('Texas comparison initialization failed:', error);
+    });
     
     document.body.classList.add('is-loading');
 

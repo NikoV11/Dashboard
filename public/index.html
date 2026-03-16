@@ -13,7 +13,7 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="fred-proxy-base" content="https://fred-proxy.hibbsdashboard.workers.dev">
     <meta name="excel-data-endpoint" content="https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.stlouisfed.org https://api.allorigins.win https://thingproxy.freeboard.io https://*.workers.dev https://fred-proxy.hibbsdashboard.workers.dev https://data.texas.gov https://cdn.jsdelivr.net; frame-ancestors 'self';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.stlouisfed.org https://api.allorigins.win https://thingproxy.freeboard.io https://*.workers.dev https://fred-proxy.hibbsdashboard.workers.dev https://data.texas.gov https://cdn.jsdelivr.net https://www.countyhealthrankings.org https://raw.githubusercontent.com; frame-ancestors 'self';">
     <title>Hibbs Monitor - East Texas Economic Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="./images/favicon.svg">
     <link rel="apple-touch-icon" href="./images/favicon.svg">
@@ -27,8 +27,12 @@
     <link rel="preconnect" href="https://thingproxy.freeboard.io">
     <link rel="preconnect" href="https://fred-proxy.hibbsdashboard.workers.dev">
     <link rel="preconnect" href="https://data.texas.gov">
+    <link rel="preconnect" href="https://www.countyhealthrankings.org">
+    <link rel="preconnect" href="https://raw.githubusercontent.com">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" integrity="sha384-y49Zu59jZHJL/PLKgZPv3k2WI9c0Yp3pWB76V8OBVCb0QBKS8l4Ff3YslzHVX76Y" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous" defer></script>
 </head>
 <body>
     <div class="page">
@@ -124,6 +128,7 @@
                 <button class="main-tab-btn" data-main-tab="labor-market">Labor Market</button>
                 <button class="main-tab-btn" data-main-tab="housing-market">Housing Market</button>
                 <button class="main-tab-btn" data-main-tab="public-finances">Public Finances</button>
+                <button class="main-tab-btn" data-main-tab="regional-comparison">Regional Comparison</button>
             </nav>
 
             <!-- US Economy Sub-tabs -->
@@ -156,6 +161,15 @@
                 <nav class="sub-tab-nav" aria-label="Public Finances sections">
                     <button class="sub-tab-btn active" data-tab="sales-tax">Sales Tax</button>
                     <button class="sub-tab-btn" data-tab="tax-revenue">Tax Revenue Trends</button>
+                </nav>
+            </div>
+
+            <!-- Regional Comparison Sub-tabs -->
+            <div class="sub-tabs-container" id="regional-comparison-tabs">
+                <nav class="sub-tab-nav" aria-label="Regional comparison sections">
+                    <button class="sub-tab-btn active" data-tab="tx-compare">Texas County/MSA Compare</button>
+                    <button class="sub-tab-btn" data-tab="regional-demographics">Demographics Comparison</button>
+                    <button class="sub-tab-btn" data-tab="edu-attainment">Educational Attainment</button>
                 </nav>
             </div>
 
@@ -399,6 +413,274 @@
                 </section>
             </div>
 
+            <!-- Texas County/MSA Comparison Tab -->
+            <div class="tab-content" id="tx-compare">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas County/MSA Comparison</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Health & Wellbeing Categories</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareTexasCompareBtn" class="ghost" title="Share chart" aria-label="Share Texas county comparison chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadTexasCompareBtn" class="ghost">Download CSV</button>
+                            <button id="downloadTexasComparePngBtn" class="ghost">Download PNG</button>
+                            <button id="downloadTexasMapGeoJsonBtn" class="ghost">Download Map GeoJSON</button>
+                        </div>
+                    </div>
+
+                    <div class="tx-compare-workflow">
+                        <div class="tx-compare-step">
+                            <p class="tx-step-label">1. Choose Locations and Year</p>
+                            <div class="tx-compare-controls" aria-label="Texas regional comparison controls">
+                                <div class="tx-compare-control-group">
+                                    <label for="compareLeftSelect">Location A</label>
+                                    <select id="compareLeftSelect" aria-label="Select first Texas county or MSA"></select>
+                                </div>
+                                <div class="tx-compare-control-group">
+                                    <label for="compareRightSelect">Location B</label>
+                                    <select id="compareRightSelect" aria-label="Select second Texas county or MSA"></select>
+                                </div>
+                                <div class="tx-compare-control-group">
+                                    <label for="compareYearSelect">Year</label>
+                                    <select id="compareYearSelect" aria-label="Select year for comparison"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tx-compare-step">
+                            <p class="tx-step-label">2. Pick an Indicator</p>
+                            <div class="tx-category-nav" aria-label="Comparison categories">
+                                <button class="tx-category-btn active" data-category="smoking">Adult Smoking</button>
+                                <button class="tx-category-btn" data-category="obesity">Adult Obesity</button>
+                                <button class="tx-category-btn" data-category="mentalHealth">Mental Health Coverage</button>
+                                <button class="tx-category-btn" data-category="primaryCare">Primary Care Physicians</button>
+                                <button class="tx-category-btn" data-category="prematureDeath">Premature Death</button>
+                                <button class="tx-category-btn" data-category="poorHealth">Poor or Fair Health</button>
+                                <button class="tx-category-btn" data-category="teenBirth">Teen Birth (/1,000)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p id="txCompareSummary" class="tx-compare-summary">Compare two Texas counties or metro areas across key health and wellbeing indicators.</p>
+
+                    <div class="charts tx-compare-charts">
+                        <div class="chart-card">
+                            <h3 id="txCompareCountyTitle">County Breakdown</h3>
+                            <canvas id="txCompareCountyChart" role="img" aria-label="County-level comparison chart for selected Texas metric"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3 id="txCompareTrendTitle">Trend Over Time</h3>
+                            <canvas id="txCompareTrendChart" role="img" aria-label="Trend chart over time for selected Texas metric"></canvas>
+                        </div>
+                        <div class="chart-card tx-map-card">
+                            <h3 id="txCompareMapTitle">Texas County Footprint</h3>
+                            <div class="tx-map-wrap">
+                                <div class="tx-map-pane">
+                                    <p id="txCompareMapLeftLabel" class="tx-map-pane-label">Location A</p>
+                                    <div class="tx-map" id="txCompareMapLeft" aria-label="Map for first selected location"></div>
+                                </div>
+                                <div class="tx-map-pane">
+                                    <p id="txCompareMapRightLabel" class="tx-map-pane-label">Location B</p>
+                                    <div class="tx-map" id="txCompareMapRight" aria-label="Map for second selected location"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-section" style="margin-top: 16px;">
+                        <h3>County Detail Table</h3>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Location</th>
+                                        <th>County</th>
+                                        <th id="txCompareTableMetricLabel">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="txCompareTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Educational Attainment Tab -->
+            <div class="tab-content" id="regional-demographics">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas Regional Demographics Comparison</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Curated ACS-style regional profile</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="downloadRegionalDemoCsvBtn" class="ghost">Download CSV</button>
+                            <button id="downloadRegionalDemoPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-compare-toolbar" aria-label="Regional demographics comparison controls">
+                        <div class="demo-control-group">
+                            <label for="regionalDemoLeftSelect">Location A</label>
+                            <select id="regionalDemoLeftSelect" aria-label="Select first regional profile"></select>
+                        </div>
+                        <div class="demo-control-group">
+                            <label for="regionalDemoYearSelect">Year</label>
+                            <select id="regionalDemoYearSelect" aria-label="Select year for demographics comparison"></select>
+                        </div>
+                        <div class="demo-control-group">
+                            <label for="regionalDemoRightSelect">Location B</label>
+                            <select id="regionalDemoRightSelect" aria-label="Select second regional profile"></select>
+                        </div>
+                    </div>
+
+                    <p id="regionalDemographicsSummary" class="demo-compare-summary">Compare two Texas metro areas across age structure, race composition, veteran share, and Hispanic share.</p>
+
+                    <div class="demo-compare-highlights">
+                        <article class="demo-location-card demo-left">
+                            <p class="demo-location-eyebrow">Location A</p>
+                            <h3 id="regionalDemoLeftTitle" class="demo-location-title">Tyler, TX Metro Area</h3>
+                            <div class="demo-stat-grid">
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Population</span>
+                                    <strong id="regionalDemoLeftPopulation">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Median Age</span>
+                                    <strong id="regionalDemoLeftMedianAge">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Veteran Share</span>
+                                    <strong id="regionalDemoLeftVeteran">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Hispanic Share</span>
+                                    <strong id="regionalDemoLeftHispanic">-</strong>
+                                </div>
+                            </div>
+                        </article>
+
+                        <article class="demo-location-card demo-right">
+                            <p class="demo-location-eyebrow">Location B</p>
+                            <h3 id="regionalDemoRightTitle" class="demo-location-title">Dallas-Fort Worth-Arlington, TX Metro Area</h3>
+                            <div class="demo-stat-grid">
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Population</span>
+                                    <strong id="regionalDemoRightPopulation">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Median Age</span>
+                                    <strong id="regionalDemoRightMedianAge">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Veteran Share</span>
+                                    <strong id="regionalDemoRightVeteran">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Hispanic Share</span>
+                                    <strong id="regionalDemoRightHispanic">-</strong>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div class="demo-compare-grid">
+                        <div class="chart-card demo-chart-card demo-age-card">
+                            <h3>Age Distribution</h3>
+                            <p class="demo-card-note">Population pyramid style comparison using estimated resident counts.</p>
+                            <div class="demo-chart-frame">
+                                <canvas id="regionalDemoAgeChart" role="img" aria-label="Age distribution comparison chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card demo-chart-card demo-community-card">
+                            <h3>Community Profile Shares</h3>
+                            <p class="demo-card-note">Selected percentage-based indicators for each metro area.</p>
+                            <div class="demo-chart-frame small">
+                                <canvas id="regionalDemoCommunityChart" role="img" aria-label="Community profile comparison chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card demo-chart-card demo-race-card">
+                            <h3>Race Composition</h3>
+                            <p class="demo-card-note">Share of total population by race grouping. Hispanic share is shown separately above because it spans race categories.</p>
+                            <div class="demo-chart-frame medium">
+                                <canvas id="regionalDemoRaceChart" role="img" aria-label="Race composition comparison chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="demo-note muted">Source: curated regional demographic profile for dashboard comparison. Values are provided for visual comparison and do not replace official Census tables.</p>
+                </section>
+            </div>
+
+            <!-- Educational Attainment Tab -->
+            <div class="tab-content" id="edu-attainment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Educational Attainment by Race &amp; Ethnicity</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">ACS 5-Year Estimates &mdash; Population 25+</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareEduBtn" class="ghost" title="Share chart" aria-label="Share educational attainment chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadEduCsvBtn" class="ghost">Download CSV</button>
+                            <button id="downloadEduPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+
+                    <div class="edu-controls">
+                        <div class="edu-control-group">
+                            <label for="eduLeftSelect">Location A</label>
+                            <select id="eduLeftSelect" aria-label="Select first metro area"></select>
+                        </div>
+                        <div class="edu-control-group">
+                            <label for="eduYearSelect">Year</label>
+                            <select id="eduYearSelect" aria-label="Select ACS year"></select>
+                        </div>
+                        <div class="edu-control-group">
+                            <label for="eduRightSelect">Location B</label>
+                            <select id="eduRightSelect" aria-label="Select second metro area"></select>
+                        </div>
+                    </div>
+
+                    <div class="edu-charts-grid">
+                        <div class="edu-chart-wrap">
+                            <h3 id="eduLeftTitle" class="edu-chart-title">Location A</h3>
+                            <p class="edu-chart-subtitle">Educational Attainment by Race and Ethnicity</p>
+                            <div class="edu-chart-container">
+                                <canvas id="eduLeftChart" role="img" aria-label="Educational attainment stacked bar chart for Location A"></canvas>
+                            </div>
+                        </div>
+                        <div class="edu-chart-wrap">
+                            <h3 id="eduRightTitle" class="edu-chart-title">Location B</h3>
+                            <p class="edu-chart-subtitle">Educational Attainment by Race and Ethnicity</p>
+                            <div class="edu-chart-container">
+                                <canvas id="eduRightChart" role="img" aria-label="Educational attainment stacked bar chart for Location B"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="edu-legend" aria-label="Education level legend">
+                        <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#002F6C;"></span>Bachelor&apos;s degree or higher</div>
+                        <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#4A9EE8;"></span>High School Diploma</div>
+                        <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#193C5A;"></span>No High School Diploma</div>
+                        <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#5C8F66;"></span>Some College or Associate&apos;s</div>
+                    </div>
+
+                    <p class="edu-note muted">Source: U.S. Census Bureau, American Community Survey (ACS) 5-Year Estimates. Population 25 years and older.</p>
+                </section>
+            </div>
+
         </main>
 
         <footer>
@@ -410,9 +692,11 @@
 
     <script src="../data/definitions/employment-data.js"></script>
     <script src="../data/definitions/revenue-data.js"></script>
+    <script src="../data/definitions/education-data.js"></script>
+    <script src="../data/definitions/demographics-data.js"></script>
     <script src="./js/excel-loader.js" defer></script>
     <script src="./js/tax-chart.js" defer></script>
-    <script src="../src/js/dashboard.js?v=40" defer></script>
+    <script src="../src/js/dashboard.js?v=43" defer></script>
 </body>
 </html>
 
