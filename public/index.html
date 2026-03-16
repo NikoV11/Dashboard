@@ -168,6 +168,7 @@
             <div class="sub-tabs-container" id="regional-comparison-tabs">
                 <nav class="sub-tab-nav" aria-label="Regional comparison sections">
                     <button class="sub-tab-btn active" data-tab="tx-compare">Texas County/MSA Compare</button>
+                    <button class="sub-tab-btn" data-tab="regional-employment">Regional Employment Comparison</button>
                     <button class="sub-tab-btn" data-tab="regional-demographics">Demographics Comparison</button>
                     <button class="sub-tab-btn" data-tab="edu-attainment">Educational Attainment</button>
                 </nav>
@@ -619,6 +620,55 @@
                 </section>
             </div>
 
+            <div class="tab-content" id="regional-employment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas Regional Employment Comparison</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Counties and Metro Areas</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="downloadRegionalEmploymentCsvBtn" class="ghost">Download CSV</button>
+                            <button id="downloadRegionalEmploymentPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+
+                    <div class="tx-compare-controls" aria-label="Regional employment comparison controls">
+                        <div class="tx-compare-control-group">
+                            <label for="regionalEmploymentLeftSelect">Location A</label>
+                            <select id="regionalEmploymentLeftSelect" aria-label="Select first Texas region"></select>
+                        </div>
+                        <div class="tx-compare-control-group">
+                            <label for="regionalEmploymentYearSelect">Year</label>
+                            <select id="regionalEmploymentYearSelect" aria-label="Select year for employment comparison"></select>
+                        </div>
+                        <div class="tx-compare-control-group">
+                            <label for="regionalEmploymentRightSelect">Location B</label>
+                            <select id="regionalEmploymentRightSelect" aria-label="Select second Texas region"></select>
+                        </div>
+                    </div>
+
+                    <p id="regionalEmploymentSummary" class="tx-compare-summary">Compare labor market conditions and industry structure between two Texas regions.</p>
+
+                    <div class="charts tx-compare-charts">
+                        <div class="chart-card">
+                            <h3 id="regionalEmploymentRatesTitle">Labor Market Rates</h3>
+                            <canvas id="regionalEmploymentRatesChart" role="img" aria-label="Comparison of unemployment and labor force participation rates"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3 id="regionalEmploymentWagesTitle">Annual Average Weekly Wages by Industry</h3>
+                            <canvas id="regionalEmploymentWagesChart" role="img" aria-label="Comparison of annual average weekly wages by industry"></canvas>
+                        </div>
+                        <div class="chart-card regional-employment-wide">
+                            <h3 id="regionalEmploymentIndustryTitle">Annual Average Employment by Industry</h3>
+                            <canvas id="regionalEmploymentIndustryChart" role="img" aria-label="Comparison of annual average employment by industry"></canvas>
+                        </div>
+                    </div>
+
+                    <p class="muted" style="font-size: 0.9rem; margin-top: 4px;">Source: curated regional labor profile aligned to Texas county and MSA comparison controls.</p>
+                </section>
+            </div>
+
             <!-- Educational Attainment Tab -->
             <div class="tab-content" id="edu-attainment">
                 <section class="card">
@@ -694,6 +744,7 @@
     <script src="../data/definitions/revenue-data.js"></script>
     <script src="../data/definitions/education-data.js"></script>
     <script src="../data/definitions/demographics-data.js"></script>
+    <script src="../data/definitions/regional-employment-data.js"></script>
     <script src="./js/excel-loader.js" defer></script>
     <script src="./js/tax-chart.js" defer></script>
     <script src="../src/js/dashboard.js?v=43" defer></script>
