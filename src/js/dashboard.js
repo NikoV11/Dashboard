@@ -212,6 +212,25 @@ const regionalEmploymentState = {
     year: 2024
 };
 
+const REGIONAL_EMPLOYMENT_INDUSTRIES = [
+    'Natural Resources & Mining',
+    'Construction',
+    'Manufacturing',
+    'Trade, Transportation & Utilities',
+    'Professional & Business Services',
+    'Education & Health Services',
+    'Leisure & Hospitality',
+    'Government'
+];
+
+const regionalEmploymentApiState = {
+    requestedYear: null,
+    dataYear: null,
+    ready: false,
+    loadError: '',
+    recordsByCountyKey: new Map()
+};
+
 // NBER Recession Periods (Peak to Trough)
 const RECESSION_PERIODS = [
     { start: '1857-06-01', end: '1858-12-01' },
@@ -312,15 +331,6 @@ function getRecessionAnnotations(dataLabels, isQuarterly = false) {
 
 // Validate that required data files are loaded
 function validateDataSources() {
-    const missing = [];
-    if (typeof REVENUE_DATA === 'undefined') missing.push('revenue-data.js');
-    if (typeof REGIONAL_EMPLOYMENT_DATA === 'undefined') missing.push('regional-employment-data.js');
-    
-    if (missing.length > 0) {
-        setStatus(`Error: Missing data files - ${missing.join(', ')}`, 'error');
-        console.error('Missing required data files:', missing);
-        return false;
-    }
     return true;
 }
 
@@ -583,8 +593,73 @@ const regionalDemographicsState = {
     year: 2024
 };
 
+const REGIONAL_COMPARISON_DEFAULT_YEARS = [2019, 2020, 2021, 2022, 2023, 2024];
+
+const REGIONAL_DEMOGRAPHICS_DEFAULT_AGE_GROUPS = [
+    { key: 'under18', label: 'Under 18' },
+    { key: 'age18to24', label: '18 to 24' },
+    { key: 'age25to34', label: '25 to 34' },
+    { key: 'age35to44', label: '35 to 44' },
+    { key: 'age45to54', label: '45 to 54' },
+    { key: 'age55to64', label: '55 to 64' },
+    { key: 'age65to74', label: '65 to 74' },
+    { key: 'age75plus', label: '75 and over' }
+];
+
+const REGIONAL_DEMOGRAPHICS_DEFAULT_RACE_GROUPS = [
+    { key: 'white', label: 'White', color: '#4E8446' },
+    { key: 'black', label: 'Black', color: '#9CD4DC' },
+    { key: 'asian', label: 'Asian', color: '#4A90E2' },
+    { key: 'other', label: 'Other / Multiracial', color: '#BEDFB5' }
+];
+
+const regionalDemographicsApiState = {
+    ready: false,
+    loadError: '',
+    years: [...REGIONAL_COMPARISON_DEFAULT_YEARS],
+    locations: [],
+    ageGroups: [...REGIONAL_DEMOGRAPHICS_DEFAULT_AGE_GROUPS],
+    raceGroups: [...REGIONAL_DEMOGRAPHICS_DEFAULT_RACE_GROUPS],
+    data: {}
+};
+
+async function loadRegionalDemographicsApiData() {
+    regionalDemographicsApiState.ready = false;
+    regionalDemographicsApiState.loadError = '';
+
+    try {
+        const yearsParam = REGIONAL_COMPARISON_DEFAULT_YEARS.join(',');
+        const payload = await fetchTexasCompareJson(`/api/tx-regional-demographics?years=${encodeURIComponent(yearsParam)}`);
+
+        regionalDemographicsApiState.years = Array.isArray(payload?.years) && payload.years.length
+            ? payload.years.map((year) => Number(year)).filter((year) => Number.isFinite(year)).sort((a, b) => a - b)
+            : [...REGIONAL_COMPARISON_DEFAULT_YEARS];
+        regionalDemographicsApiState.locations = Array.isArray(payload?.locations) ? payload.locations : [];
+        regionalDemographicsApiState.ageGroups = Array.isArray(payload?.ageGroups) && payload.ageGroups.length
+            ? payload.ageGroups
+            : [...REGIONAL_DEMOGRAPHICS_DEFAULT_AGE_GROUPS];
+        regionalDemographicsApiState.raceGroups = Array.isArray(payload?.raceGroups) && payload.raceGroups.length
+            ? payload.raceGroups
+            : [...REGIONAL_DEMOGRAPHICS_DEFAULT_RACE_GROUPS];
+        regionalDemographicsApiState.data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+
+        regionalDemographicsApiState.ready = regionalDemographicsApiState.locations.length > 0;
+        if (!regionalDemographicsApiState.ready) {
+            regionalDemographicsApiState.loadError = 'Regional demographics API returned no locations.';
+        }
+    } catch (error) {
+        regionalDemographicsApiState.years = [...REGIONAL_COMPARISON_DEFAULT_YEARS];
+        regionalDemographicsApiState.locations = [];
+        regionalDemographicsApiState.ageGroups = [...REGIONAL_DEMOGRAPHICS_DEFAULT_AGE_GROUPS];
+        regionalDemographicsApiState.raceGroups = [...REGIONAL_DEMOGRAPHICS_DEFAULT_RACE_GROUPS];
+        regionalDemographicsApiState.data = {};
+        regionalDemographicsApiState.ready = false;
+        regionalDemographicsApiState.loadError = error?.message || 'Failed to load regional demographics API data.';
+    }
+}
+
 function getRegionalDemographicsRecord(location, year) {
-    return DEMOGRAPHICS_DATA?.data?.[location]?.[year] || null;
+    return regionalDemographicsApiState.data?.[location]?.[year] || null;
 }
 
 function formatRegionalPopulation(value) {
@@ -604,7 +679,7 @@ function formatRegionalPercent(value) {
                 return;
             }
 
-            const fallback = DEMOGRAPHICS_DATA.locations.find((location) => location !== regionalDemographicsState.leftLocation);
+            const fallback = regionalDemographicsApiState.locations.find((location) => location !== regionalDemographicsState.leftLocation);
             if (!fallback) {
                 return;
             }
@@ -634,10 +709,6 @@ function formatRegionalPercent(value) {
         }
 
         function renderRegionalDemographics() {
-            if (typeof DEMOGRAPHICS_DATA === 'undefined') {
-                return;
-            }
-
             const leftLocation = regionalDemographicsState.leftLocation;
             const rightLocation = regionalDemographicsState.rightLocation;
             const year = regionalDemographicsState.year;
@@ -647,7 +718,9 @@ function formatRegionalPercent(value) {
 
             if (!leftRecord || !rightRecord) {
                 if (summaryEl) {
-                    summaryEl.textContent = 'Demographics data is unavailable for the selected comparison.';
+                    summaryEl.textContent = regionalDemographicsApiState.loadError
+                        ? `Demographics data is unavailable: ${regionalDemographicsApiState.loadError}`
+                        : 'Demographics data is unavailable for the selected comparison.';
                 }
                 return;
             }
@@ -661,7 +734,7 @@ function formatRegionalPercent(value) {
                 summaryEl.textContent = `${leftLocation} vs ${rightLocation} (${year}). ${largerLabel} has the larger resident base, while the panels below compare age structure, race composition, veteran share, and Hispanic share.`;
             }
 
-            const ageGroups = [...DEMOGRAPHICS_DATA.ageGroups].reverse();
+            const ageGroups = [...regionalDemographicsApiState.ageGroups].reverse();
             const ageLabels = ageGroups.map((group) => group.label);
             const leftAgeShares = ageGroups.map((group) => {
                 const share = Number(leftRecord.ageDistribution[group.key] || 0);
@@ -792,7 +865,7 @@ function formatRegionalPercent(value) {
                 type: 'bar',
                 data: {
                     labels: raceLabels,
-                    datasets: DEMOGRAPHICS_DATA.raceGroups.map((group) => ({
+                    datasets: regionalDemographicsApiState.raceGroups.map((group) => ({
                         label: group.label,
                         data: [leftRecord.raceComposition[group.key], rightRecord.raceComposition[group.key]],
                         backgroundColor: group.color,
@@ -860,11 +933,11 @@ function formatRegionalPercent(value) {
                 rows.push(`"${location}",${year},Summary,Veteran Share,${record.veteranShare}`);
                 rows.push(`"${location}",${year},Summary,Hispanic Share,${record.hispanicShare}`);
 
-                DEMOGRAPHICS_DATA.ageGroups.forEach((group) => {
+                regionalDemographicsApiState.ageGroups.forEach((group) => {
                     rows.push(`"${location}",${year},Age Distribution,${group.label},${record.ageDistribution[group.key]}`);
                 });
 
-                DEMOGRAPHICS_DATA.raceGroups.forEach((group) => {
+                regionalDemographicsApiState.raceGroups.forEach((group) => {
                     rows.push(`"${location}",${year},Race Composition,${group.label},${record.raceComposition[group.key]}`);
                 });
             });
@@ -897,12 +970,7 @@ function formatRegionalPercent(value) {
             );
         }
 
-        function initRegionalDemographics() {
-            if (typeof DEMOGRAPHICS_DATA === 'undefined') {
-                console.warn('[Demographics] DEMOGRAPHICS_DATA not loaded');
-                return;
-            }
-
+        async function initRegionalDemographics() {
             const leftSelect = document.getElementById('regionalDemoLeftSelect');
             const rightSelect = document.getElementById('regionalDemoRightSelect');
             const yearSelect = document.getElementById('regionalDemoYearSelect');
@@ -911,24 +979,31 @@ function formatRegionalPercent(value) {
                 return;
             }
 
-            const locationOptions = DEMOGRAPHICS_DATA.locations
+            await loadRegionalDemographicsApiData();
+
+            if (!regionalDemographicsApiState.locations.length) {
+                renderRegionalDemographics();
+                return;
+            }
+
+            const locationOptions = regionalDemographicsApiState.locations
                 .map((location) => `<option value="${location}">${location}</option>`)
                 .join('');
             leftSelect.innerHTML = locationOptions;
             rightSelect.innerHTML = locationOptions;
-            yearSelect.innerHTML = [...DEMOGRAPHICS_DATA.years]
+            yearSelect.innerHTML = [...regionalDemographicsApiState.years]
                 .reverse()
                 .map((year) => `<option value="${year}">${year}</option>`)
                 .join('');
 
-            if (!DEMOGRAPHICS_DATA.locations.includes(regionalDemographicsState.leftLocation)) {
-                regionalDemographicsState.leftLocation = DEMOGRAPHICS_DATA.locations[0];
+            if (!regionalDemographicsApiState.locations.includes(regionalDemographicsState.leftLocation)) {
+                regionalDemographicsState.leftLocation = regionalDemographicsApiState.locations[0];
             }
-            if (!DEMOGRAPHICS_DATA.locations.includes(regionalDemographicsState.rightLocation)) {
-                regionalDemographicsState.rightLocation = DEMOGRAPHICS_DATA.locations[1] || DEMOGRAPHICS_DATA.locations[0];
+            if (!regionalDemographicsApiState.locations.includes(regionalDemographicsState.rightLocation)) {
+                regionalDemographicsState.rightLocation = regionalDemographicsApiState.locations[1] || regionalDemographicsApiState.locations[0];
             }
-            if (!DEMOGRAPHICS_DATA.years.includes(regionalDemographicsState.year)) {
-                regionalDemographicsState.year = DEMOGRAPHICS_DATA.years[DEMOGRAPHICS_DATA.years.length - 1];
+            if (!regionalDemographicsApiState.years.includes(regionalDemographicsState.year)) {
+                regionalDemographicsState.year = regionalDemographicsApiState.years[regionalDemographicsApiState.years.length - 1];
             }
 
             leftSelect.value = regionalDemographicsState.leftLocation;
@@ -959,113 +1034,154 @@ function formatRegionalPercent(value) {
         }
 
 function getRegionalEmploymentLocations() {
-    const curatedLocations = Array.isArray(REGIONAL_EMPLOYMENT_DATA?.locations)
-        ? REGIONAL_EMPLOYMENT_DATA.locations
-        : [];
-
-    const mergedLocations = [...curatedLocations];
-    const seenIds = new Set(curatedLocations.map((location) => location.id));
-
-    // Reuse the Texas compare location registry so all Texas counties are available here.
-    getTxLocations()
-        .filter((location) => location.type === 'County')
-        .forEach((location) => {
-            if (!seenIds.has(location.id)) {
-                mergedLocations.push({
-                    id: location.id,
-                    name: location.name,
-                    type: 'County'
-                });
-            }
-        });
-
-    return mergedLocations;
+    return getTxLocations().map((location) => ({
+        id: location.id,
+        name: location.name,
+        type: location.type
+    }));
 }
 
 function getRegionalEmploymentLocationById(locationId) {
     return getRegionalEmploymentLocations().find((location) => location.id === locationId) || null;
 }
 
-function getRegionalEmploymentRecord(locationId, year) {
-    const directRecord = REGIONAL_EMPLOYMENT_DATA?.data?.[locationId]?.[year] || null;
-    if (directRecord) {
-        return {
-            ...directRecord,
-            isEstimated: false
-        };
+function getRegionalEmploymentCountyNames(location) {
+    if (!location) {
+        return [];
     }
 
-    const location = getRegionalEmploymentLocationById(locationId);
-    if (!location || location.type !== 'County') {
-        return null;
+    const txLocation = getTxLocationById(location.id);
+    if (txLocation?.countyNames?.length) {
+        return txLocation.countyNames;
     }
 
-    return buildRegionalEmploymentEstimatedRecord(locationId, year);
+    if (location.type === 'County') {
+        const countyName = String(location.name || '')
+            .replace(/\s+County,\s*TX$/i, '')
+            .replace(/,\s*TX$/i, '')
+            .trim();
+        return countyName ? [countyName] : [];
+    }
+
+    return [];
 }
 
-function buildRegionalEmploymentEstimatedRecord(locationId, year) {
-    const industries = Array.isArray(REGIONAL_EMPLOYMENT_DATA?.industries)
-        ? REGIONAL_EMPLOYMENT_DATA.industries
-        : [];
-
-    if (!industries.length) {
+function aggregateRegionalEmploymentRecords(records) {
+    if (!Array.isArray(records) || records.length === 0) {
         return null;
     }
 
-    const countyLocationIds = (Array.isArray(REGIONAL_EMPLOYMENT_DATA?.locations) ? REGIONAL_EMPLOYMENT_DATA.locations : [])
-        .filter((location) => location.type === 'County')
-        .map((location) => location.id);
-
-    const countyYearRecords = countyLocationIds
-        .map((countyId) => REGIONAL_EMPLOYMENT_DATA?.data?.[countyId]?.[year])
-        .filter(Boolean);
-
-    if (!countyYearRecords.length) {
-        return null;
-    }
+    const industries = REGIONAL_EMPLOYMENT_INDUSTRIES;
 
     const average = (values) => {
         const clean = values.filter((value) => Number.isFinite(value));
         if (!clean.length) {
             return null;
         }
+
         return clean.reduce((sum, value) => sum + value, 0) / clean.length;
     };
 
-    const seed = String(locationId).split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    const rateShift = ((seed % 11) - 5) * 0.12;
-    const wageScale = 0.9 + ((seed % 21) / 100);
-    const employmentScale = 0.88 + (((seed * 3) % 25) / 100);
-
-    const unemploymentBase = average(countyYearRecords.map((record) => Number(record.unemploymentRate)));
-    const participationBase = average(countyYearRecords.map((record) => Number(record.laborForceParticipationRate)));
-
-    const weeklyWages = {};
     const industryEmployment = {};
+    const weeklyWages = {};
 
     industries.forEach((industry) => {
-        const wageBase = average(countyYearRecords.map((record) => Number(record.weeklyWages?.[industry])));
-        const employmentBase = average(countyYearRecords.map((record) => Number(record.industryEmployment?.[industry])));
+        const employmentTotal = records.reduce((sum, record) => {
+            const value = Number(record?.industryEmployment?.[industry]);
+            return sum + (Number.isFinite(value) ? value : 0);
+        }, 0);
 
-        weeklyWages[industry] = Number.isFinite(wageBase)
-            ? Math.round(wageBase * wageScale)
-            : null;
-        industryEmployment[industry] = Number.isFinite(employmentBase)
-            ? Math.round(employmentBase * employmentScale)
-            : null;
+        industryEmployment[industry] = employmentTotal > 0 ? Math.round(employmentTotal) : null;
+
+        const weightedWage = records.reduce((state, record) => {
+            const employment = Number(record?.industryEmployment?.[industry]);
+            const wage = Number(record?.weeklyWages?.[industry]);
+
+            if (Number.isFinite(employment) && employment > 0 && Number.isFinite(wage)) {
+                state.weighted += wage * employment;
+                state.weight += employment;
+                return state;
+            }
+
+            if (Number.isFinite(wage)) {
+                state.simple += wage;
+                state.simpleCount += 1;
+            }
+
+            return state;
+        }, {
+            weighted: 0,
+            weight: 0,
+            simple: 0,
+            simpleCount: 0
+        });
+
+        if (weightedWage.weight > 0) {
+            weeklyWages[industry] = Math.round(weightedWage.weighted / weightedWage.weight);
+        } else if (weightedWage.simpleCount > 0) {
+            weeklyWages[industry] = Math.round(weightedWage.simple / weightedWage.simpleCount);
+        } else {
+            weeklyWages[industry] = null;
+        }
     });
 
-    if (!Number.isFinite(unemploymentBase) || !Number.isFinite(participationBase)) {
-        return null;
-    }
-
     return {
-        unemploymentRate: Math.max(2.5, Math.min(12, unemploymentBase + rateShift)),
-        laborForceParticipationRate: Math.max(48, Math.min(76, participationBase - (rateShift * 1.4))),
+        unemploymentRate: average(records.map((record) => Number(record?.unemploymentRate))),
+        laborForceParticipationRate: average(records.map((record) => Number(record?.laborForceParticipationRate))),
         weeklyWages,
         industryEmployment,
-        isEstimated: true
+        isEstimated: false
     };
+}
+
+async function loadRegionalEmploymentApiData(year) {
+    regionalEmploymentApiState.ready = false;
+    regionalEmploymentApiState.loadError = '';
+    regionalEmploymentApiState.requestedYear = year;
+
+    try {
+        const payload = await fetchTexasCompareJson(`/api/tx-regional-employment?year=${encodeURIComponent(year)}`);
+        const records = Array.isArray(payload?.records) ? payload.records : [];
+        const recordsByCountyKey = new Map();
+
+        records.forEach((record) => {
+            const key = normalizeCountyName(record?.county || record?.countyKey);
+            if (!key) {
+                return;
+            }
+
+            recordsByCountyKey.set(key, record);
+        });
+
+        regionalEmploymentApiState.recordsByCountyKey = recordsByCountyKey;
+        regionalEmploymentApiState.dataYear = Number(payload?.dataYear) || year;
+        regionalEmploymentApiState.ready = recordsByCountyKey.size > 0;
+        regionalEmploymentApiState.loadError = regionalEmploymentApiState.ready
+            ? ''
+            : 'Regional employment API returned no county records.';
+    } catch (error) {
+        regionalEmploymentApiState.recordsByCountyKey = new Map();
+        regionalEmploymentApiState.dataYear = null;
+        regionalEmploymentApiState.ready = false;
+        regionalEmploymentApiState.loadError = error?.message || 'Failed to load regional employment API data.';
+    }
+}
+
+function getRegionalEmploymentRecord(locationId, year) {
+    const location = getRegionalEmploymentLocationById(locationId);
+    if (location) {
+        const countyNames = getRegionalEmploymentCountyNames(location);
+        const countyRecords = countyNames
+            .map((countyName) => regionalEmploymentApiState.recordsByCountyKey.get(normalizeCountyName(countyName)))
+            .filter(Boolean);
+
+        const aggregated = aggregateRegionalEmploymentRecords(countyRecords);
+        if (aggregated) {
+            return aggregated;
+        }
+    }
+
+    return null;
 }
 
 function ensureDistinctRegionalEmploymentSelections(changedSide) {
@@ -1112,7 +1228,7 @@ function formatRegionalEmploymentCompactNumber(value) {
 
 function renderRegionalEmploymentComparison() {
     const section = document.getElementById('regional-employment');
-    if (!section || typeof REGIONAL_EMPLOYMENT_DATA === 'undefined') {
+    if (!section) {
         return;
     }
 
@@ -1128,30 +1244,32 @@ function renderRegionalEmploymentComparison() {
 
     if (!leftLocation || !rightLocation || !leftRecord || !rightRecord) {
         if (summaryEl) {
-            summaryEl.textContent = 'Employment comparison data is unavailable for the selected locations and year.';
+            summaryEl.textContent = regionalEmploymentApiState.loadError
+                ? `Employment comparison data is unavailable: ${regionalEmploymentApiState.loadError}`
+                : 'Employment comparison data is unavailable for the selected locations and year.';
         }
         return;
     }
 
+    const chartYear = regionalEmploymentApiState.dataYear || regionalEmploymentState.year;
+
     if (summaryEl) {
-        const estimateNotice = (leftRecord.isEstimated || rightRecord.isEstimated)
-            ? ' Some county profiles are estimated using county-baseline patterns when direct records are unavailable.'
+        const yearNote = chartYear !== regionalEmploymentState.year
+            ? ` Displaying latest available Census year (${chartYear}) for selected year ${regionalEmploymentState.year}.`
             : '';
-        summaryEl.textContent = `${leftLocation.name} vs ${rightLocation.name} (${regionalEmploymentState.year}). Compare unemployment, labor force participation, annual average weekly wages by industry, and annual average employment by industry.${estimateNotice}`;
+        summaryEl.textContent = `${leftLocation.name} vs ${rightLocation.name} (${chartYear}). Compare unemployment, labor force participation, annual average weekly wages by industry, and annual average employment by industry.${yearNote}`;
     }
     if (ratesTitleEl) {
-        ratesTitleEl.textContent = `Labor Market Rates (${regionalEmploymentState.year})`;
+        ratesTitleEl.textContent = `Labor Market Rates (${chartYear})`;
     }
     if (wagesTitleEl) {
-        wagesTitleEl.textContent = `Annual Average Weekly Wages by Industry (${regionalEmploymentState.year})`;
+        wagesTitleEl.textContent = `Annual Average Weekly Wages by Industry (${chartYear})`;
     }
     if (industryTitleEl) {
-        industryTitleEl.textContent = `Annual Average Employment by Industry (${regionalEmploymentState.year})`;
+        industryTitleEl.textContent = `Annual Average Employment by Industry (${chartYear})`;
     }
 
-    const industryLabels = Array.isArray(REGIONAL_EMPLOYMENT_DATA.industries)
-        ? REGIONAL_EMPLOYMENT_DATA.industries
-        : [];
+    const industryLabels = REGIONAL_EMPLOYMENT_INDUSTRIES;
 
     const leftWages = industryLabels.map((industry) => Number(leftRecord.weeklyWages?.[industry]));
     const rightWages = industryLabels.map((industry) => Number(rightRecord.weeklyWages?.[industry]));
@@ -1318,12 +1436,7 @@ function renderRegionalEmploymentComparison() {
     });
 }
 
-function initRegionalEmploymentComparison() {
-    if (typeof REGIONAL_EMPLOYMENT_DATA === 'undefined') {
-        console.warn('[RegionalEmployment] REGIONAL_EMPLOYMENT_DATA not loaded');
-        return;
-    }
-
+async function initRegionalEmploymentComparison() {
     const leftSelect = document.getElementById('regionalEmploymentLeftSelect');
     const rightSelect = document.getElementById('regionalEmploymentRightSelect');
     const yearSelect = document.getElementById('regionalEmploymentYearSelect');
@@ -1331,6 +1444,8 @@ function initRegionalEmploymentComparison() {
     if (!leftSelect || !rightSelect || !yearSelect) {
         return;
     }
+
+    await loadRegionalEmploymentApiData(regionalEmploymentState.year);
 
     populateRegionalEmploymentControls();
 
@@ -1346,8 +1461,9 @@ function initRegionalEmploymentComparison() {
         renderRegionalEmploymentComparison();
     });
 
-    yearSelect.addEventListener('change', (event) => {
+    yearSelect.addEventListener('change', async (event) => {
         regionalEmploymentState.year = Number(event.target.value) || regionalEmploymentState.year;
+        await loadRegionalEmploymentApiData(regionalEmploymentState.year);
         renderRegionalEmploymentComparison();
     });
 
@@ -1359,7 +1475,7 @@ function populateRegionalEmploymentControls() {
     const rightSelect = document.getElementById('regionalEmploymentRightSelect');
     const yearSelect = document.getElementById('regionalEmploymentYearSelect');
 
-    if (!leftSelect || !rightSelect || !yearSelect || typeof REGIONAL_EMPLOYMENT_DATA === 'undefined') {
+    if (!leftSelect || !rightSelect || !yearSelect) {
         return;
     }
 
@@ -1382,9 +1498,7 @@ function populateRegionalEmploymentControls() {
     leftSelect.innerHTML = locationOptions;
     rightSelect.innerHTML = locationOptions;
 
-    const years = Array.isArray(REGIONAL_EMPLOYMENT_DATA.years)
-        ? [...REGIONAL_EMPLOYMENT_DATA.years].sort((a, b) => b - a)
-        : [];
+    const years = [...TX_COMPARE_YEARS].sort((a, b) => b - a);
 
     yearSelect.innerHTML = years
         .map((year) => `<option value="${year}">${year}</option>`)
@@ -2349,7 +2463,14 @@ function renderEmploymentChart() {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
-    const empData = parseEmploymentData();
+    const empData = {
+        tyler: (employmentData || [])
+            .filter((point) => Number.isFinite(Number(point?.tyler)))
+            .map((point) => ({ date: point.date, value: Number(point.tyler) })),
+        texas: (employmentData || [])
+            .filter((point) => Number.isFinite(Number(point?.texas)))
+            .map((point) => ({ date: point.date, value: Number(point.texas) }))
+    };
     
     // Check if data is available before rendering
     if (!empData || (!empData.tyler || empData.tyler.length === 0) && (!empData.texas || empData.texas.length === 0)) {
@@ -3332,7 +3453,14 @@ function formatDateDisplay(dateStr) {
 }
 
 function handleEmploymentDownload() {
-    const empData = parseEmploymentData();
+    const empData = {
+        tyler: (employmentData || [])
+            .filter((point) => Number.isFinite(Number(point?.tyler)))
+            .map((point) => ({ date: point.date, value: Number(point.tyler) })),
+        texas: (employmentData || [])
+            .filter((point) => Number.isFinite(Number(point?.texas)))
+            .map((point) => ({ date: point.date, value: Number(point.texas) }))
+    };
     const { startDate, endDate } = getDateRange();
     
     const filteredTyler = empData.tyler.filter(d => {
@@ -4380,11 +4508,6 @@ function handleTexasMapGeoJsonDownload() {
 }
 
 function handleRegionalEmploymentDownload() {
-    if (typeof REGIONAL_EMPLOYMENT_DATA === 'undefined') {
-        alert('Regional employment data is not loaded yet.');
-        return;
-    }
-
     const leftLocation = getRegionalEmploymentLocationById(regionalEmploymentState.leftId);
     const rightLocation = getRegionalEmploymentLocationById(regionalEmploymentState.rightId);
     const year = regionalEmploymentState.year;
@@ -4396,9 +4519,7 @@ function handleRegionalEmploymentDownload() {
 
     const rows = ['Location,Type,Year,Section,Industry,Value,Unit'];
     const locations = [leftLocation, rightLocation];
-    const industries = Array.isArray(REGIONAL_EMPLOYMENT_DATA.industries)
-        ? REGIONAL_EMPLOYMENT_DATA.industries
-        : [];
+    const industries = REGIONAL_EMPLOYMENT_INDUSTRIES;
 
     locations.forEach((location) => {
         const record = getRegionalEmploymentRecord(location.id, year);
@@ -5069,30 +5190,71 @@ const EDU_LABELS = {
     someCollege:  "Some College or Associate's",
 };
 
-function initEducationCharts() {
-    if (typeof EDUCATION_DATA === 'undefined') {
-        console.warn('[Edu] EDUCATION_DATA not loaded');
-        return;
-    }
+const regionalEducationApiState = {
+    ready: false,
+    loadError: '',
+    locations: [],
+    years: [...REGIONAL_COMPARISON_DEFAULT_YEARS],
+    data: {}
+};
 
+async function loadEducationApiData() {
+    regionalEducationApiState.ready = false;
+    regionalEducationApiState.loadError = '';
+
+    try {
+        const yearsParam = REGIONAL_COMPARISON_DEFAULT_YEARS.join(',');
+        const payload = await fetchTexasCompareJson(`/api/tx-education-attainment?years=${encodeURIComponent(yearsParam)}`);
+
+        regionalEducationApiState.locations = Array.isArray(payload?.locations) ? payload.locations : [];
+        regionalEducationApiState.years = Array.isArray(payload?.years) && payload.years.length
+            ? payload.years.map((year) => Number(year)).filter((year) => Number.isFinite(year)).sort((a, b) => a - b)
+            : [...REGIONAL_COMPARISON_DEFAULT_YEARS];
+        regionalEducationApiState.data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+
+        regionalEducationApiState.ready = regionalEducationApiState.locations.length > 0;
+        if (!regionalEducationApiState.ready) {
+            regionalEducationApiState.loadError = 'Education API returned no locations.';
+        }
+    } catch (error) {
+        regionalEducationApiState.locations = [];
+        regionalEducationApiState.years = [...REGIONAL_COMPARISON_DEFAULT_YEARS];
+        regionalEducationApiState.data = {};
+        regionalEducationApiState.ready = false;
+        regionalEducationApiState.loadError = error?.message || 'Failed to load education API data.';
+    }
+}
+
+async function initEducationCharts() {
     const leftSel  = document.getElementById('eduLeftSelect');
     const rightSel = document.getElementById('eduRightSelect');
     const yearSel  = document.getElementById('eduYearSelect');
 
     if (!leftSel || !rightSel || !yearSel) return;
 
+    await loadEducationApiData();
+
+    if (!regionalEducationApiState.locations.length) {
+        console.warn('[Edu] Education API did not return locations:', regionalEducationApiState.loadError);
+        return;
+    }
+
+    leftSel.innerHTML = '';
+    rightSel.innerHTML = '';
+    yearSel.innerHTML = '';
+
     // Populate location dropdowns
-    EDUCATION_DATA.locations.forEach((loc, i) => {
+    regionalEducationApiState.locations.forEach((loc, i) => {
         const optA = new Option(loc, loc);
         const optB = new Option(loc, loc);
         leftSel.appendChild(optA);
         rightSel.appendChild(optB);
         if (i === 0) optA.selected = true;
-        if (i === 2) optB.selected = true; // default to DFW
+        if (i === 2) optB.selected = true;
     });
 
     // Populate year dropdown
-    [...EDUCATION_DATA.years].reverse().forEach((yr, i) => {
+    [...regionalEducationApiState.years].reverse().forEach((yr, i) => {
         const opt = new Option(yr, yr);
         if (i === 0) opt.selected = true;
         yearSel.appendChild(opt);
@@ -5118,7 +5280,7 @@ function initEducationCharts() {
 }
 
 function renderEducationCharts() {
-    if (typeof EDUCATION_DATA === 'undefined') return;
+    if (!regionalEducationApiState.ready) return;
 
     const leftLoc  = document.getElementById('eduLeftSelect')?.value;
     const rightLoc = document.getElementById('eduRightSelect')?.value;
@@ -5141,7 +5303,7 @@ function buildEduChart(canvasId, location, year, existingChart) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return existingChart;
 
-    const locData = EDUCATION_DATA.data[location]?.[year];
+    const locData = regionalEducationApiState.data?.[location]?.[year];
     if (!locData) {
         console.warn('[Edu] No data for', location, year);
         return existingChart;
@@ -5212,13 +5374,13 @@ function buildEduChart(canvasId, location, year, existingChart) {
 }
 
 function downloadEduCsv() {
-    if (typeof EDUCATION_DATA === 'undefined') return;
+    if (!regionalEducationApiState.ready) return;
 
     const year = parseInt(document.getElementById('eduYearSelect')?.value, 10);
     const rows = ['Location,Year,Race,Metric,Value'];
 
-    EDUCATION_DATA.locations.forEach(loc => {
-        const yearData = EDUCATION_DATA.data[loc]?.[year];
+    regionalEducationApiState.locations.forEach(loc => {
+        const yearData = regionalEducationApiState.data?.[loc]?.[year];
         if (!yearData) return;
         ['White', 'Hispanic', 'Black'].forEach(race => {
             const d = yearData[race];
@@ -5411,9 +5573,15 @@ function init() {
     wireEvents();
     setupTabs();
     setupShareButtons();
-    initRegionalEmploymentComparison();
-    initRegionalDemographics();
-    initEducationCharts();
+    initRegionalEmploymentComparison().catch((error) => {
+        console.error('Regional employment initialization failed:', error);
+    });
+    initRegionalDemographics().catch((error) => {
+        console.error('Regional demographics initialization failed:', error);
+    });
+    initEducationCharts().catch((error) => {
+        console.error('Education initialization failed:', error);
+    });
     initTexasComparison().catch((error) => {
         console.error('Texas comparison initialization failed:', error);
     });

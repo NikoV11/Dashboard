@@ -1116,6 +1116,24 @@ canvas { width: 100%; height: 340px; max-height: 380px; }
     margin-top: 4px;
 }
 
+.source-inline-links {
+    margin-top: 6px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+.source-inline-links a {
+    color: #0b5cab;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.source-inline-links a:hover,
+.source-inline-links a:focus-visible {
+    text-decoration: underline;
+}
+
 .table-wrapper {
     overflow-x: auto;
     border: 1px solid var(--border);
@@ -1160,6 +1178,21 @@ tbody tr:active {
     color: var(--muted);
     font-size: 0.9rem;
     line-height: 1.6;
+}
+
+.source-note p {
+    margin-top: 6px;
+}
+
+.source-note a {
+    color: #0b5cab;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.source-note a:hover,
+.source-note a:focus-visible {
+    text-decoration: underline;
 }
 
 footer {

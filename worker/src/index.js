@@ -14,6 +14,149 @@ const TEXAS_HEALTH_FILE_URLS = {
 const WORKBOOK_SHEET_NAME = 'Select Measure Data';
 const texasHealthCache = new Map();
 let countiesGeoJsonCache = null;
+const texasRegionalEmploymentCache = new Map();
+
+const CENSUS_SUBJECT_VARS = [
+    'NAME',
+    'S2301_C02_001E',
+    'S2301_C04_001E',
+    'S2403_C01_002E',
+    'S2403_C01_005E',
+    'S2403_C01_006E',
+    'S2403_C01_007E',
+    'S2403_C01_008E',
+    'S2403_C01_009E',
+    'S2403_C01_016E',
+    'S2403_C01_020E',
+    'S2403_C01_023E',
+    'S2403_C01_027E'
+];
+
+const CENSUS_EARNINGS_VARS = [
+    'NAME',
+    'B24031_002E',
+    'B24031_005E',
+    'B24031_006E',
+    'B24031_007E',
+    'B24031_008E',
+    'B24031_009E',
+    'B24031_016E',
+    'B24031_020E',
+    'B24031_023E',
+    'B24031_027E'
+];
+
+const CENSUS_INDUSTRY_CONFIG = [
+    {
+        label: 'Natural Resources & Mining',
+        employmentCodes: ['S2403_C01_002E'],
+        earningsCodes: ['B24031_002E']
+    },
+    {
+        label: 'Construction',
+        employmentCodes: ['S2403_C01_005E'],
+        earningsCodes: ['B24031_005E']
+    },
+    {
+        label: 'Manufacturing',
+        employmentCodes: ['S2403_C01_006E'],
+        earningsCodes: ['B24031_006E']
+    },
+    {
+        label: 'Trade, Transportation & Utilities',
+        employmentCodes: ['S2403_C01_007E', 'S2403_C01_008E', 'S2403_C01_009E'],
+        earningsCodes: ['B24031_007E', 'B24031_008E', 'B24031_009E']
+    },
+    {
+        label: 'Professional & Business Services',
+        employmentCodes: ['S2403_C01_016E'],
+        earningsCodes: ['B24031_016E']
+    },
+    {
+        label: 'Education & Health Services',
+        employmentCodes: ['S2403_C01_020E'],
+        earningsCodes: ['B24031_020E']
+    },
+    {
+        label: 'Leisure & Hospitality',
+        employmentCodes: ['S2403_C01_023E'],
+        earningsCodes: ['B24031_023E']
+    },
+    {
+        label: 'Government',
+        employmentCodes: ['S2403_C01_027E'],
+        earningsCodes: ['B24031_027E']
+    }
+];
+
+const TX_METRO_LOCATIONS = [
+    { code: '46340', name: 'Tyler, TX Metro Area' },
+    { code: '47380', name: 'Waco, TX Metro Area' },
+    { code: '19100', name: 'Dallas-Fort Worth-Arlington, TX Metro Area' },
+    { code: '26420', name: 'Houston-The Woodlands-Sugar Land, TX Metro Area' },
+    { code: '12420', name: 'Austin-Round Rock-Georgetown, TX Metro Area' },
+    { code: '41700', name: 'San Antonio-New Braunfels, TX Metro Area' },
+    { code: '30980', name: 'Longview, TX Metro Area' },
+    { code: '13140', name: 'Beaumont-Port Arthur, TX Metro Area' }
+];
+
+const REGIONAL_COMPARISON_YEARS = [2019, 2020, 2021, 2022, 2023, 2024];
+
+const REGIONAL_DEMOGRAPHICS_AGE_GROUPS = [
+    { key: 'under18', label: 'Under 18' },
+    { key: 'age18to24', label: '18 to 24' },
+    { key: 'age25to34', label: '25 to 34' },
+    { key: 'age35to44', label: '35 to 44' },
+    { key: 'age45to54', label: '45 to 54' },
+    { key: 'age55to64', label: '55 to 64' },
+    { key: 'age65to74', label: '65 to 74' },
+    { key: 'age75plus', label: '75 and over' }
+];
+
+const REGIONAL_DEMOGRAPHICS_RACE_GROUPS = [
+    { key: 'white', label: 'White', color: '#4E8446' },
+    { key: 'black', label: 'Black', color: '#9CD4DC' },
+    { key: 'asian', label: 'Asian', color: '#4A90E2' },
+    { key: 'other', label: 'Other / Multiracial', color: '#BEDFB5' }
+];
+
+const texasRegionalDemographicsCache = new Map();
+const texasEducationAttainmentCache = new Map();
+
+function censusCode(prefix, number) {
+    return `${prefix}_${String(number).padStart(3, '0')}E`;
+}
+
+function censusCodesRange(prefix, start, end) {
+    const codes = [];
+    for (let i = start; i <= end; i += 1) {
+        codes.push(censusCode(prefix, i));
+    }
+    return codes;
+}
+
+const CENSUS_B01001_AGE_CODES = censusCodesRange('B01001', 3, 25)
+    .concat(censusCodesRange('B01001', 27, 49));
+
+const CENSUS_DEMOGRAPHICS_BASE_VARS = [
+    'NAME',
+    'B01003_001E',
+    'B01002_001E',
+    'B21001_001E',
+    'B21001_002E',
+    'B03003_001E',
+    'B03003_003E',
+    'B02001_001E',
+    'B02001_002E',
+    'B02001_003E',
+    'B02001_005E'
+];
+
+const CENSUS_DEMOGRAPHICS_AGE_VARS = ['NAME', ...CENSUS_B01001_AGE_CODES];
+
+const CENSUS_EDUCATION_A_VARS = ['NAME', ...censusCodesRange('C15002A', 1, 11)];
+const CENSUS_EDUCATION_B_VARS = ['NAME', ...censusCodesRange('C15002B', 1, 11)];
+const CENSUS_EDUCATION_I_VARS = ['NAME', ...censusCodesRange('C15002I', 1, 11)];
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -62,6 +205,18 @@ export default {
 
         if (url.pathname === '/api/tx-health-compare') {
             return handleTexasHealthCompare(url);
+        }
+
+        if (url.pathname === '/api/tx-regional-employment') {
+            return handleTexasRegionalEmployment(url);
+        }
+
+        if (url.pathname === '/api/tx-regional-demographics') {
+            return handleTexasRegionalDemographics(url);
+        }
+
+        if (url.pathname === '/api/tx-education-attainment') {
+            return handleTexasEducationAttainment(url);
         }
 
         if (url.pathname === '/api/us-counties-geojson') {
@@ -173,6 +328,428 @@ function parseNumeric(value) {
 
     const parsed = Number.parseFloat(String(value).replace(/,/g, ''));
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+function roundTo(value, digits = 1) {
+    const factor = 10 ** digits;
+    return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
+}
+
+function safePercent(numerator, denominator, digits = 1) {
+    if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) {
+        return null;
+    }
+
+    return roundTo((numerator / denominator) * 100, digits);
+}
+
+function normalizeDistribution(source, orderedKeys, digits = 1) {
+    const factor = 10 ** digits;
+    const normalized = {};
+    const total = orderedKeys.reduce((sum, key) => sum + (Number(source[key]) || 0), 0);
+
+    if (total <= 0) {
+        orderedKeys.forEach((key) => {
+            normalized[key] = null;
+        });
+        return normalized;
+    }
+
+    let running = 0;
+    orderedKeys.forEach((key, index) => {
+        if (index === orderedKeys.length - 1) {
+            normalized[key] = roundTo(100 - running, digits);
+            return;
+        }
+
+        const raw = ((Number(source[key]) || 0) / total) * 100;
+        const rounded = Math.round(raw * factor) / factor;
+        normalized[key] = rounded;
+        running = roundTo(running + rounded, digits);
+    });
+
+    return normalized;
+}
+
+async function fetchCensusMetroRecord(year, variables, metroCode) {
+    const url = new URL(`https://api.census.gov/data/${year}/acs/acs5`);
+    url.searchParams.set('get', variables.join(','));
+    url.searchParams.set('for', `metropolitan statistical area/micropolitan statistical area:${metroCode}`);
+
+    const rows = await fetchCensusJson(url);
+    if (!Array.isArray(rows) || rows.length < 2) {
+        throw new Error(`Census metro response missing data for ${metroCode} (${year}).`);
+    }
+
+    return {
+        headers: rows[0],
+        row: rows[1]
+    };
+}
+
+function sumCensusCodes(headers, row, codes) {
+    return codes.reduce((sum, code) => {
+        const value = readCensusValue(headers, row, code);
+        return sum + (Number.isFinite(value) ? value : 0);
+    }, 0);
+}
+
+function rowToCensusValueMap(headers, row) {
+    const map = new Map();
+    headers.forEach((key, index) => {
+        map.set(key, parseCensusNumeric(row[index]));
+    });
+    return map;
+}
+
+function sumCensusValues(valueMap, codes) {
+    return codes.reduce((sum, code) => {
+        const value = valueMap.get(code);
+        return sum + (Number.isFinite(value) ? value : 0);
+    }, 0);
+}
+
+function computeMetroDemographicsRecord(valueMap) {
+    const totalPopulation = valueMap.get('B01003_001E');
+    const medianAge = valueMap.get('B01002_001E');
+    const veteranPopulation = valueMap.get('B21001_002E');
+    const civilianAdultPopulation = valueMap.get('B21001_001E');
+    const hispanicPopulation = valueMap.get('B03003_003E');
+    const ethnicityPopulation = valueMap.get('B03003_001E');
+
+    const under18 = sumCensusValues(valueMap, [
+        'B01001_003E', 'B01001_004E', 'B01001_005E', 'B01001_006E',
+        'B01001_027E', 'B01001_028E', 'B01001_029E', 'B01001_030E'
+    ]);
+    const age18to24 = sumCensusValues(valueMap, [
+        'B01001_007E', 'B01001_008E', 'B01001_009E', 'B01001_010E',
+        'B01001_031E', 'B01001_032E', 'B01001_033E', 'B01001_034E'
+    ]);
+    const age25to34 = sumCensusValues(valueMap, ['B01001_011E', 'B01001_012E', 'B01001_035E', 'B01001_036E']);
+    const age35to44 = sumCensusValues(valueMap, ['B01001_013E', 'B01001_014E', 'B01001_037E', 'B01001_038E']);
+    const age45to54 = sumCensusValues(valueMap, ['B01001_015E', 'B01001_016E', 'B01001_039E', 'B01001_040E']);
+    const age55to64 = sumCensusValues(valueMap, ['B01001_017E', 'B01001_018E', 'B01001_041E', 'B01001_042E']);
+    const age65to74 = sumCensusValues(valueMap, [
+        'B01001_019E', 'B01001_020E', 'B01001_021E',
+        'B01001_043E', 'B01001_044E', 'B01001_045E'
+    ]);
+    const age75plus = sumCensusValues(valueMap, [
+        'B01001_022E', 'B01001_023E', 'B01001_024E', 'B01001_025E',
+        'B01001_046E', 'B01001_047E', 'B01001_048E', 'B01001_049E'
+    ]);
+
+    const ageDistribution = normalizeDistribution({
+        under18,
+        age18to24,
+        age25to34,
+        age35to44,
+        age45to54,
+        age55to64,
+        age65to74,
+        age75plus
+    }, REGIONAL_DEMOGRAPHICS_AGE_GROUPS.map((group) => group.key), 1);
+
+    const raceTotal = valueMap.get('B02001_001E');
+    const white = valueMap.get('B02001_002E');
+    const black = valueMap.get('B02001_003E');
+    const asian = valueMap.get('B02001_005E');
+    const other = Number.isFinite(raceTotal) && Number.isFinite(white) && Number.isFinite(black) && Number.isFinite(asian)
+        ? Math.max(0, raceTotal - white - black - asian)
+        : null;
+
+    const raceComposition = normalizeDistribution({
+        white: Number.isFinite(white) ? white : 0,
+        black: Number.isFinite(black) ? black : 0,
+        asian: Number.isFinite(asian) ? asian : 0,
+        other: Number.isFinite(other) ? other : 0
+    }, REGIONAL_DEMOGRAPHICS_RACE_GROUPS.map((group) => group.key), 1);
+
+    return {
+        totalPopulation: Number.isFinite(totalPopulation) ? Math.round(totalPopulation) : null,
+        medianAge: Number.isFinite(medianAge) ? roundTo(medianAge, 1) : null,
+        veteranShare: safePercent(veteranPopulation, civilianAdultPopulation, 1),
+        hispanicShare: safePercent(hispanicPopulation, ethnicityPopulation, 1),
+        ageDistribution,
+        raceComposition
+    };
+}
+
+async function loadTexasRegionalDemographicsYear(year) {
+    if (texasRegionalDemographicsCache.has(year)) {
+        return texasRegionalDemographicsCache.get(year);
+    }
+
+    const rows = await Promise.all(TX_METRO_LOCATIONS.map(async (metro) => {
+        const [baseRecord, ageRecord] = await Promise.all([
+            fetchCensusMetroRecord(year, CENSUS_DEMOGRAPHICS_BASE_VARS, metro.code),
+            fetchCensusMetroRecord(year, CENSUS_DEMOGRAPHICS_AGE_VARS, metro.code)
+        ]);
+
+        const mergedValues = new Map([
+            ...rowToCensusValueMap(baseRecord.headers, baseRecord.row),
+            ...rowToCensusValueMap(ageRecord.headers, ageRecord.row)
+        ]);
+
+        return {
+            location: metro.name,
+            record: computeMetroDemographicsRecord(mergedValues)
+        };
+    }));
+
+    const byLocation = {};
+    rows.forEach(({ location, record }) => {
+        byLocation[location] = record;
+    });
+
+    texasRegionalDemographicsCache.set(year, byLocation);
+    return byLocation;
+}
+
+function educationBucketFromRaceTable(headers, row, prefix) {
+    const total = readCensusValue(headers, row, `${prefix}_001E`);
+    const noHighSchool = sumCensusCodes(headers, row, [`${prefix}_003E`, `${prefix}_008E`]);
+    const highSchool = sumCensusCodes(headers, row, [`${prefix}_004E`, `${prefix}_009E`]);
+    const someCollege = sumCensusCodes(headers, row, [`${prefix}_005E`, `${prefix}_010E`]);
+    const bachelors = sumCensusCodes(headers, row, [`${prefix}_006E`, `${prefix}_011E`]);
+
+    if (!Number.isFinite(total) || total <= 0) {
+        return {
+            bachelors: null,
+            highSchool: null,
+            noHighSchool: null,
+            someCollege: null
+        };
+    }
+
+    const normalized = normalizeDistribution({
+        bachelors,
+        highSchool,
+        noHighSchool,
+        someCollege
+    }, ['bachelors', 'highSchool', 'noHighSchool', 'someCollege'], 2);
+
+    return {
+        bachelors: normalized.bachelors,
+        highSchool: normalized.highSchool,
+        noHighSchool: normalized.noHighSchool,
+        someCollege: normalized.someCollege
+    };
+}
+
+async function loadTexasEducationAttainmentYear(year) {
+    if (texasEducationAttainmentCache.has(year)) {
+        return texasEducationAttainmentCache.get(year);
+    }
+
+    const rows = await Promise.all(TX_METRO_LOCATIONS.map(async (metro) => {
+        const [white, black, hispanic] = await Promise.all([
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_A_VARS, metro.code),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_B_VARS, metro.code),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_I_VARS, metro.code)
+        ]);
+
+        return {
+            location: metro.name,
+            record: {
+                White: educationBucketFromRaceTable(white.headers, white.row, 'C15002A'),
+                Hispanic: educationBucketFromRaceTable(hispanic.headers, hispanic.row, 'C15002I'),
+                Black: educationBucketFromRaceTable(black.headers, black.row, 'C15002B')
+            }
+        };
+    }));
+
+    const byLocation = {};
+    rows.forEach(({ location, record }) => {
+        byLocation[location] = record;
+    });
+
+    texasEducationAttainmentCache.set(year, byLocation);
+    return byLocation;
+}
+
+function parseCensusNumeric(value) {
+    const raw = String(value ?? '').trim();
+    if (!raw || raw === '-666666666' || raw === 'null') {
+        return null;
+    }
+
+    const parsed = Number.parseFloat(raw.replace(/,/g, ''));
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function parseTexasCountyNameFromCensus(name) {
+    return String(name || '')
+        .replace(/,\s*Texas$/i, '')
+        .replace(/\s+County$/i, '')
+        .trim();
+}
+
+async function fetchCensusJson(url) {
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Census request failed (${response.status}): ${body.slice(0, 240)}`);
+    }
+
+    return response.json();
+}
+
+function censusRowsToMap(rows) {
+    if (!Array.isArray(rows) || rows.length < 2) {
+        return new Map();
+    }
+
+    const headers = rows[0];
+    const stateIndex = headers.indexOf('state');
+    const countyIndex = headers.indexOf('county');
+    if (stateIndex < 0 || countyIndex < 0) {
+        return new Map();
+    }
+
+    const map = new Map();
+    rows.slice(1).forEach((row) => {
+        const state = String(row[stateIndex] || '').trim();
+        const county = String(row[countyIndex] || '').trim();
+        if (!/^48$/.test(state) || !/^\d{3}$/.test(county)) {
+            return;
+        }
+
+        map.set(`${state}${county}`, row);
+    });
+
+    return map;
+}
+
+function readCensusValue(headers, row, key) {
+    const index = headers.indexOf(key);
+    if (index < 0) {
+        return null;
+    }
+
+    return parseCensusNumeric(row[index]);
+}
+
+function computeWeeklyIndustryWage(headers, earningsRow, employmentHeaders, employmentRow, earningsCodes, employmentCodes) {
+    if (!earningsRow || !Array.isArray(earningsCodes) || !earningsCodes.length) {
+        return null;
+    }
+
+    if (earningsCodes.length === 1) {
+        const annual = readCensusValue(headers, earningsRow, earningsCodes[0]);
+        return Number.isFinite(annual) ? annual / 52 : null;
+    }
+
+    let weightedAnnualTotal = 0;
+    let weightedEmploymentTotal = 0;
+    let simpleAnnualTotal = 0;
+    let simpleCount = 0;
+
+    for (let i = 0; i < earningsCodes.length; i += 1) {
+        const annual = readCensusValue(headers, earningsRow, earningsCodes[i]);
+        if (!Number.isFinite(annual)) {
+            continue;
+        }
+
+        simpleAnnualTotal += annual;
+        simpleCount += 1;
+
+        const employmentCode = employmentCodes[i];
+        const employment = employmentCode
+            ? readCensusValue(employmentHeaders, employmentRow, employmentCode)
+            : null;
+
+        if (Number.isFinite(employment) && employment > 0) {
+            weightedAnnualTotal += annual * employment;
+            weightedEmploymentTotal += employment;
+        }
+    }
+
+    if (weightedEmploymentTotal > 0) {
+        return (weightedAnnualTotal / weightedEmploymentTotal) / 52;
+    }
+
+    return simpleCount > 0 ? (simpleAnnualTotal / simpleCount) / 52 : null;
+}
+
+async function loadTexasRegionalEmploymentYear(year) {
+    if (texasRegionalEmploymentCache.has(year)) {
+        return texasRegionalEmploymentCache.get(year);
+    }
+
+    const subjectUrl = new URL(`https://api.census.gov/data/${year}/acs/acs5/subject`);
+    subjectUrl.searchParams.set('get', CENSUS_SUBJECT_VARS.join(','));
+    subjectUrl.searchParams.set('for', 'county:*');
+    subjectUrl.searchParams.set('in', 'state:48');
+
+    const earningsUrl = new URL(`https://api.census.gov/data/${year}/acs/acs5`);
+    earningsUrl.searchParams.set('get', CENSUS_EARNINGS_VARS.join(','));
+    earningsUrl.searchParams.set('for', 'county:*');
+    earningsUrl.searchParams.set('in', 'state:48');
+
+    const [subjectRows, earningsRows] = await Promise.all([
+        fetchCensusJson(subjectUrl),
+        fetchCensusJson(earningsUrl)
+    ]);
+
+    const subjectHeaders = Array.isArray(subjectRows) && subjectRows.length ? subjectRows[0] : [];
+    const earningsHeaders = Array.isArray(earningsRows) && earningsRows.length ? earningsRows[0] : [];
+    const subjectMap = censusRowsToMap(subjectRows);
+    const earningsMap = censusRowsToMap(earningsRows);
+
+    const records = [];
+    subjectMap.forEach((subjectRow, fips) => {
+        const earningsRow = earningsMap.get(fips);
+        if (!earningsRow) {
+            return;
+        }
+
+        const countyNameRaw = String(subjectRow[subjectHeaders.indexOf('NAME')] || '').trim();
+        const county = parseTexasCountyNameFromCensus(countyNameRaw);
+        if (!county) {
+            return;
+        }
+
+        const industryEmployment = {};
+        const weeklyWages = {};
+
+        CENSUS_INDUSTRY_CONFIG.forEach((industry) => {
+            const totalEmployment = industry.employmentCodes.reduce((sum, code) => {
+                const value = readCensusValue(subjectHeaders, subjectRow, code);
+                return sum + (Number.isFinite(value) ? value : 0);
+            }, 0);
+
+            industryEmployment[industry.label] = totalEmployment > 0
+                ? Math.round(totalEmployment)
+                : null;
+
+            const weekly = computeWeeklyIndustryWage(
+                earningsHeaders,
+                earningsRow,
+                subjectHeaders,
+                subjectRow,
+                industry.earningsCodes,
+                industry.employmentCodes
+            );
+
+            weeklyWages[industry.label] = Number.isFinite(weekly)
+                ? Math.round(weekly)
+                : null;
+        });
+
+        records.push({
+            year,
+            fips,
+            county,
+            countyKey: normalizeCountyName(county),
+            unemploymentRate: readCensusValue(subjectHeaders, subjectRow, 'S2301_C04_001E'),
+            laborForceParticipationRate: readCensusValue(subjectHeaders, subjectRow, 'S2301_C02_001E'),
+            weeklyWages,
+            industryEmployment
+        });
+    });
+
+    texasRegionalEmploymentCache.set(year, records);
+    return records;
 }
 
 function normalizeCountyName(name) {
@@ -425,6 +1002,180 @@ async function handleCountiesGeoJson() {
     } catch (error) {
         return new Response(JSON.stringify({
             error: 'Failed to load county GeoJSON.',
+            detail: error?.message || String(error)
+        }), {
+            status: 500,
+            headers: corsHeaders
+        });
+    }
+}
+
+async function handleTexasRegionalEmployment(url) {
+    try {
+        const currentYear = new Date().getFullYear();
+        const requestedYearRaw = Number.parseInt(String(url.searchParams.get('year') || ''), 10);
+        const requestedYear = Number.isFinite(requestedYearRaw) ? requestedYearRaw : currentYear;
+        const maxYear = Math.min(requestedYear, currentYear);
+
+        let lastError = null;
+        for (let year = maxYear; year >= 2018; year -= 1) {
+            try {
+                const records = await loadTexasRegionalEmploymentYear(year);
+                if (!Array.isArray(records) || records.length === 0) {
+                    continue;
+                }
+
+                return new Response(JSON.stringify({
+                    source: 'US Census ACS 5-Year',
+                    requestedYear,
+                    dataYear: year,
+                    records
+                }), {
+                    status: 200,
+                    headers: {
+                        ...corsHeaders,
+                        'Cache-Control': 'public, max-age=86400'
+                    }
+                });
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        return new Response(JSON.stringify({
+            error: 'Failed to load Census regional employment data for Texas counties.',
+            detail: lastError?.message || 'No data available for the requested year range.'
+        }), {
+            status: 500,
+            headers: corsHeaders
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({
+            error: 'Failed to load Census regional employment data for Texas counties.',
+            detail: error?.message || String(error)
+        }), {
+            status: 500,
+            headers: corsHeaders
+        });
+    }
+}
+
+async function handleTexasRegionalDemographics(url) {
+    try {
+        const yearsParam = String(url.searchParams.get('years') || '').trim();
+        const years = yearsParam
+            ? yearsParam.split(',').map((value) => Number.parseInt(value.trim(), 10)).filter((year) => Number.isFinite(year) && year >= 2018)
+            : [...REGIONAL_COMPARISON_YEARS];
+
+        if (!years.length) {
+            return new Response(JSON.stringify({ error: 'No valid years requested.' }), {
+                status: 400,
+                headers: corsHeaders
+            });
+        }
+
+        const entries = await Promise.all(years.map(async (year) => {
+            try {
+                return { year, recordsByLocation: await loadTexasRegionalDemographicsYear(year) };
+            } catch (error) {
+                console.warn(`[tx-regional-demographics] Year ${year} skipped:`, error?.message || String(error));
+                return null;
+            }
+        }));
+
+        const available = entries.filter(Boolean);
+        const data = {};
+        TX_METRO_LOCATIONS.forEach((metro) => {
+            data[metro.name] = {};
+        });
+
+        available.forEach((entry) => {
+            TX_METRO_LOCATIONS.forEach((metro) => {
+                const record = entry.recordsByLocation?.[metro.name];
+                if (record) {
+                    data[metro.name][entry.year] = record;
+                }
+            });
+        });
+
+        return new Response(JSON.stringify({
+            source: 'US Census ACS 5-Year',
+            years: available.map((entry) => entry.year),
+            locations: TX_METRO_LOCATIONS.map((metro) => metro.name),
+            ageGroups: REGIONAL_DEMOGRAPHICS_AGE_GROUPS,
+            raceGroups: REGIONAL_DEMOGRAPHICS_RACE_GROUPS,
+            data
+        }), {
+            status: 200,
+            headers: {
+                ...corsHeaders,
+                'Cache-Control': 'public, max-age=86400'
+            }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({
+            error: 'Failed to load Census regional demographics data.',
+            detail: error?.message || String(error)
+        }), {
+            status: 500,
+            headers: corsHeaders
+        });
+    }
+}
+
+async function handleTexasEducationAttainment(url) {
+    try {
+        const yearsParam = String(url.searchParams.get('years') || '').trim();
+        const years = yearsParam
+            ? yearsParam.split(',').map((value) => Number.parseInt(value.trim(), 10)).filter((year) => Number.isFinite(year) && year >= 2018)
+            : [...REGIONAL_COMPARISON_YEARS];
+
+        if (!years.length) {
+            return new Response(JSON.stringify({ error: 'No valid years requested.' }), {
+                status: 400,
+                headers: corsHeaders
+            });
+        }
+
+        const entries = await Promise.all(years.map(async (year) => {
+            try {
+                return { year, recordsByLocation: await loadTexasEducationAttainmentYear(year) };
+            } catch (error) {
+                console.warn(`[tx-education-attainment] Year ${year} skipped:`, error?.message || String(error));
+                return null;
+            }
+        }));
+
+        const available = entries.filter(Boolean);
+        const data = {};
+        TX_METRO_LOCATIONS.forEach((metro) => {
+            data[metro.name] = {};
+        });
+
+        available.forEach((entry) => {
+            TX_METRO_LOCATIONS.forEach((metro) => {
+                const record = entry.recordsByLocation?.[metro.name];
+                if (record) {
+                    data[metro.name][entry.year] = record;
+                }
+            });
+        });
+
+        return new Response(JSON.stringify({
+            source: 'US Census ACS 5-Year',
+            years: available.map((entry) => entry.year),
+            locations: TX_METRO_LOCATIONS.map((metro) => metro.name),
+            data
+        }), {
+            status: 200,
+            headers: {
+                ...corsHeaders,
+                'Cache-Control': 'public, max-age=86400'
+            }
+        });
+    } catch (error) {
+        return new Response(JSON.stringify({
+            error: 'Failed to load Census education attainment data.',
             detail: error?.message || String(error)
         }), {
             status: 500,

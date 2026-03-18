@@ -110,10 +110,16 @@ Dashboard/
 
 ## Data Sources
 
-- **Federal Reserve Economic Data (FRED)** - FRED API
-- **Freddie Mac** - Mortgage rates
-- **Texas Comptroller** - State revenue data
-- **U.S. Bureau of Labor Statistics** - Employment data
+- **Federal Reserve Economic Data (FRED)** - https://fred.stlouisfed.org/
+   Series used: A191RL1Q225SBEA, CPIAUCSL, UNRATE, TXUR, TYLE348UR, PAYEMS, MEDLISPRIMM46340, TYLSA158MFRBDAL, TX0000000M175FRBDAL, MORTGAGE30US, MORTGAGE15US.
+- **U.S. Census Bureau API (ACS 5-Year)** - https://api.census.gov/data.html
+   Tables/subjects used for regional endpoints: B01003, B01002, B21001, B03003, B02001, B01001, S2301, S2403, B24031, C15002A, C15002B, C15002I.
+- **County Health Rankings & Roadmaps** - https://www.countyhealthrankings.org/
+   Texas annual files (2018-2025) used for county/MSA health and wellbeing comparisons.
+- **Texas Open Data Portal (Comptroller sales tax dataset)** - https://data.texas.gov/
+   Used for Tyler MSA city-level sales tax aggregation.
+- **Texas Comptroller Revenue Transparency** - https://comptroller.texas.gov/transparency/revenue/
+   Used for all-funds (excluding trusts) monthly revenue trend charts.
 
 ## Browser Support
 

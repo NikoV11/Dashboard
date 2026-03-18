@@ -63,7 +63,7 @@
                 <div>
                     <p class="eyebrow">East Texas & US Economic Dashboard</p>
                     <h2>Monitor Economic Indicators for Tyler MSA and the United States</h2>
-                    <p class="lede">Track national economic indicators (GDP, inflation, unemployment, mortgage rates) alongside Tyler MSA regional data (employment, sales tax, median home prices) and Texas state tax collections. All data sourced from Federal Reserve Economic Data (FRED), Texas Comptroller, and Freddie Mac.</p>
+                    <p class="lede">Track national economic indicators (GDP, inflation, unemployment, mortgage rates) alongside Tyler MSA regional data (employment, sales tax, median home prices) and Texas state tax collections. Live data sources include FRED, U.S. Census ACS 5-Year, Texas Open Data, County Health Rankings, and Texas Comptroller files.</p>
                     <div class="controls" aria-label="Date range controls">
                         <label for="startDate">From</label>
                         <input type="month" id="startDate" min="1947-01" max="2099-12" value="2023-01" aria-label="Start Month">
@@ -77,7 +77,7 @@
                     </div>
                     <p class="status" id="statusText" role="status" aria-live="polite">Loading data...</p>
                     <div class="data-badges" aria-label="Data badges">
-                        <span class="badge">Source: FRED + Texas Comptroller</span>
+                        <span class="badge">Source: FRED + Census + Texas Data Portal + County Health + Comptroller</span>
                         <span class="badge">Mode: Live / Fallback</span>
                         <span class="badge">Updated: Auto</span>
                     </div>
@@ -181,6 +181,7 @@
                         <div>
                             <h2>US Real GDP</h2>
                             <p class="chip gdp">FRED: A191RL1Q225SBEA</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/A191RL1Q225SBEA" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareGDPBtn" class="ghost" title="Share GDP chart" aria-label="Share Real GDP chart on social media">
@@ -206,6 +207,7 @@
                         <div>
                             <h2>US Inflation (CPI-U)</h2>
                             <p class="chip cpi">FRED: CPIAUCSL</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/CPIAUCSL" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareCPIBtn" class="ghost" title="Share CPI chart" aria-label="Share CPI-U inflation chart on social media">
@@ -231,6 +233,7 @@
                         <div>
                             <h2>US Unemployment Rate</h2>
                             <p class="chip" style="background: #CB6015; color: white;">FRED: UNRATE, TXUR, TYLE348UR</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/UNRATE" target="_blank" rel="noopener noreferrer">US</a> <span aria-hidden="true">|</span> <a href="https://fred.stlouisfed.org/series/TXUR" target="_blank" rel="noopener noreferrer">Texas</a> <span aria-hidden="true">|</span> <a href="https://fred.stlouisfed.org/series/TYLE348UR" target="_blank" rel="noopener noreferrer">Tyler</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareUnemploymentBtn" class="ghost" title="Share chart">
@@ -256,6 +259,7 @@
                         <div>
                             <h2>Total Nonfarm Employment</h2>
                             <p class="chip" style="background: #002F6C; color: white;">FRED: PAYEMS</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/PAYEMS" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="sharePayemsBtn" class="ghost" title="Share chart">
@@ -281,6 +285,7 @@
                         <div>
                             <h2>Regional Employment Trends</h2>
                             <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">FRED: TYLSA158MFRBDAL, TX0000000M175FRBDAL</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/TYLSA158MFRBDAL" target="_blank" rel="noopener noreferrer">Tyler</a> <span aria-hidden="true">|</span> <a href="https://fred.stlouisfed.org/series/TX0000000M175FRBDAL" target="_blank" rel="noopener noreferrer">Texas</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareEmploymentBtn" class="ghost" title="Share chart">
@@ -306,6 +311,7 @@
                         <div>
                             <h2>Tyler MSA Sales Tax Collections</h2>
                             <p class="chip" style="background: var(--gdp); color: white;">Texas Comptroller Data</p>
+                            <p class="source-inline-links"><a href="https://data.texas.gov/resource/53pa-m7sm.json" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareSalesTaxBtn" class="ghost" title="Share chart">
@@ -332,6 +338,7 @@
                         <div>
                             <h2>Tyler MSA Median Listing Price Month-Over-Month % Change</h2>
                             <p class="chip" style="background: var(--cpi); color: white;">FRED: MEDLISPRIMM46340</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/MEDLISPRIMM46340" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareMedianPriceBtn" class="ghost" title="Share median price chart" aria-label="Share Tyler MSA median listing price chart on social media">
@@ -357,6 +364,7 @@
                         <div>
                             <h2>Texas Historical Tax Revenue by Category</h2>
                             <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">All Funds (Excluding Trusts) - Monthly Breakdown</p>
+                            <p class="source-inline-links"><a href="https://comptroller.texas.gov/transparency/revenue/" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareTaxBtn" class="ghost" title="Share chart">
@@ -390,6 +398,7 @@
                         <div>
                             <h2>US Mortgage Rates</h2>
                             <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">FRED: MORTGAGE30US, MORTGAGE15US</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/MORTGAGE30US" target="_blank" rel="noopener noreferrer">30-year</a> <span aria-hidden="true">|</span> <a href="https://fred.stlouisfed.org/series/MORTGAGE15US" target="_blank" rel="noopener noreferrer">15-year</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareMortgageBtn" class="ghost" title="Share chart">
@@ -420,7 +429,8 @@
                     <div class="section-header">
                         <div>
                             <h2>Texas County/MSA Comparison</h2>
-                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Health & Wellbeing Categories</p>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">County Health Rankings Texas files (2018-2025)</p>
+                            <p class="source-inline-links"><a href="https://www.countyhealthrankings.org/health-data/texas" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareTexasCompareBtn" class="ghost" title="Share chart" aria-label="Share Texas county comparison chart">
@@ -517,7 +527,8 @@
                     <div class="section-header">
                         <div>
                             <h2>Texas Regional Demographics Comparison</h2>
-                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Curated ACS-style regional profile</p>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">U.S. Census ACS 5-Year (B01003, B01002, B21001, B03003, B02001, B01001)</p>
+                            <p class="source-inline-links"><a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="downloadRegionalDemoCsvBtn" class="ghost">Download CSV</button>
@@ -616,7 +627,7 @@
                         </div>
                     </div>
 
-                    <p class="demo-note muted">Source: curated regional demographic profile for dashboard comparison. Values are provided for visual comparison and do not replace official Census tables.</p>
+                    <p class="demo-note muted">Source: U.S. Census Bureau ACS 5-Year Estimates via dashboard API. Metrics are computed from table cells B01003_001E (population), B01002_001E (median age), B21001_001E/B21001_002E (veteran share), B03003_001E/B03003_003E (Hispanic share), B02001 race totals, and B01001 age buckets.</p>
                 </section>
             </div>
 
@@ -625,7 +636,8 @@
                     <div class="section-header">
                         <div>
                             <h2>Texas Regional Employment Comparison</h2>
-                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">Counties and Metro Areas</p>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">U.S. Census ACS 5-Year (S2301, S2403, B24031)</p>
+                            <p class="source-inline-links"><a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="downloadRegionalEmploymentCsvBtn" class="ghost">Download CSV</button>
@@ -665,7 +677,7 @@
                         </div>
                     </div>
 
-                    <p class="muted" style="font-size: 0.9rem; margin-top: 4px;">Source: curated regional labor profile aligned to Texas county and MSA comparison controls.</p>
+                    <p class="muted" style="font-size: 0.9rem; margin-top: 4px;">Source: U.S. Census Bureau ACS 5-Year subject/detailed tables. Labor market rates use S2301 fields, industry employment uses S2403, and weekly wages use B24031 for selected Texas metro areas.</p>
                 </section>
             </div>
 
@@ -676,6 +688,7 @@
                         <div>
                             <h2>Educational Attainment by Race &amp; Ethnicity</h2>
                             <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">ACS 5-Year Estimates &mdash; Population 25+</p>
+                            <p class="source-inline-links"><a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
                         <div style="display: flex; gap: 8px;">
                             <button id="shareEduBtn" class="ghost" title="Share chart" aria-label="Share educational attainment chart">
@@ -727,27 +740,44 @@
                         <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#5C8F66;"></span>Some College or Associate&apos;s</div>
                     </div>
 
-                    <p class="edu-note muted">Source: U.S. Census Bureau, American Community Survey (ACS) 5-Year Estimates. Population 25 years and older.</p>
+                    <p class="edu-note muted">Source: U.S. Census Bureau ACS 5-Year Estimates, table groups C15002A/C15002B/C15002I (White alone, Black alone, Hispanic or Latino) for population age 25+.</p>
                 </section>
             </div>
 
         </main>
 
         <footer>
-            <p><strong>Hibbs Monitor</strong> — East Texas & US Economic Dashboard by UT Tyler Hibbs Institute</p>
-            <p style="margin-top: 8px; font-size: 0.9rem;"><strong>Data Sources:</strong> Board of Governors of the Federal Reserve System, Federal Reserve Economic Data (FRED) — Real Gross Domestic Product (A191RL1Q225SBEA), Consumer Price Index for All Urban Consumers (CPIAUCSL), Unemployment Rate (UNRATE), Texas Unemployment Rate (TXUR), Tyler, TX Unemployment Rate (TYLE348UR), Total Nonfarm Payroll Employment (PAYEMS), Median Listing Price for All Homes (MEDLISPRIMM46340), Tyler MSA Employment (TYLSA158MFRBDAL), Texas Employment (TX0000000M175FRBDAL); Freddie Mac, Primary Mortgage Market Survey — 30-Year and 15-Year Fixed Rate Mortgages (MORTGAGE30US, MORTGAGE15US); State Comptroller of Public Accounts, State of Texas — Tax Collections and Tyler MSA Sales Tax</p>
-            <p style="margin-top: 8px; font-size: 0.85rem; color: #64748b;">Tyler MSA includes: Tyler, Lindale, Whitehouse, Bullard, Troup, Noonday, Arp, Winona, and New Chapel Hill. Texas fiscal year runs September through August.</p>
+            <p><strong>Hibbs Monitor</strong> - East Texas &amp; US Economic Dashboard by UT Tyler Hibbs Institute</p>
+            <div class="source-note">
+                <p><strong>Primary Data Sources (linked):</strong></p>
+                <p>
+                    <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener noreferrer">Federal Reserve Economic Data (FRED)</a>
+                    - Series: A191RL1Q225SBEA, CPIAUCSL, UNRATE, TXUR, TYLE348UR, PAYEMS, MEDLISPRIMM46340, TYLSA158MFRBDAL, TX0000000M175FRBDAL, MORTGAGE30US, MORTGAGE15US.
+                </p>
+                <p>
+                    <a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">U.S. Census Bureau APIs</a>
+                    - ACS 5-Year tables and subjects used in dashboard endpoints: B01003, B01002, B21001, B03003, B02001, B01001, S2301, S2403, B24031, C15002A/B/I.
+                </p>
+                <p>
+                    <a href="https://www.countyhealthrankings.org/" target="_blank" rel="noopener noreferrer">County Health Rankings &amp; Roadmaps</a>
+                    - Texas annual county indicator files (2018-2025) used for county/MSA health comparisons.
+                </p>
+                <p>
+                    <a href="https://data.texas.gov/" target="_blank" rel="noopener noreferrer">Texas Open Data Portal</a>
+                    - Texas Comptroller sales tax remittance records for Tyler-area city aggregation.
+                </p>
+                <p>
+                    <a href="https://comptroller.texas.gov/transparency/revenue/" target="_blank" rel="noopener noreferrer">Texas Comptroller Revenue Transparency</a>
+                    - State all-funds monthly revenue workbook used for tax revenue trend charts.
+                </p>
+            </div>
+            <p style="margin-top: 8px; font-size: 0.85rem; color: #64748b;">Tyler MSA includes Tyler, Lindale, Whitehouse, Bullard, Troup, Noonday, Arp, Winona, and New Chapel Hill. Texas fiscal year runs September through August.</p>
         </footer>
     </div>
 
-    <script src="../data/definitions/employment-data.js"></script>
-    <script src="../data/definitions/revenue-data.js"></script>
-    <script src="../data/definitions/education-data.js"></script>
-    <script src="../data/definitions/demographics-data.js"></script>
-    <script src="../data/definitions/regional-employment-data.js"></script>
     <script src="./js/excel-loader.js" defer></script>
     <script src="./js/tax-chart.js" defer></script>
-    <script src="../src/js/dashboard.js?v=43" defer></script>
+    <script src="../src/js/dashboard.js?v=45" defer></script>
 </body>
 </html>
 
