@@ -5309,7 +5309,7 @@ function buildEduChart(canvasId, location, year, existingChart) {
         return existingChart;
     }
 
-    const races = ['White', 'Hispanic', 'Black'];
+    const races = ['White', 'Hispanic', 'Black', 'Asian', 'Other'];
 
     // Build datasets — stacked downward from 0% (reverse scale)
     const keys = ['bachelors', 'highSchool', 'noHighSchool', 'someCollege'];

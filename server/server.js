@@ -233,9 +233,14 @@ const CENSUS_DEMOGRAPHICS_BASE_VARS = [
 
 const CENSUS_DEMOGRAPHICS_AGE_VARS = ['NAME', ...CENSUS_B01001_AGE_CODES];
 
-const CENSUS_EDUCATION_A_VARS = ['NAME', ...censusCodesRange('C15002A', 1, 11)];
-const CENSUS_EDUCATION_B_VARS = ['NAME', ...censusCodesRange('C15002B', 1, 11)];
-const CENSUS_EDUCATION_I_VARS = ['NAME', ...censusCodesRange('C15002I', 1, 11)];
+const CENSUS_EDUCATION_A_VARS = ['NAME', ...censusCodesRange('C15002A', 1, 11)]; // White alone
+const CENSUS_EDUCATION_B_VARS = ['NAME', ...censusCodesRange('C15002B', 1, 11)]; // Black alone
+const CENSUS_EDUCATION_I_VARS = ['NAME', ...censusCodesRange('C15002I', 1, 11)]; // Hispanic or Latino
+const CENSUS_EDUCATION_D_VARS = ['NAME', ...censusCodesRange('C15002D', 1, 11)]; // Asian alone
+const CENSUS_EDUCATION_C_VARS = ['NAME', ...censusCodesRange('C15002C', 1, 11)]; // American Indian/Alaska Native
+const CENSUS_EDUCATION_E_VARS = ['NAME', ...censusCodesRange('C15002E', 1, 11)]; // Native Hawaiian/Pacific Islander
+const CENSUS_EDUCATION_F_VARS = ['NAME', ...censusCodesRange('C15002F', 1, 11)]; // Some other race alone
+const CENSUS_EDUCATION_G_VARS = ['NAME', ...censusCodesRange('C15002G', 1, 11)]; // Two or more races
 
 function roundTo(value, digits = 1) {
     const factor = 10 ** digits;
@@ -443,24 +448,83 @@ function educationBucketFromRaceTable(headers, row, prefix) {
     };
 }
 
+function computeOtherRaceEducation(nativeAmRecord, hawaiianRecord, otherRaceRecord, multiraceRecord) {
+    // Combine education data from C, E, F, G tables into "Other" category
+    const tables = [
+        { record: nativeAmRecord, prefix: 'C15002C' },
+        { record: hawaiianRecord, prefix: 'C15002E' },
+        { record: otherRaceRecord, prefix: 'C15002F' },
+        { record: multiraceRecord, prefix: 'C15002G' }
+    ];
+
+    let totalPop = 0;
+    let totalNoHS = 0;
+    let totalHS = 0;
+    let totalSomeCollege = 0;
+    let totalBackelors = 0;
+
+    tables.forEach(({ record, prefix }) => {
+        if (!record || !record.headers || !record.row) return;
+        
+        const pop = readCensusValue(record.headers, record.row, `${prefix}_001E`);
+        if (!Number.isFinite(pop) || pop <= 0) return;
+
+        totalPop += pop;
+        totalNoHS += sumCensusCodes(record.headers, record.row, [`${prefix}_003E`, `${prefix}_008E`]);
+        totalHS += sumCensusCodes(record.headers, record.row, [`${prefix}_004E`, `${prefix}_009E`]);
+        totalSomeCollege += sumCensusCodes(record.headers, record.row, [`${prefix}_005E`, `${prefix}_010E`]);
+        totalBackelors += sumCensusCodes(record.headers, record.row, [`${prefix}_006E`, `${prefix}_011E`]);
+    });
+
+    if (totalPop <= 0) {
+        return {
+            bachelors: null,
+            highSchool: null,
+            noHighSchool: null,
+            someCollege: null
+        };
+    }
+
+    const normalized = normalizeDistribution({
+        bachelors: totalBackelors,
+        highSchool: totalHS,
+        noHighSchool: totalNoHS,
+        someCollege: totalSomeCollege
+    }, ['bachelors', 'highSchool', 'noHighSchool', 'someCollege'], 2);
+
+    return {
+        bachelors: normalized.bachelors,
+        highSchool: normalized.highSchool,
+        noHighSchool: normalized.noHighSchool,
+        someCollege: normalized.someCollege
+    };
+}
+
 async function loadTexasEducationAttainmentYear(year) {
     if (texasEducationAttainmentCache.has(year)) {
         return texasEducationAttainmentCache.get(year);
     }
 
     const rows = await Promise.all(TX_METRO_LOCATIONS.map(async (metro) => {
-        const [white, black, hispanic] = await Promise.all([
+        const [white, black, hispanic, asian, nativeAm, hawaiian, otherRace, multirace] = await Promise.all([
             fetchCensusMetroRecord(year, CENSUS_EDUCATION_A_VARS, metro.code),
             fetchCensusMetroRecord(year, CENSUS_EDUCATION_B_VARS, metro.code),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_I_VARS, metro.code)
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_I_VARS, metro.code),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_D_VARS, metro.code),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_C_VARS, metro.code),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_E_VARS, metro.code),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_F_VARS, metro.code),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_G_VARS, metro.code)
         ]);
 
         return {
             location: metro.name,
             record: {
                 White: educationBucketFromRaceTable(white.headers, white.row, 'C15002A'),
+                Black: educationBucketFromRaceTable(black.headers, black.row, 'C15002B'),
                 Hispanic: educationBucketFromRaceTable(hispanic.headers, hispanic.row, 'C15002I'),
-                Black: educationBucketFromRaceTable(black.headers, black.row, 'C15002B')
+                Asian: educationBucketFromRaceTable(asian.headers, asian.row, 'C15002D'),
+                Other: computeOtherRaceEducation(nativeAm, hawaiian, otherRace, multirace)
             }
         };
     }));
@@ -1005,9 +1069,11 @@ app.get('/api/tx-education-attainment', async (req, res) => {
         });
 
         return res.json({
-            source: 'US Census ACS 5-Year',
+            source: 'US Census ACS 5-Year (Live API)',
             years: available.map((entry) => entry.year),
             locations: TX_METRO_LOCATIONS.map((metro) => metro.name),
+            races: ['White', 'Black', 'Hispanic', 'Asian', 'Other'],
+            educationLevels: ['bachelors', 'highSchool', 'noHighSchool', 'someCollege'],
             data
         });
     } catch (error) {

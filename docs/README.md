@@ -2,7 +2,91 @@
 
 An interactive, real-time economic dashboard tracking national and regional economic indicators for Tyler MSA and the United States. Built by the UT Tyler Hibbs Institute for Business and Economic Research.
 
+**All data is sourced directly from official U.S. government APIs** - FRED, Census Bureau, and County Health Rankings.
+
+## Setup
+
+### 1. Install Dependencies
+```bash
+cd c:\Users\ps3zo\Desktop\Dashboard
+npm install
+```
+
+### 2. Configure FRED API Key
+Get a free API key from the Federal Reserve:
+https://fred.stlouisfed.org/docs/api/
+
+Create a `.env` file in the project root:
+```
+FRED_API_KEY=your_api_key_here
+PORT=3000
+```
+
+### 3. Run the Server
+```bash
+npm start
+# or
+node server/server.js
+```
+
+The dashboard will be available at: **http://localhost:3000**
+
+## Data Sources
+
+**✅ All data is live and updated from official sources:**
+
+- **FRED API** - Real GDP, CPI, unemployment rates, mortgage rates
+- **Census Bureau ACS** - Demographics, education attainment, employment
+- **County Health Rankings** - Health metrics for Texas counties
+
+See [DATA_SOURCES.md](DATA_SOURCES.md) for complete details on all endpoints and update frequencies.
+
 ## Quick Start
+
+1. **Set up FRED API key** (see Setup above)
+2. **Run the server:**
+   ```bash
+   npm start
+   ```
+3. **Open in browser:**
+   ```
+   http://localhost:3000
+   ```
+
+## Features
+
+### US Economy
+- Real GDP: Live quarterly data from FRED
+- Inflation (CPI-U): Live monthly data from FRED
+
+### Labor Market
+- National unemployment: Live from FRED
+- Texas unemployment: Live from FRED
+- Tyler MSA unemployment: Live from FRED
+- Regional employment by industry: Census Bureau ACS
+- Wages by industry: Census Bureau ACS
+
+### Education & Demographics
+- Educational attainment by race: **All 5 races from Census API**
+  - White
+  - Black
+  - Hispanic
+  - Asian
+  - Other (combined)
+- Age distribution: Census Bureau
+- Race/ethnicity composition: Census Bureau
+
+### Housing Market
+- Median home prices: Live from FRED
+- 30-year mortgage rates: Live from FRED
+- 15-year mortgage rates: Live from FRED
+
+### Public Health
+- County health metrics
+- Smoking, obesity, teen birth rates
+- Healthcare access
+
+## Project Structure
 
 1. **View the Dashboard**
    ```bash
