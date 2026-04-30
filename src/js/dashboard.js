@@ -1125,6 +1125,9 @@ function renderCharts(filtered) {
             animation: {
                 duration: 400
             },
+            layout: {
+                padding: { top: 24 }
+            },
             plugins: {
                 legend: { display: false },
                 recession: {
@@ -1145,6 +1148,8 @@ function renderCharts(filtered) {
                     display: true,
                     anchor: 'end',
                     align: 'end',
+                    clip: false,
+                    clamp: true,
                     font: { weight: 'bold', size: 11 },
                     color: '#0f172a',
                     formatter: (value) => value.toFixed(decimals) + '%'
