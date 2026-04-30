@@ -1116,9 +1116,9 @@ function renderCharts(filtered) {
     const showGDPLabels = filtered.gdp.length <= 15;
     const showCPILabels = filtered.cpi.length <= 15;
 
-    const sharedOptions = (showLabels, labelCount, labels, isQuarterly = false) => {
+    const sharedOptions = (showLabels, labelCount, labels, isQuarterly = false, decimals = 2) => {
         const recessionPeriods = getRecessionAnnotations(labels, isQuarterly);
-        
+
         return {
             responsive: true,
             maintainAspectRatio: false,
@@ -1138,7 +1138,7 @@ function renderCharts(filtered) {
                     borderColor: '#CB6015',
                     borderWidth: 1,
                     callbacks: {
-                        label: ctx => `${ctx.parsed.y.toFixed(2)}%`
+                        label: ctx => `${ctx.parsed.y.toFixed(decimals)}%`
                     }
                 },
                 datalabels: showLabels ? {
@@ -1147,7 +1147,7 @@ function renderCharts(filtered) {
                     align: 'end',
                     font: { weight: 'bold', size: 11 },
                     color: '#0f172a',
-                    formatter: (value) => value.toFixed(2) + '%'
+                    formatter: (value) => value.toFixed(decimals) + '%'
                 } : { display: false }
             },
             scales: {
@@ -1161,7 +1161,7 @@ function renderCharts(filtered) {
                 },
                 y: {
                     beginAtZero: true,
-                    ticks: { callback: v => formatPercent(v, 2) }
+                    ticks: { callback: v => formatPercent(v, decimals) }
                 }
             }
         };
@@ -1192,7 +1192,7 @@ function renderCharts(filtered) {
                 borderRadius: 6
             }]
         },
-        options: sharedOptions(showCPILabels, filtered.cpi.length, filtered.cpi.map(d => formatMonthLabel(d.date)), false)
+        options: sharedOptions(showCPILabels, filtered.cpi.length, filtered.cpi.map(d => formatMonthLabel(d.date)), false, 1)
     });
 
     // Note: Unemployment, Payems, and Employment charts are rendered on-demand when their tabs are activated
