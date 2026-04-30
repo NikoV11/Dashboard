@@ -1187,7 +1187,7 @@ function renderCharts(filtered) {
             labels: filtered.cpi.map(d => formatMonthLabel(d.date)),
             datasets: [{
                 label: 'CPI-U % MoM',
-                data: filtered.cpi.map(d => d.value),
+                data: filtered.cpi.map(d => parseFloat(d.value.toFixed(1))),
                 backgroundColor: '#002F6C',
                 borderRadius: 6
             }]
