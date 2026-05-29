@@ -115,6 +115,8 @@ let salesTaxLoaded = false;
 let medianPriceLoaded = false;
 let mortgageLoaded = false;
 let employmentLoaded = false;
+let lastSalesTaxRangeKey = '';
+let dashboardLoadToken = 0;
 
 // NBER Recession Periods (Peak to Trough)
 const RECESSION_PERIODS = [
@@ -551,6 +553,49 @@ function setScrollableChartWidth(canvas, itemCount, pixelsPerItem = 96) {
     canvas.style.width = '100%';
 }
 
+function resetScrollableChartPosition(canvas) {
+    const surface = canvas?.parentElement;
+    const frame = surface?.parentElement;
+
+    if (frame) {
+        frame.scrollLeft = 0;
+    }
+}
+
+function clearDashboardCaches() {
+    for (const key in dataCache) {
+        delete dataCache[key];
+    }
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`${STORAGE_PREFIX}:`)) {
+            localStorage.removeItem(key);
+        }
+    }
+}
+
+function refreshDashboard({ forceFresh = false } = {}) {
+    const { startDate, endDate } = getDateRange();
+
+    if (!validateYearRange(startDate.getFullYear(), endDate.getFullYear())) {
+        return;
+    }
+
+    if (startDate > endDate) {
+        alert('Please choose a start month that is before or equal to the end month.');
+        return;
+    }
+
+    if (forceFresh) {
+        clearDashboardCaches();
+        console.log('[Dashboard] Cache cleared before refresh');
+    }
+
+    document.body.classList.add('is-loading');
+    loadData();
+}
+
 function readLocalCache(key) {
     try {
         const raw = localStorage.getItem(`${STORAGE_PREFIX}:${key}`);
@@ -691,7 +736,7 @@ async function fetchSeries(seriesId, options = {}) {
     throw new Error(`All fetch attempts failed for ${seriesId}`);
 }
 
-async function loadData() {
+async function loadData(loadToken = ++dashboardLoadToken) {
     setStatus('Loading US economic data...', 'muted');
     try {
         console.log('Starting data load...');
@@ -863,6 +908,11 @@ async function loadData() {
             payems.push({ date: sortedPayemsRaw[i].date, value: parseFloat(change.toFixed(0)) });
         }
 
+        if (loadToken !== dashboardLoadToken) {
+            console.log('[Dashboard] Ignoring stale data load result');
+            return;
+        }
+
         cachedData = { gdp, cpi, unemployment, payems };
         dataSource = 'live';
         
@@ -921,6 +971,11 @@ async function loadData() {
                 tyler: null
             }))
         };
+        if (loadToken !== dashboardLoadToken) {
+            console.log('[Dashboard] Ignoring stale fallback load result');
+            return;
+        }
+
         cachedData = transformedSampleData;
         dataSource = 'sample';
         setStatus('⚠️ Using sample data - Live API temporarily unavailable (retrying in 30s)', 'warn');
@@ -930,6 +985,11 @@ async function loadData() {
             console.log('Retrying data load after fallback...');
             loadData();
         }, 30000);
+    }
+
+    if (loadToken !== dashboardLoadToken) {
+        console.log('[Dashboard] Skipping render for stale data load');
+        return;
     }
 
     renderAll();
@@ -1536,11 +1596,18 @@ function renderSalesTaxChart() {
         console.warn('No sales tax data available for selected year range');
         return;
     }
+
+    const rangeKey = `${startDate.getFullYear()}-${startDate.getMonth()}_${endDate.getFullYear()}-${endDate.getMonth()}_${filteredData.length}`;
     
     const showLabels = filteredData.length <= 15;
     const tickFontSize = getAdaptiveTickFont(filteredData.length, 11);
 
     setScrollableChartWidth(canvas, filteredData.length);
+
+    if (rangeKey !== lastSalesTaxRangeKey) {
+        resetScrollableChartPosition(canvas);
+        lastSalesTaxRangeKey = rangeKey;
+    }
 
     destroyChart(salesTaxChart);
     
@@ -2563,52 +2630,26 @@ function wireEvents() {
     // Full history toggle - disable/enable start date input and trigger update
     const fullHistoryToggle = document.getElementById('fullHistoryToggle');
     const startDateEl = document.getElementById('startDate');
+    const endDateEl = document.getElementById('endDate');
     if (fullHistoryToggle) {
         fullHistoryToggle.addEventListener('change', (e) => {
             if (startDateEl) {
                 startDateEl.disabled = e.target.checked;
             }
-            // Clear cache when toggling full history to force fresh fetch
-            for (const key in dataCache) {
-                delete dataCache[key];
-            }
-            const now = Date.now();
-            const storagePrefixLen = STORAGE_PREFIX.length + 1; // +1 for the colon
-            for (let i = localStorage.length - 1; i >= 0; i--) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith(STORAGE_PREFIX + ':')) {
-                    localStorage.removeItem(key);
-                }
-            }
-            console.log('[FullHistory] Cache cleared');
-            
-            // Re-fetch data with new date range instead of just re-filtering
-            loadData();
+            refreshDashboard({ forceFresh: true });
         });
     }
+
+    const autoRefreshInputs = [startDateEl, endDateEl].filter(Boolean);
+    autoRefreshInputs.forEach((inputEl) => {
+        inputEl.addEventListener('change', () => {
+            refreshDashboard();
+        });
+    });
     
     // Update button with validation
     document.getElementById('updateBtn')?.addEventListener('click', () => {
-        const { startDate, endDate } = getDateRange();
-        const startYear = startDate.getFullYear();
-        const endYear = endDate.getFullYear();
-        
-        if (validateYearRange(startYear, endYear)) {
-            // Clear cache to force fresh FRED API fetch with new date range
-            for (const key in dataCache) {
-                delete dataCache[key];
-            }
-            for (let i = localStorage.length - 1; i >= 0; i--) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith(STORAGE_PREFIX + ':')) {
-                    localStorage.removeItem(key);
-                }
-            }
-            console.log('[UpdateBtn] Cache cleared, refetching data...');
-            
-            // Re-fetch data with new date range
-            loadData();
-        }
+        refreshDashboard({ forceFresh: true });
     });
     
     document.getElementById('downloadGDPBtn')?.addEventListener('click', handleGDPDownload);
