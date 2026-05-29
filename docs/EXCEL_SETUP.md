@@ -7,7 +7,9 @@
 - Requires R2 to be enabled on your Cloudflare account
 
 ### 2. **Worker Endpoint** (`worker/src/index.js`)
-- **GET /api/excel-data** - Fetches Excel file from R2, reads all sheets, returns JSON
+- **GET /api/excel-data** - Fetches the official Texas Comptroller historical workbook, then overlays the live current fiscal year from the Monthly State Revenue Watch page
+- **Automatic Refresh** - Pulls the current fiscal year directly from the live Comptroller page, even when the downloadable XLSX lags behind
+- **R2 Fallback** - Falls back to `dashboard-data.xlsx` in R2 if the official workbook is temporarily unavailable
 - **CORS Support** - Allows requests from any origin
 - **Error Handling** - Graceful fallbacks for missing files or parsing errors
 - **Dependencies** - Uses `xlsx` package for Excel parsing
@@ -38,7 +40,7 @@ cd C:\Users\ps3zo\Desktop\Dashboard\worker
 wrangler deploy
 ```
 
-### Step 3: Upload Your Excel File
+### Step 3: Optional R2 Backup Upload
 Create a test Excel file with sheets (e.g., `Sales`, `Metrics`) and run:
 
 ```powershell
@@ -50,6 +52,14 @@ Or use Wrangler directly:
 ```powershell
 wrangler r2 object put dashboard-excel-files/dashboard-data.xlsx --file=C:\path\to\your\file.xlsx
 ```
+
+The worker now combines:
+`https://comptroller.texas.gov/transparency/revenue/watch/all-funds/data/all-funds-historical.xlsx`
+
+with the live Monthly State Revenue Watch page at:
+`https://comptroller.texas.gov/transparency/revenue/watch/all-funds/`
+
+That means the R2 upload is now optional and acts as a fallback copy instead of the primary monthly update path.
 
 ### Step 4: Test the Endpoint
 Open in browser:

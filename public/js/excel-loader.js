@@ -10,6 +10,11 @@
 const ExcelDataLoader = {
     // Configure endpoint via meta tag, app config, or fallback
     ENDPOINT: (() => {
+        const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        if (isLocalhost) {
+            return '/api/excel-data';
+        }
+
         const meta = document.querySelector('meta[name="excel-data-endpoint"]');
         const metaValue = meta?.getAttribute('content')?.trim();
 

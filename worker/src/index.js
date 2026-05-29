@@ -1,5 +1,13 @@
 import * as XLSX from 'xlsx';
 
+const DEFAULT_TEXAS_ALL_FUNDS_XLSX_URL = 'https://comptroller.texas.gov/transparency/revenue/watch/all-funds/data/all-funds-historical.xlsx';
+const DEFAULT_TEXAS_ALL_FUNDS_PAGE_URL = 'https://comptroller.texas.gov/transparency/revenue/watch/all-funds/';
+const FISCAL_MONTH_ORDER = [
+    'September', 'October', 'November', 'December',
+    'January', 'February', 'March', 'April',
+    'May', 'June', 'July', 'August'
+];
+
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS, POST',
@@ -96,39 +104,15 @@ export default {
 
 async function handleExcelData(request, env) {
     try {
-        if (!env.EXCEL_BUCKET) {
-            return new Response(
-                JSON.stringify({ error: 'R2 bucket not configured' }),
-                { status: 500, headers: corsHeaders }
-            );
-        }
+        const { payload, source } = await buildTexasRevenuePayload(env);
 
-        // Get the Excel file from R2
-        const fileObject = await env.EXCEL_BUCKET.get('dashboard-data.xlsx');
-
-        if (!fileObject) {
-            return new Response(
-                JSON.stringify({ error: 'Excel file not found in R2' }),
-                { status: 404, headers: corsHeaders }
-            );
-        }
-
-        // Read file as buffer
-        const buffer = await fileObject.arrayBuffer();
-
-        // Parse Excel workbook
-        const workbook = XLSX.read(buffer, { type: 'array' });
-
-        // Convert all sheets to JSON
-        const result = {};
-        for (const sheetName of workbook.SheetNames) {
-            const worksheet = workbook.Sheets[sheetName];
-            result[sheetName] = XLSX.utils.sheet_to_json(worksheet);
-        }
-
-        return new Response(JSON.stringify(result, null, 2), {
+        return new Response(JSON.stringify(payload, null, 2), {
             status: 200,
-            headers: corsHeaders
+            headers: {
+                ...corsHeaders,
+                'Cache-Control': 'public, max-age=3600',
+                'X-Excel-Source': source
+            }
         });
     } catch (error) {
         console.error('Excel processing error:', error);
@@ -140,4 +124,140 @@ async function handleExcelData(request, env) {
             { status: 500, headers: corsHeaders }
         );
     }
+}
+
+async function buildTexasRevenuePayload(env) {
+    const { buffer, source } = await loadExcelBuffer(env);
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const payload = {};
+
+    for (const sheetName of workbook.SheetNames) {
+        payload[sheetName] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    }
+
+    try {
+        const currentFiscalSheet = await loadCurrentFiscalSheet(env);
+        payload[currentFiscalSheet.sheetName] = currentFiscalSheet.rows;
+        return {
+            payload,
+            source: `${source}+live-current-fy`
+        };
+    } catch (error) {
+        console.warn('Live current fiscal year overlay failed:', error);
+        return { payload, source };
+    }
+}
+
+async function loadExcelBuffer(env) {
+    const workbookUrl = env.TEXAS_ALL_FUNDS_XLSX_URL || DEFAULT_TEXAS_ALL_FUNDS_XLSX_URL;
+
+    try {
+        const response = await fetch(workbookUrl, {
+            cf: {
+                cacheEverything: true,
+                cacheTtl: 3600
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Official workbook request failed with ${response.status}`);
+        }
+
+        return {
+            buffer: await response.arrayBuffer(),
+            source: 'official-texas-comptroller'
+        };
+    } catch (error) {
+        console.warn('Official workbook fetch failed, falling back to R2:', error);
+
+        if (!env.EXCEL_BUCKET) {
+            throw new Error(`Official workbook fetch failed and R2 bucket is not configured: ${error?.message || String(error)}`);
+        }
+
+        const fileObject = await env.EXCEL_BUCKET.get('dashboard-data.xlsx');
+        if (!fileObject) {
+            throw new Error('Official workbook fetch failed and Excel file was not found in R2');
+        }
+
+        return {
+            buffer: await fileObject.arrayBuffer(),
+            source: 'r2-fallback'
+        };
+    }
+}
+
+async function loadCurrentFiscalSheet(env) {
+    const pageUrl = env.TEXAS_ALL_FUNDS_PAGE_URL || DEFAULT_TEXAS_ALL_FUNDS_PAGE_URL;
+    const response = await fetch(pageUrl, {
+        cf: {
+            cacheEverything: true,
+            cacheTtl: 3600
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Current revenue page request failed with ${response.status}`);
+    }
+
+    const html = await response.text();
+    return buildCurrentFiscalSheet(html);
+}
+
+function buildCurrentFiscalSheet(html) {
+    const fiscalYearMatch = html.match(/Fiscal\s+(\d{4})/i);
+    if (!fiscalYearMatch) {
+        throw new Error('Unable to determine current fiscal year from the revenue page');
+    }
+
+    const currentFiscalYear = fiscalYearMatch[1];
+    const tablesWorkbook = XLSX.read(html, { type: 'string' });
+    const taxTable = tablesWorkbook.Sheets.Sheet1;
+
+    if (!taxTable) {
+        throw new Error('Tax collections table was not found on the live revenue page');
+    }
+
+    const rows = XLSX.utils.sheet_to_json(taxTable, { header: 1, raw: true });
+    const monthColumnCount = Math.max(0, Math.min(FISCAL_MONTH_ORDER.length, (rows[0]?.length || 0) - 4));
+
+    const aoa = [
+        [`Historical All Funds (Excluding Trusts) Revenue Fiscal ${currentFiscalYear}`],
+        ['Tax Category', ...FISCAL_MONTH_ORDER, 'Total', '']
+    ];
+
+    rows.slice(1).forEach((row) => {
+        if (!Array.isArray(row) || typeof row[0] !== 'string') return;
+
+        const label = normalizeCurrentTableLabel(row[0]);
+        if (!label || label === 'Percentage Change') return;
+
+        const monthValues = Array.from({ length: FISCAL_MONTH_ORDER.length }, (_, index) => {
+            if (index >= monthColumnCount) return 0;
+            return coerceNumber(row[index + 1]);
+        });
+
+        const total = coerceNumber(row[monthColumnCount + 1]);
+        const estimate = coerceNumber(row[monthColumnCount + 3]);
+
+        aoa.push([label, ...monthValues, total, estimate]);
+    });
+
+    return {
+        sheetName: `FY ${currentFiscalYear}`,
+        rows: XLSX.utils.sheet_to_json(XLSX.utils.aoa_to_sheet(aoa))
+    };
+}
+
+function normalizeCurrentTableLabel(label) {
+    if (typeof label !== 'string') return '';
+    return label.replace(/\s+/g, ' ').replace(/\d+$/u, '').trim();
+}
+
+function coerceNumber(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+        const parsed = Number(value.replace(/,/g, '').trim());
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
 }

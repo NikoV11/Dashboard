@@ -533,6 +533,20 @@ function getAdaptiveTickFont(count, baseSize = 12) {
     return baseSize;
 }
 
+function setScrollableChartWidth(canvas, itemCount, pixelsPerItem = 72) {
+    if (!canvas) return;
+
+    const container = canvas.parentElement;
+    if (!container) return;
+
+    container.style.overflowX = 'auto';
+    container.style.overflowY = 'hidden';
+
+    const containerWidth = container.clientWidth || canvas.clientWidth || 0;
+    const desiredWidth = Math.max(containerWidth, Math.max(itemCount, 1) * pixelsPerItem);
+    canvas.style.minWidth = `${desiredWidth}px`;
+}
+
 function readLocalCache(key) {
     try {
         const raw = localStorage.getItem(`${STORAGE_PREFIX}:${key}`);
@@ -1520,8 +1534,9 @@ function renderSalesTaxChart() {
     }
     
     const showLabels = filteredData.length <= 15;
-    const tickConfig = getAdaptiveAxisTicks(filteredData.length);
     const tickFontSize = getAdaptiveTickFont(filteredData.length, 11);
+
+    setScrollableChartWidth(canvas, filteredData.length);
 
     destroyChart(salesTaxChart);
     
@@ -1594,7 +1609,10 @@ function renderSalesTaxChart() {
                 x: {
                     grid: { display: false },
                     ticks: {
-                        ...tickConfig,
+                        autoSkip: false,
+                        maxTicksLimit: filteredData.length,
+                        maxRotation: 0,
+                        minRotation: 0,
                         font: { size: tickFontSize, weight: '500' },
                         color: '#475569'
                     }
