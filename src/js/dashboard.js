@@ -542,10 +542,20 @@ function setScrollableChartWidth(canvas, itemCount, pixelsPerItem = 96) {
     const frame = surface?.parentElement;
     if (!surface || !frame) return;
 
-    frame.style.overflowX = 'auto';
+    const shouldScroll = itemCount > 12;
+    frame.style.overflowX = shouldScroll ? 'auto' : 'hidden';
     frame.style.overflowY = 'hidden';
+    frame.style.paddingBottom = shouldScroll ? '8px' : '0';
 
     const availableWidth = frame.clientWidth || surface.clientWidth || canvas.clientWidth || 0;
+    if (!shouldScroll) {
+        surface.style.width = '100%';
+        surface.style.minWidth = '100%';
+        canvas.style.width = '100%';
+        frame.scrollLeft = 0;
+        return;
+    }
+
     const desiredWidth = Math.max(availableWidth, Math.max(itemCount, 1) * pixelsPerItem);
 
     surface.style.width = `${desiredWidth}px`;
