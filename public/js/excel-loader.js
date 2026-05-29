@@ -8,6 +8,15 @@
  */
 
 const ExcelDataLoader = {
+    CURRENT_FISCAL_URL: 'https://comptroller.texas.gov/transparency/revenue/watch/all-funds/',
+    CURRENT_FISCAL_PROXY_URL: 'https://api.allorigins.win/get?url=',
+    BUNDLED_CURRENT_FISCAL_URL: 'data/current-fiscal-year-tax-collections.json',
+    FISCAL_MONTH_ORDER: [
+        'September', 'October', 'November', 'December',
+        'January', 'February', 'March', 'April',
+        'May', 'June', 'July', 'August'
+    ],
+
     // Configure endpoint via meta tag, app config, or fallback
     ENDPOINT: (() => {
         const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -59,12 +68,14 @@ const ExcelDataLoader = {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            const data = await response.json();
+            let data = await response.json();
 
             // Validate response format
             if (!data || typeof data !== 'object') {
                 throw new Error('Invalid response format');
             }
+
+            data = await this.overlayCurrentFiscalYear(data);
 
             // Cache the data
             this.cache = data;
@@ -80,6 +91,182 @@ const ExcelDataLoader = {
             console.error('[ExcelDataLoader] Failed to load:', error.message);
             throw error;
         }
+    },
+
+    async overlayCurrentFiscalYear(data) {
+        let overlaySheet = null;
+
+        try {
+            if (typeof DOMParser === 'undefined') {
+                throw new Error('DOMParser is unavailable in this environment');
+            }
+
+            overlaySheet = await this.fetchCurrentFiscalYearSheet();
+        } catch (error) {
+            console.warn('[ExcelDataLoader] Live fiscal year overlay failed:', error.message || error);
+        }
+
+        if (!overlaySheet) {
+            try {
+                overlaySheet = await this.fetchBundledCurrentFiscalYearSheet();
+                console.log(`[ExcelDataLoader] Using bundled ${overlaySheet.sheetName} overlay`);
+            } catch (error) {
+                console.warn('[ExcelDataLoader] Bundled fiscal year overlay failed:', error.message || error);
+            }
+        }
+
+        if (overlaySheet?.sheetName && Array.isArray(overlaySheet.rows)) {
+            data[overlaySheet.sheetName] = overlaySheet.rows;
+            console.log(`[ExcelDataLoader] Overlaid ${overlaySheet.sheetName}`);
+        }
+
+        return data;
+    },
+
+    async fetchCurrentFiscalYearSheet() {
+        const proxyUrl = `${this.CURRENT_FISCAL_PROXY_URL}${encodeURIComponent(this.CURRENT_FISCAL_URL)}`;
+        const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Live revenue page proxy failed with HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const html = typeof payload?.contents === 'string' ? payload.contents : '';
+        if (!html) {
+            throw new Error('Live revenue page proxy returned no HTML contents');
+        }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        return this.buildCurrentFiscalYearSheet(doc, html);
+    },
+
+    async fetchBundledCurrentFiscalYearSheet() {
+        const bundledUrl = new URL(this.BUNDLED_CURRENT_FISCAL_URL, window.location.href).toString();
+        const response = await fetch(bundledUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Bundled fiscal year overlay failed with HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        if (!payload?.sheetName || !Array.isArray(payload.rows)) {
+            throw new Error('Bundled fiscal year overlay is missing sheet data');
+        }
+
+        return payload;
+    },
+
+    buildCurrentFiscalYearSheet(doc, html) {
+        const taxTable = Array.from(doc.querySelectorAll('table')).find((table) => {
+            const firstHeader = this.getCellText(table.querySelector('thead th'));
+            return firstHeader === 'Tax Collections by Major Tax';
+        });
+
+        if (!taxTable) {
+            throw new Error('Tax collections table not found on live revenue page');
+        }
+
+        const fiscalYear = this.extractFiscalYear(html, taxTable);
+        const sheetKey = `Historical All Funds (Excluding Trusts) Revenue Fiscal ${fiscalYear}`;
+        const headerCells = Array.from(taxTable.querySelectorAll('thead th')).map((cell) => this.getCellText(cell));
+        const totalHeaderIndex = headerCells.findIndex((text) => text.toLowerCase() === 'total');
+        const monthCount = totalHeaderIndex > 1
+            ? Math.min(this.FISCAL_MONTH_ORDER.length, totalHeaderIndex - 1)
+            : this.FISCAL_MONTH_ORDER.length;
+
+        const rows = [];
+        rows.push({ [sheetKey]: 'Tax Collections' });
+
+        const headerRow = { [sheetKey]: 'Tax Category' };
+        this.FISCAL_MONTH_ORDER.forEach((month, index) => {
+            headerRow[this.getSheetColumnKey(index)] = month;
+        });
+        headerRow.__EMPTY_12 = 'Total';
+        headerRow.__EMPTY_13 = 'CRE Fiscal Year Estimate';
+        rows.push(headerRow);
+
+        Array.from(taxTable.querySelectorAll('tr')).slice(1).forEach((tr) => {
+            const rowHeader = tr.querySelector('th');
+            const label = this.normalizeCategoryLabel(this.getCellText(rowHeader));
+            if (!label || label === 'Percentage Change') {
+                return;
+            }
+
+            const cells = Array.from(tr.querySelectorAll('th, td')).map((cell) => this.getCellText(cell));
+            const row = { [sheetKey]: label };
+
+            this.FISCAL_MONTH_ORDER.forEach((_, index) => {
+                row[this.getSheetColumnKey(index)] = index < monthCount
+                    ? this.coerceNumber(cells[index + 1])
+                    : 0;
+            });
+
+            row.__EMPTY_12 = this.coerceNumber(cells[monthCount + 1]);
+            row.__EMPTY_13 = this.coerceNumber(cells[monthCount + 3]);
+            rows.push(row);
+        });
+
+        return {
+            sheetName: `FY ${fiscalYear}`,
+            rows
+        };
+    },
+
+    extractFiscalYear(html, taxTable) {
+        const directMatch = html.match(/Fiscal\s+(\d{4})/i);
+        if (directMatch) {
+            return directMatch[1];
+        }
+
+        const yearMatches = Array.from(taxTable.querySelectorAll('thead th'))
+            .map((cell) => this.getCellText(cell).match(/\b(20\d{2})\b/))
+            .filter(Boolean)
+            .map((match) => Number(match[1]));
+
+        if (yearMatches.length > 0) {
+            return String(Math.max(...yearMatches));
+        }
+
+        throw new Error('Could not determine fiscal year from live revenue page');
+    },
+
+    getSheetColumnKey(index) {
+        return index === 0 ? '__EMPTY' : `__EMPTY_${index}`;
+    },
+
+    getCellText(cell) {
+        if (!cell) return '';
+        return String(cell.textContent || '')
+            .replace(/\u00a0/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    },
+
+    normalizeCategoryLabel(label) {
+        return label.replace(/\d+$/u, '').trim();
+    },
+
+    coerceNumber(value) {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value;
+        }
+
+        const cleaned = String(value || '')
+            .replace(/,/g, '')
+            .replace(/\$/g, '')
+            .replace(/%/g, '')
+            .trim();
+
+        const parsed = Number(cleaned);
+        return Number.isFinite(parsed) ? parsed : 0;
     },
 
     /**
