@@ -683,6 +683,24 @@ button.ghost:focus-visible {
 
 canvas { width: 100%; height: 340px; max-height: 380px; }
 
+.chart-scroll-frame {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 8px;
+}
+
+.chart-scroll-surface {
+    min-width: 100%;
+    height: 340px;
+}
+
+.chart-scroll-surface canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: none;
+}
+
 .table-section {
     background: var(--glass);
     border: 1px solid var(--glass-border);
