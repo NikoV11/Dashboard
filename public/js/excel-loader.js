@@ -11,6 +11,7 @@ const ExcelDataLoader = {
     CURRENT_FISCAL_URL: 'https://comptroller.texas.gov/transparency/revenue/watch/all-funds/',
     CURRENT_FISCAL_PROXY_URL: 'https://api.allorigins.win/get?url=',
     BUNDLED_CURRENT_FISCAL_URL: 'data/current-fiscal-year-tax-collections.json',
+    LIVE_OVERLAY_TIMEOUT_MS: 5000,
     FISCAL_MONTH_ORDER: [
         'September', 'October', 'November', 'December',
         'January', 'February', 'March', 'April',
@@ -68,6 +69,7 @@ const ExcelDataLoader = {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
+            const excelSource = response.headers.get('X-Excel-Source') || '';
             let data = await response.json();
 
             // Validate response format
@@ -75,7 +77,7 @@ const ExcelDataLoader = {
                 throw new Error('Invalid response format');
             }
 
-            data = await this.overlayCurrentFiscalYear(data);
+            data = await this.overlayCurrentFiscalYear(data, { excelSource });
 
             // Cache the data
             this.cache = data;
@@ -93,17 +95,23 @@ const ExcelDataLoader = {
         }
     },
 
-    async overlayCurrentFiscalYear(data) {
+    async overlayCurrentFiscalYear(data, options = {}) {
         let overlaySheet = null;
+        const excelSource = String(options.excelSource || '');
+        const workerAlreadyHasLiveOverlay = excelSource.includes('live-current-fy');
 
-        try {
-            if (typeof DOMParser === 'undefined') {
-                throw new Error('DOMParser is unavailable in this environment');
+        if (!workerAlreadyHasLiveOverlay) {
+            try {
+                if (typeof DOMParser === 'undefined') {
+                    throw new Error('DOMParser is unavailable in this environment');
+                }
+
+                overlaySheet = await this.fetchCurrentFiscalYearSheet();
+            } catch (error) {
+                console.warn('[ExcelDataLoader] Live fiscal year overlay failed:', error.message || error);
             }
-
-            overlaySheet = await this.fetchCurrentFiscalYearSheet();
-        } catch (error) {
-            console.warn('[ExcelDataLoader] Live fiscal year overlay failed:', error.message || error);
+        } else {
+            console.log('[ExcelDataLoader] Skipping browser overlay because worker already returned live current-fiscal data');
         }
 
         if (!overlaySheet) {
@@ -116,8 +124,14 @@ const ExcelDataLoader = {
         }
 
         if (overlaySheet?.sheetName && Array.isArray(overlaySheet.rows)) {
-            data[overlaySheet.sheetName] = overlaySheet.rows;
-            console.log(`[ExcelDataLoader] Overlaid ${overlaySheet.sheetName}`);
+            const existingRows = data[overlaySheet.sheetName];
+
+            if (this.shouldReplaceFiscalSheet(existingRows, overlaySheet.rows)) {
+                data[overlaySheet.sheetName] = overlaySheet.rows;
+                console.log(`[ExcelDataLoader] Overlaid ${overlaySheet.sheetName}`);
+            } else {
+                console.log(`[ExcelDataLoader] Kept existing ${overlaySheet.sheetName}; overlay was not newer than API data`);
+            }
         }
 
         return data;
@@ -125,10 +139,10 @@ const ExcelDataLoader = {
 
     async fetchCurrentFiscalYearSheet() {
         const proxyUrl = `${this.CURRENT_FISCAL_PROXY_URL}${encodeURIComponent(this.CURRENT_FISCAL_URL)}`;
-        const response = await fetch(proxyUrl, {
+        const response = await this.fetchWithTimeout(proxyUrl, {
             method: 'GET',
             headers: { 'Accept': 'application/json' }
-        });
+        }, this.LIVE_OVERLAY_TIMEOUT_MS);
 
         if (!response.ok) {
             throw new Error(`Live revenue page proxy failed with HTTP ${response.status}`);
@@ -218,6 +232,89 @@ const ExcelDataLoader = {
             sheetName: `FY ${fiscalYear}`,
             rows
         };
+    },
+
+    shouldReplaceFiscalSheet(existingRows, candidateRows) {
+        if (!Array.isArray(candidateRows) || candidateRows.length === 0) {
+            return false;
+        }
+
+        if (!Array.isArray(existingRows) || existingRows.length === 0) {
+            return true;
+        }
+
+        const existingSummary = this.getFiscalSheetSummary(existingRows);
+        const candidateSummary = this.getFiscalSheetSummary(candidateRows);
+
+        if (candidateSummary.lastReportedMonthIndex !== existingSummary.lastReportedMonthIndex) {
+            return candidateSummary.lastReportedMonthIndex > existingSummary.lastReportedMonthIndex;
+        }
+
+        return candidateSummary.populatedCellCount > existingSummary.populatedCellCount;
+    },
+
+    getFiscalSheetSummary(rows) {
+        const headerRow = rows.find((row) => {
+            const firstValue = Object.values(row || {})[0];
+            return this.getCellText({ textContent: firstValue }).includes('Tax Category');
+        });
+
+        const monthKeyMap = new Map();
+        if (headerRow) {
+            Object.entries(headerRow).forEach(([key, value]) => {
+                const label = this.getCellText({ textContent: value });
+                if (this.FISCAL_MONTH_ORDER.includes(label)) {
+                    monthKeyMap.set(label, key);
+                }
+            });
+        }
+
+        let lastReportedMonthIndex = -1;
+        let populatedCellCount = 0;
+
+        rows.forEach((row) => {
+            const label = this.getCellText({ textContent: Object.values(row || {})[0] });
+            if (!label || label === 'Tax Collections' || label === 'Tax Category') return;
+
+            this.FISCAL_MONTH_ORDER.forEach((month, index) => {
+                const key = monthKeyMap.get(month);
+                if (!key) return;
+
+                if (this.coerceNumber(row[key]) !== 0) {
+                    lastReportedMonthIndex = Math.max(lastReportedMonthIndex, index);
+                    populatedCellCount += 1;
+                }
+            });
+        });
+
+        return {
+            lastReportedMonthIndex,
+            populatedCellCount
+        };
+    },
+
+    async fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+        if (typeof AbortController === 'undefined') {
+            return fetch(url, options);
+        }
+
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            return await fetch(url, {
+                ...options,
+                signal: controller.signal
+            });
+        } catch (error) {
+            if (error?.name === 'AbortError') {
+                throw new Error(`Request timed out after ${timeoutMs}ms`);
+            }
+
+            throw error;
+        } finally {
+            clearTimeout(timer);
+        }
     },
 
     extractFiscalYear(html, taxTable) {

@@ -4,6 +4,7 @@
   "description": "FRED Data Dashboard",
   "scripts": {
     "build": "node scripts/build-pages.js",
+    "sync:texas-fiscal-fallback": "node scripts/update-current-fiscal-fallback.js",
     "start": "node server/server.js",
     "dev": "node --watch server/server.js",
     "deploy:worker": "npx wrangler deploy --config worker/wrangler.toml"

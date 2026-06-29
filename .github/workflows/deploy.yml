@@ -4,6 +4,8 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+  schedule:
+    - cron: '30 16 * * *'
 
 permissions:
   contents: read
@@ -32,6 +34,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Refresh Texas fiscal fallback
+        run: npm run sync:texas-fiscal-fallback
 
       - name: Build Pages site
         env:

@@ -28,10 +28,6 @@ export default {
             return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405, headers: corsHeaders });
         }
 
-        if (!env.FRED_API_KEY) {
-            return new Response('Server misconfigured: missing FRED_API_KEY', { status: 500 });
-        }
-
         const url = new URL(request.url);
 
         if (url.pathname === '/' || url.pathname === '/health') {
@@ -55,6 +51,10 @@ export default {
 
         if (!url.pathname.endsWith('/fred/series/observations')) {
             return new Response('Not Found', { status: 404 });
+        }
+
+        if (!env.FRED_API_KEY) {
+            return new Response('Server misconfigured: missing FRED_API_KEY', { status: 500 });
         }
 
         const target = new URL('https://api.stlouisfed.org/fred/series/observations');
@@ -210,20 +210,20 @@ function buildCurrentFiscalSheet(html) {
     }
 
     const currentFiscalYear = fiscalYearMatch[1];
-    const tablesWorkbook = XLSX.read(html, { type: 'string' });
-    const taxTable = tablesWorkbook.Sheets.Sheet1;
-
-    if (!taxTable) {
-        throw new Error('Tax collections table was not found on the live revenue page');
-    }
-
-    const rows = XLSX.utils.sheet_to_json(taxTable, { header: 1, raw: true });
+    const rows = getCurrentFiscalTableRows(html);
     const monthColumnCount = Math.max(0, Math.min(FISCAL_MONTH_ORDER.length, (rows[0]?.length || 0) - 4));
 
-    const aoa = [
-        [`Historical All Funds (Excluding Trusts) Revenue Fiscal ${currentFiscalYear}`],
-        ['Tax Category', ...FISCAL_MONTH_ORDER, 'Total', '']
-    ];
+    const sheetKey = `Historical All Funds (Excluding Trusts) Revenue Fiscal ${currentFiscalYear}`;
+    const payloadRows = [];
+    payloadRows.push({ [sheetKey]: 'Tax Collections' });
+
+    const headerRow = { [sheetKey]: 'Tax Category' };
+    FISCAL_MONTH_ORDER.forEach((month, index) => {
+        headerRow[getSheetColumnKey(index)] = month;
+    });
+    headerRow.__EMPTY_12 = 'Total';
+    headerRow.__EMPTY_13 = 'CRE Fiscal Year Estimate';
+    payloadRows.push(headerRow);
 
     rows.slice(1).forEach((row) => {
         if (!Array.isArray(row) || typeof row[0] !== 'string') return;
@@ -231,21 +231,40 @@ function buildCurrentFiscalSheet(html) {
         const label = normalizeCurrentTableLabel(row[0]);
         if (!label || label === 'Percentage Change') return;
 
-        const monthValues = Array.from({ length: FISCAL_MONTH_ORDER.length }, (_, index) => {
-            if (index >= monthColumnCount) return 0;
-            return coerceNumber(row[index + 1]);
+        const payloadRow = { [sheetKey]: label };
+        FISCAL_MONTH_ORDER.forEach((_, index) => {
+            payloadRow[getSheetColumnKey(index)] = index < monthColumnCount
+                ? coerceNumber(row[index + 1])
+                : 0;
         });
-
-        const total = coerceNumber(row[monthColumnCount + 1]);
-        const estimate = coerceNumber(row[monthColumnCount + 3]);
-
-        aoa.push([label, ...monthValues, total, estimate]);
+        payloadRow.__EMPTY_12 = coerceNumber(row[monthColumnCount + 1]);
+        payloadRow.__EMPTY_13 = coerceNumber(row[monthColumnCount + 3]);
+        payloadRows.push(payloadRow);
     });
 
     return {
         sheetName: `FY ${currentFiscalYear}`,
-        rows: XLSX.utils.sheet_to_json(XLSX.utils.aoa_to_sheet(aoa))
+        rows: payloadRows
     };
+}
+
+function getCurrentFiscalTableRows(html) {
+    const tablesWorkbook = XLSX.read(html, { type: 'string' });
+
+    for (const sheetName of tablesWorkbook.SheetNames) {
+        const rows = XLSX.utils.sheet_to_json(tablesWorkbook.Sheets[sheetName], { header: 1, raw: true });
+        const firstCell = normalizeCurrentTableLabel(rows[0]?.[0]);
+
+        if (firstCell === 'Tax Collections by Major Tax') {
+            return rows;
+        }
+    }
+
+    throw new Error('Tax collections table was not found on the live revenue page');
+}
+
+function getSheetColumnKey(index) {
+    return index === 0 ? '__EMPTY' : `__EMPTY_${index}`;
 }
 
 function normalizeCurrentTableLabel(label) {
