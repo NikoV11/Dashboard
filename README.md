@@ -34,6 +34,23 @@ npm start
 Then open:
 `http://localhost:3000/`
 
+## Deploy
+
+The dashboard deploys in two pieces:
+
+1. Frontend: GitHub Pages publishes the built `dist/` folder at the repository site root.
+2. Data/API proxy: Cloudflare Worker serves FRED requests and the Texas revenue Excel endpoint.
+
+Build the GitHub Pages artifact locally with:
+
+```bash
+npm run build
+```
+
+If your Worker URL is different from the default, set `FRED_PROXY_BASE` before building. The Excel endpoint will be derived automatically unless you also set `EXCEL_DATA_ENDPOINT`.
+
+See [deployment instructions](docs/DEPLOYMENT.md) for the full Pages + Cloudflare workflow.
+
 ## Project Structure
 
 - `public/`: live site files served by GitHub Pages
@@ -46,6 +63,7 @@ Then open:
 
 - [Full documentation](docs/README.md)
 - [Excel and revenue data setup](docs/EXCEL_SETUP.md)
+- [Deployment guide](docs/DEPLOYMENT.md)
 - [Project structure](docs/PROJECT_STRUCTURE.md)
 
 ## Data Sources
