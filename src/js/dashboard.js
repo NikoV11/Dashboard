@@ -197,7 +197,8 @@ const txCompareState = {
     year: 2024,
     years: [...TX_COMPARE_YEARS],
     ready: false,
-    loadError: ''
+    loadError: '',
+    source: 'live'
 };
 
 const txCompareStore = {
@@ -636,6 +637,31 @@ function getBundledDataset(name) {
 
     const dataset = window[name];
     return dataset && typeof dataset === 'object' ? dataset : null;
+}
+
+const bundledJsonCache = new Map();
+
+async function fetchBundledJson(relativePath) {
+    const normalizedPath = String(relativePath || '').replace(/^\.?\//, '');
+    if (!normalizedPath) {
+        throw new Error('Bundled fallback path is required.');
+    }
+
+    if (bundledJsonCache.has(normalizedPath)) {
+        return bundledJsonCache.get(normalizedPath);
+    }
+
+    const response = await fetch(new URL(normalizedPath, window.location.href).toString(), {
+        headers: { 'Accept': 'application/json' }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Bundled fallback request failed with HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    bundledJsonCache.set(normalizedPath, payload);
+    return payload;
 }
 
 function normalizeYearList(values, fallbackYears = []) {
@@ -4054,33 +4080,74 @@ function getTxMetricNarrative(metricKey) {
     return metricDescriptions[metricKey] || '';
 }
 
+function applyTexasComparisonPayload(payload, source = 'live') {
+    const records = Array.isArray(payload?.records) ? payload.records : [];
+
+    txCompareStore.records = records;
+    txCompareStore.byCountyYearMetric.clear();
+    txCompareStore.countyFipsByName.clear();
+
+    records.forEach((record) => {
+        if (!record?.fips || !record?.county || !Number.isFinite(record?.year)) {
+            return;
+        }
+
+        const countyKey = normalizeCountyName(record.county);
+        txCompareStore.countyFipsByName.set(countyKey, record.fips);
+        txCompareStore.byCountyYearMetric.set(`${record.fips}-${record.year}`, record);
+    });
+
+    txCompareState.ready = records.length > 0;
+    txCompareState.source = source;
+}
+
+async function tryUseTexasComparisonFallback(reason = '') {
+    try {
+        const payload = await fetchBundledJson('data/tx-health-compare.json');
+        applyTexasComparisonPayload(payload, 'bundled-fallback');
+        txCompareState.loadError = txCompareState.ready
+            ? 'Live Texas comparison API unavailable, using bundled fallback data.'
+            : (reason || 'Bundled Texas comparison fallback data is unavailable.');
+        return txCompareState.ready;
+    } catch (error) {
+        return false;
+    }
+}
+
 async function loadTexasComparisonData() {
     try {
         const years = txCompareState.years.join(',');
         const payload = await fetchTexasCompareJson(`/api/tx-health-compare?years=${encodeURIComponent(years)}`);
-        const records = Array.isArray(payload.records) ? payload.records : [];
+        applyTexasComparisonPayload(payload, 'live');
+        txCompareState.loadError = '';
 
-        txCompareStore.records = records;
-        txCompareStore.byCountyYearMetric.clear();
-        txCompareStore.countyFipsByName.clear();
-
-        records.forEach((record) => {
-            if (!record?.fips || !record?.county || !Number.isFinite(record?.year)) {
-                return;
-            }
-
-            const countyKey = normalizeCountyName(record.county);
-            txCompareStore.countyFipsByName.set(countyKey, record.fips);
-            txCompareStore.byCountyYearMetric.set(`${record.fips}-${record.year}`, record);
-        });
-
-        txCompareState.ready = records.length > 0;
-        txCompareState.loadError = records.length > 0 ? '' : 'Texas comparison API returned no records.';
+        if (!txCompareState.ready && !await tryUseTexasComparisonFallback('Texas comparison API returned no records.')) {
+            txCompareState.loadError = 'Texas comparison API returned no records.';
+        }
     } catch (error) {
         console.error('Failed to load Texas comparison data:', error);
+        if (await tryUseTexasComparisonFallback(error?.message || 'Unable to load Texas comparison data.')) {
+            return;
+        }
+
+        applyTexasComparisonPayload(null, 'live');
         txCompareState.ready = false;
         txCompareState.loadError = error?.message || 'Unable to load Texas comparison data.';
     }
+}
+
+async function tryUseTexasCountiesGeoJsonFallback() {
+    try {
+        const payload = await fetchBundledJson('data/texas-counties-geojson.json');
+        if (Array.isArray(payload?.features) && payload.features.length > 0) {
+            txCompareStore.countiesGeoJson = payload;
+            return true;
+        }
+    } catch (error) {
+        console.warn('Bundled Texas county GeoJSON fallback failed:', error?.message || error);
+    }
+
+    return false;
 }
 
 async function loadTexasCountiesGeoJson() {
@@ -4090,8 +4157,16 @@ async function loadTexasCountiesGeoJson() {
         }
 
         txCompareStore.countiesGeoJson = await fetchTexasCompareJson('/api/us-counties-geojson');
+
+        if (!Array.isArray(txCompareStore.countiesGeoJson?.features) || !txCompareStore.countiesGeoJson.features.length) {
+            await tryUseTexasCountiesGeoJsonFallback();
+        }
     } catch (error) {
         console.error('Failed to load county GeoJSON:', error);
+        if (await tryUseTexasCountiesGeoJsonFallback()) {
+            return;
+        }
+
         txCompareStore.countiesGeoJson = null;
     }
 }
