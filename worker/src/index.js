@@ -217,7 +217,7 @@ export default {
         }
 
         if (url.pathname === '/api/tx-regional-employment') {
-            return handleTexasRegionalEmployment(url);
+            return handleTexasRegionalEmployment(url, env);
         }
 
         if (url.pathname === '/api/tx-regional-demographics') {
@@ -725,8 +725,17 @@ function parseTexasCountyNameFromCensus(name) {
         .trim();
 }
 
-async function fetchCensusJson(url) {
-    const response = await fetch(url.toString());
+function withCensusApiKey(url, censusApiKey = '') {
+    const requestUrl = new URL(url.toString());
+    if (censusApiKey && !requestUrl.searchParams.has('key')) {
+        requestUrl.searchParams.set('key', censusApiKey);
+    }
+
+    return requestUrl;
+}
+
+async function fetchCensusJson(url, censusApiKey = '') {
+    const response = await fetch(withCensusApiKey(url, censusApiKey).toString());
     if (!response.ok) {
         const body = await response.text();
         throw new Error(`Census request failed (${response.status}): ${body.slice(0, 240)}`);
@@ -812,7 +821,7 @@ function computeWeeklyIndustryWage(headers, earningsRow, employmentHeaders, empl
     return simpleCount > 0 ? (simpleAnnualTotal / simpleCount) / 52 : null;
 }
 
-async function loadTexasRegionalEmploymentYear(year) {
+async function loadTexasRegionalEmploymentYear(year, censusApiKey = '') {
     if (texasRegionalEmploymentCache.has(year)) {
         return texasRegionalEmploymentCache.get(year);
     }
@@ -828,8 +837,8 @@ async function loadTexasRegionalEmploymentYear(year) {
     earningsUrl.searchParams.set('in', 'state:48');
 
     const [subjectRows, earningsRows] = await Promise.all([
-        fetchCensusJson(subjectUrl),
-        fetchCensusJson(earningsUrl)
+        fetchCensusJson(subjectUrl, censusApiKey),
+        fetchCensusJson(earningsUrl, censusApiKey)
     ]);
 
     const subjectHeaders = Array.isArray(subjectRows) && subjectRows.length ? subjectRows[0] : [];
@@ -1151,7 +1160,18 @@ async function handleCountiesGeoJson() {
     }
 }
 
-async function handleTexasRegionalEmployment(url) {
+async function handleTexasRegionalEmployment(url, env) {
+    const censusApiKey = String(env?.CENSUS_API_KEY || '').trim();
+    if (!censusApiKey) {
+        return new Response(JSON.stringify({
+            error: 'CENSUS_API_KEY is required for live Texas regional employment data.',
+            detail: 'Configure CENSUS_API_KEY on the worker to enable county-level employment refreshes.'
+        }), {
+            status: 500,
+            headers: corsHeaders
+        });
+    }
+
     try {
         const currentYear = new Date().getFullYear();
         const requestedYearRaw = Number.parseInt(String(url.searchParams.get('year') || ''), 10);
@@ -1161,7 +1181,7 @@ async function handleTexasRegionalEmployment(url) {
         let lastError = null;
         for (let year = maxYear; year >= 2018; year -= 1) {
             try {
-                const records = await loadTexasRegionalEmploymentYear(year);
+                const records = await loadTexasRegionalEmploymentYear(year, censusApiKey);
                 if (!Array.isArray(records) || records.length === 0) {
                     continue;
                 }

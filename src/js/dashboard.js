@@ -1113,10 +1113,40 @@ function getRegionalEmploymentLocations() {
         }
     }
 
-    return getTxLocations().map((location) => ({
+    const presetLocations = TX_COMPARE_LOCATIONS.map((location) => ({
         id: location.id,
         name: location.name,
-        type: location.type
+        type: location.type,
+        countyNames: Array.isArray(location.countyNames) ? [...location.countyNames] : []
+    }));
+    const metroLocations = presetLocations.filter((location) => location.type === 'MSA');
+    const presetCountyLocations = presetLocations.filter((location) => location.type === 'County');
+    const presetCountyKeys = new Set(
+        presetCountyLocations
+            .map((location) => normalizeCountyName(location.countyNames[0]))
+            .filter(Boolean)
+    );
+    const generatedCountyNames = [...regionalEmploymentApiState.recordsByCountyKey.values()]
+        .map((record) => String(record?.county || '').trim())
+        .filter(Boolean)
+        .filter((countyName, index, items) => (
+            items.findIndex((candidate) => normalizeCountyName(candidate) === normalizeCountyName(countyName)) === index
+        ))
+        .sort((a, b) => a.localeCompare(b));
+    const generatedCountyLocations = generatedCountyNames
+        .filter((countyName) => !presetCountyKeys.has(normalizeCountyName(countyName)))
+        .map((countyName) => ({
+            id: `county-${slugifyTxLocation(countyName)}`,
+            name: `${countyName} County, TX`,
+            type: 'County',
+            countyNames: [countyName]
+        }));
+
+    return [...metroLocations, ...presetCountyLocations, ...generatedCountyLocations].map((location) => ({
+        id: location.id,
+        name: location.name,
+        type: location.type,
+        countyNames: Array.isArray(location.countyNames) ? [...location.countyNames] : []
     }));
 }
 
@@ -1129,9 +1159,13 @@ function getRegionalEmploymentCountyNames(location) {
         return [];
     }
 
-    const txLocation = getTxLocationById(location.id);
-    if (txLocation?.countyNames?.length) {
-        return txLocation.countyNames;
+    if (Array.isArray(location.countyNames) && location.countyNames.length) {
+        return location.countyNames;
+    }
+
+    const presetLocation = TX_COMPARE_LOCATIONS.find((candidate) => candidate.id === location.id);
+    if (presetLocation?.countyNames?.length) {
+        return presetLocation.countyNames;
     }
 
     if (location.type === 'County') {
@@ -3983,7 +4017,19 @@ async function fetchTexasCompareJson(path) {
         try {
             const response = await fetch(url);
             if (!response.ok) {
-                lastError = new Error(`Request failed (${response.status}) for ${url}`);
+                const bodyText = await response.text();
+                let message = `Request failed (${response.status}) for ${url}`;
+
+                if (bodyText) {
+                    try {
+                        const payload = JSON.parse(bodyText);
+                        message = payload?.detail || payload?.error || message;
+                    } catch (parseError) {
+                        message = `${message}: ${bodyText.slice(0, 180)}`;
+                    }
+                }
+
+                lastError = new Error(message);
                 continue;
             }
 

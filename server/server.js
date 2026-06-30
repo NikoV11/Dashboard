@@ -692,8 +692,17 @@ function parseTexasCountyNameFromCensus(name) {
         .trim();
 }
 
-async function fetchCensusJson(url) {
-    const response = await fetch(url.toString());
+function withCensusApiKey(url, censusApiKey = process.env.CENSUS_API_KEY || '') {
+    const requestUrl = new URL(url.toString());
+    if (censusApiKey && !requestUrl.searchParams.has('key')) {
+        requestUrl.searchParams.set('key', censusApiKey);
+    }
+
+    return requestUrl;
+}
+
+async function fetchCensusJson(url, censusApiKey = process.env.CENSUS_API_KEY || '') {
+    const response = await fetch(withCensusApiKey(url, censusApiKey).toString());
     if (!response.ok) {
         const body = await response.text();
         throw new Error(`Census request failed (${response.status}): ${body.slice(0, 240)}`);
@@ -1078,6 +1087,14 @@ app.get('/api/tx-health-compare', async (req, res) => {
 });
 
 app.get('/api/tx-regional-employment', async (req, res) => {
+    const censusApiKey = String(process.env.CENSUS_API_KEY || '').trim();
+    if (!censusApiKey) {
+        return res.status(500).json({
+            error: 'CENSUS_API_KEY is required for live Texas regional employment data.',
+            detail: 'Configure CENSUS_API_KEY on the server to enable county-level employment refreshes.'
+        });
+    }
+
     const currentYear = new Date().getFullYear();
     const requestedYearRaw = Number.parseInt(String(req.query.year || ''), 10);
     const requestedYear = Number.isFinite(requestedYearRaw) ? requestedYearRaw : currentYear;

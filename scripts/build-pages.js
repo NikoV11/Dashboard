@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { syncCurrentFiscalFallback } = require('./update-current-fiscal-fallback');
+const { syncRegionalEmploymentFallback } = require('./update-regional-employment-fallback');
 
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
@@ -34,6 +35,12 @@ async function buildPagesSite() {
         await syncCurrentFiscalFallback();
     } catch (error) {
         console.warn('[build-pages] Fiscal fallback refresh skipped:', error?.message || error);
+    }
+
+    try {
+        await syncRegionalEmploymentFallback();
+    } catch (error) {
+        console.warn('[build-pages] Regional employment fallback refresh skipped:', error?.message || error);
     }
 
     fs.rmSync(distDir, { recursive: true, force: true });
