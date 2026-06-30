@@ -5,6 +5,7 @@
   "scripts": {
     "build": "node scripts/build-pages.js",
     "build:uttyler": "node scripts/build-uttyler-inline-fix.js",
+    "build:uttyler-tech-handoff": "node scripts/build-uttyler-tech-team-handoff.js",
     "sync:texas-fiscal-fallback": "node scripts/update-current-fiscal-fallback.js",
     "sync:texas-compare-fallbacks": "node scripts/update-texas-compare-fallbacks.js",
     "start": "node server/server.js",
