@@ -41,7 +41,7 @@ const ExcelDataLoader = {
             return metaValue;
         }
 
-        return 'https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data';
+        return 'https://fred-proxy.hibbsmonitor.workers.dev/api/excel-data';
     })(),
     // Alternative for local testing:
     // ENDPOINT: '/api/excel-data',

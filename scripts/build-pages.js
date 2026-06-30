@@ -14,7 +14,7 @@ const publicCssPath = path.join(publicDir, 'styles.css');
 const imagesDir = path.join(rootDir, 'images');
 const dataDefinitionsDir = path.join(rootDir, 'data', 'definitions');
 
-const defaultFredProxyBase = 'https://fred-proxy.hibbsdashboard.workers.dev';
+const defaultFredProxyBase = 'https://fred-proxy.hibbsmonitor.workers.dev';
 const fredProxyBase = normalizeUrl(process.env.FRED_PROXY_BASE || defaultFredProxyBase);
 const excelDataEndpoint = normalizeUrl(
     process.env.EXCEL_DATA_ENDPOINT || `${fredProxyBase}/api/excel-data`
@@ -95,11 +95,11 @@ function rewriteIndexHtml(html) {
             `$1${excelDataEndpoint}$2`
         )
         .replace(
-            /https:\/\/fred-proxy\.hibbsdashboard\.workers\.dev(?= https:\/\/data\.texas\.gov)/g,
+            /https:\/\/fred-proxy\.[a-z0-9-]+\.workers\.dev(?= https:\/\/data\.texas\.gov)/g,
             connectOrigins
         )
         .replace(
-            /(<link\s+rel="preconnect"\s+href=")https:\/\/fred-proxy\.hibbsdashboard\.workers\.dev(")/,
+            /(<link\s+rel="preconnect"\s+href=")https:\/\/fred-proxy\.[a-z0-9-]+\.workers\.dev(")/,
             `$1${fredProxyOrigin}$2`
         )
         .replace(/\.\.\/src\/css\/styles\.css/g, './css/styles.css')

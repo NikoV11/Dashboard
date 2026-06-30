@@ -64,7 +64,7 @@ That means the R2 upload is now optional and acts as a fallback copy instead of 
 ### Step 4: Test the Endpoint
 Open in browser:
 ```
-https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data
+https://fred-proxy.hibbsmonitor.workers.dev/api/excel-data
 ```
 
 Should return JSON like:
@@ -212,7 +212,7 @@ Becomes:
 
 ### Issue: CORS errors in browser console
 - Excel loader is already in CSP, but check your browser's Network tab
-- Verify Worker endpoint is accessible: `https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data`
+- Verify Worker endpoint is accessible: `https://fred-proxy.hibbsmonitor.workers.dev/api/excel-data`
 
 ### Issue: Blank charts or no data
 - Check browser console for fetch errors
@@ -263,7 +263,7 @@ const chart = await createChartFromExcelSheet('Sales', 'myCanvas', {
 2. **Create the bucket** named `dashboard-excel-files`
 3. **Deploy the Worker**: `wrangler deploy`
 4. **Upload your Excel file**: `wrangler r2 object put dashboard-excel-files/dashboard-data.xlsx --file=your-file.xlsx`
-5. **Test the API**: Visit `https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data`
+5. **Test the API**: Visit `https://fred-proxy.hibbsmonitor.workers.dev/api/excel-data`
 6. **Update your charts** using the frontend code examples above
 
 ---

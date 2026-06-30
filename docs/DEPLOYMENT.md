@@ -107,7 +107,7 @@ node scripts/upload-excel-to-r2.js worker/test-downloaded.xlsx
 
 ## 3. Connect the frontend to the Worker
 
-If the deployed Worker URL is not `https://fred-proxy.hibbsdashboard.workers.dev`, update the GitHub repository variable:
+If the deployed Worker URL is not `https://fred-proxy.hibbsmonitor.workers.dev`, update the GitHub repository variable:
 
 - `FRED_PROXY_BASE=https://your-worker.workers.dev`
 
