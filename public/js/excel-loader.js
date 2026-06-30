@@ -20,23 +20,28 @@ const ExcelDataLoader = {
 
     // Configure endpoint via meta tag, app config, or fallback
     ENDPOINT: (() => {
+        const meta = document.querySelector('meta[name="excel-data-endpoint"]');
+        const metaValue = meta?.getAttribute('content')?.trim();
+        const appConfigEndpoint = window.APP_CONFIG?.excelDataEndpoint
+            ? String(window.APP_CONFIG.excelDataEndpoint).trim()
+            : '';
+        const useRemoteOnLocalhost = meta?.getAttribute('data-use-remote-on-localhost') === 'true'
+            || window.APP_CONFIG?.useRemoteExcelEndpointOnLocalhost === true;
         const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-        if (isLocalhost) {
+
+        if (isLocalhost && !useRemoteOnLocalhost) {
             return '/api/excel-data';
         }
 
-        const meta = document.querySelector('meta[name="excel-data-endpoint"]');
-        const metaValue = meta?.getAttribute('content')?.trim();
+        if (appConfigEndpoint) {
+            return appConfigEndpoint;
+        }
 
         if (metaValue) {
             return metaValue;
         }
 
-        if (window.APP_CONFIG?.excelDataEndpoint) {
-            return String(window.APP_CONFIG.excelDataEndpoint).trim();
-        }
-
-        return 'https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data';
+        return 'https://fred-proxy.hibbsmonitor.workers.dev/api/excel-data';
     })(),
     // Alternative for local testing:
     // ENDPOINT: '/api/excel-data',
@@ -96,9 +101,9 @@ const ExcelDataLoader = {
     },
 
     async overlayCurrentFiscalYear(data, options = {}) {
-        let overlaySheet = null;
         const excelSource = String(options.excelSource || '');
         const workerAlreadyHasLiveOverlay = excelSource.includes('live-current-fy');
+        const overlayCandidates = [];
 
         if (!workerAlreadyHasLiveOverlay) {
             try {
@@ -106,7 +111,13 @@ const ExcelDataLoader = {
                     throw new Error('DOMParser is unavailable in this environment');
                 }
 
-                overlaySheet = await this.fetchCurrentFiscalYearSheet();
+                const liveOverlaySheet = await this.fetchCurrentFiscalYearSheet();
+                if (liveOverlaySheet) {
+                    overlayCandidates.push({
+                        label: 'live revenue page overlay',
+                        sheet: liveOverlaySheet
+                    });
+                }
             } catch (error) {
                 console.warn('[ExcelDataLoader] Live fiscal year overlay failed:', error.message || error);
             }
@@ -114,25 +125,33 @@ const ExcelDataLoader = {
             console.log('[ExcelDataLoader] Skipping browser overlay because worker already returned live current-fiscal data');
         }
 
-        if (!overlaySheet) {
-            try {
-                overlaySheet = await this.fetchBundledCurrentFiscalYearSheet();
-                console.log(`[ExcelDataLoader] Using bundled ${overlaySheet.sheetName} overlay`);
-            } catch (error) {
-                console.warn('[ExcelDataLoader] Bundled fiscal year overlay failed:', error.message || error);
+        try {
+            const bundledOverlaySheet = await this.fetchBundledCurrentFiscalYearSheet();
+            if (bundledOverlaySheet) {
+                overlayCandidates.push({
+                    label: `bundled ${bundledOverlaySheet.sheetName} overlay`,
+                    sheet: bundledOverlaySheet
+                });
             }
+        } catch (error) {
+            console.warn('[ExcelDataLoader] Bundled fiscal year overlay failed:', error.message || error);
         }
 
-        if (overlaySheet?.sheetName && Array.isArray(overlaySheet.rows)) {
-            const existingRows = data[overlaySheet.sheetName];
-
-            if (this.shouldReplaceFiscalSheet(existingRows, overlaySheet.rows)) {
-                data[overlaySheet.sheetName] = overlaySheet.rows;
-                console.log(`[ExcelDataLoader] Overlaid ${overlaySheet.sheetName}`);
-            } else {
-                console.log(`[ExcelDataLoader] Kept existing ${overlaySheet.sheetName}; overlay was not newer than API data`);
+        overlayCandidates.forEach(({ label, sheet }) => {
+            if (!(sheet?.sheetName && Array.isArray(sheet.rows))) {
+                return;
             }
-        }
+
+            const existingRows = data[sheet.sheetName];
+
+            if (this.shouldReplaceFiscalSheet(existingRows, sheet.rows)) {
+                data[sheet.sheetName] = sheet.rows;
+                console.log(`[ExcelDataLoader] Overlaid ${sheet.sheetName} using ${label}`);
+                return;
+            }
+
+            console.log(`[ExcelDataLoader] Kept existing ${sheet.sheetName}; ${label} was not newer than API data`);
+        });
 
         return data;
     },

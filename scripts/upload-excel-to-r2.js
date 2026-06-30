@@ -44,7 +44,7 @@ cmd.on('close', (code) => {
     if (code === 0) {
         console.log('\n✅ Successfully uploaded to R2!');
         console.log('File is now available at: R2://dashboard-excel-files/dashboard-data.xlsx');
-        console.log('Your Worker endpoint: https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data');
+        console.log('Your Worker endpoint: https://fred-proxy.hibbsmonitor.workers.dev/api/excel-data');
     } else {
         console.error('\n❌ Upload failed');
         process.exit(code);
