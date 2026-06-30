@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { syncCurrentFiscalFallback } = require('./update-current-fiscal-fallback');
 
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
@@ -22,10 +23,19 @@ const excelDataOrigin = getUrlOrigin(excelDataEndpoint);
 const connectOrigins = Array.from(new Set([fredProxyOrigin, excelDataOrigin])).join(' ');
 
 if (require.main === module) {
-    buildPagesSite();
+    buildPagesSite().catch((error) => {
+        console.error('[build-pages] Build failed:', error);
+        process.exit(1);
+    });
 }
 
-function buildPagesSite() {
+async function buildPagesSite() {
+    try {
+        await syncCurrentFiscalFallback();
+    } catch (error) {
+        console.warn('[build-pages] Fiscal fallback refresh skipped:', error?.message || error);
+    }
+
     fs.rmSync(distDir, { recursive: true, force: true });
     fs.mkdirSync(distDir, { recursive: true });
 

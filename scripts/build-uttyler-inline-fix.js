@@ -140,10 +140,13 @@ const iconAssets = {
 `
 };
 
-buildUttTylerInlineFix();
+buildUttTylerInlineFix().catch((error) => {
+    console.error('[build-uttyler] Build failed:', error);
+    process.exit(1);
+});
 
-function buildUttTylerInlineFix() {
-    buildPagesSite();
+async function buildUttTylerInlineFix() {
+    await buildPagesSite();
 
     fs.rmSync(targetDir, { recursive: true, force: true });
     fs.cpSync(distDir, targetDir, { recursive: true, force: true });

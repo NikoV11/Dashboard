@@ -13,17 +13,7 @@ const FISCAL_MONTH_ORDER = [
     'May', 'June', 'July', 'August'
 ];
 
-main().catch((error) => {
-    if (fs.existsSync(OUTPUT_PATH)) {
-        console.warn('[sync-current-fiscal] Refresh failed, keeping existing fallback:', error.message || error);
-        process.exit(0);
-    }
-
-    console.error('[sync-current-fiscal] Refresh failed:', error);
-    process.exit(1);
-});
-
-async function main() {
+async function syncCurrentFiscalFallback() {
     const html = CURRENT_FISCAL_HTML_FILE
         ? fs.readFileSync(path.resolve(CURRENT_FISCAL_HTML_FILE), 'utf8')
         : await fetchCurrentFiscalHtml();
@@ -37,6 +27,18 @@ async function main() {
         : 'unknown month';
 
     console.log(`[sync-current-fiscal] Wrote ${payload.sheetName} fallback through ${lastReportedMonth} to ${OUTPUT_PATH}`);
+}
+
+if (require.main === module) {
+    syncCurrentFiscalFallback().catch((error) => {
+        if (fs.existsSync(OUTPUT_PATH)) {
+            console.warn('[sync-current-fiscal] Refresh failed, keeping existing fallback:', error.message || error);
+            process.exit(0);
+        }
+
+        console.error('[sync-current-fiscal] Refresh failed:', error);
+        process.exit(1);
+    });
 }
 
 async function fetchCurrentFiscalHtml() {
@@ -184,3 +186,8 @@ function coerceNumber(value) {
 
     return Number.isFinite(parsed) ? parsed : 0;
 }
+
+module.exports = {
+    syncCurrentFiscalFallback,
+    buildCurrentFiscalPayload
+};
