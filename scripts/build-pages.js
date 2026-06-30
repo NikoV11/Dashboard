@@ -21,7 +21,9 @@ const fredProxyOrigin = getUrlOrigin(fredProxyBase);
 const excelDataOrigin = getUrlOrigin(excelDataEndpoint);
 const connectOrigins = Array.from(new Set([fredProxyOrigin, excelDataOrigin])).join(' ');
 
-buildPagesSite();
+if (require.main === module) {
+    buildPagesSite();
+}
 
 function buildPagesSite() {
     fs.rmSync(distDir, { recursive: true, force: true });
@@ -100,3 +102,9 @@ function normalizeUrl(url) {
 function getUrlOrigin(url) {
     return new URL(url).origin;
 }
+
+module.exports = {
+    buildPagesSite,
+    distDir,
+    rootDir
+};

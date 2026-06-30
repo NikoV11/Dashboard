@@ -20,20 +20,25 @@ const ExcelDataLoader = {
 
     // Configure endpoint via meta tag, app config, or fallback
     ENDPOINT: (() => {
+        const meta = document.querySelector('meta[name="excel-data-endpoint"]');
+        const metaValue = meta?.getAttribute('content')?.trim();
+        const appConfigEndpoint = window.APP_CONFIG?.excelDataEndpoint
+            ? String(window.APP_CONFIG.excelDataEndpoint).trim()
+            : '';
+        const useRemoteOnLocalhost = meta?.getAttribute('data-use-remote-on-localhost') === 'true'
+            || window.APP_CONFIG?.useRemoteExcelEndpointOnLocalhost === true;
         const isLocalhost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
-        if (isLocalhost) {
+
+        if (isLocalhost && !useRemoteOnLocalhost) {
             return '/api/excel-data';
         }
 
-        const meta = document.querySelector('meta[name="excel-data-endpoint"]');
-        const metaValue = meta?.getAttribute('content')?.trim();
+        if (appConfigEndpoint) {
+            return appConfigEndpoint;
+        }
 
         if (metaValue) {
             return metaValue;
-        }
-
-        if (window.APP_CONFIG?.excelDataEndpoint) {
-            return String(window.APP_CONFIG.excelDataEndpoint).trim();
         }
 
         return 'https://fred-proxy.hibbsdashboard.workers.dev/api/excel-data';
