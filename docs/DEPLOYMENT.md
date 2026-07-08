@@ -34,6 +34,7 @@ If you deploy your own Worker, set these before building or in GitHub repository
 
 - `FRED_PROXY_BASE`
 - `EXCEL_DATA_ENDPOINT` (optional if it is just `${FRED_PROXY_BASE}/api/excel-data`)
+- `CENSUS_API_KEY` (needed during build if you want the Regional Employment fallback package refreshed automatically)
 
 Example:
 
@@ -61,6 +62,10 @@ Recommended GitHub repository variables:
 - `FRED_PROXY_BASE`
 - `EXCEL_DATA_ENDPOINT` (only if needed)
 
+Recommended GitHub repository secrets:
+
+- `CENSUS_API_KEY`
+
 Once GitHub Pages is enabled for the repository, every push to `main` will redeploy the site.
 
 ## 2. Deploy the Cloudflare Worker
@@ -70,12 +75,14 @@ Once GitHub Pages is enabled for the repository, every push to `main` will redep
 - Cloudflare account
 - Wrangler access (`npx wrangler login`)
 - FRED API key
+- Census API key
 - R2 bucket named `dashboard-excel-files`
 
-### Set the Worker secret
+### Set the Worker secrets
 
 ```bash
 npx wrangler secret put FRED_API_KEY --config worker/wrangler.toml
+npx wrangler secret put CENSUS_API_KEY --config worker/wrangler.toml
 ```
 
 ### Deploy the Worker
@@ -100,7 +107,7 @@ node scripts/upload-excel-to-r2.js worker/test-downloaded.xlsx
 
 ## 3. Connect the frontend to the Worker
 
-If the deployed Worker URL is not `https://fred-proxy.hibbsdashboard.workers.dev`, update the GitHub repository variable:
+If the deployed Worker URL is not `https://fred-proxy.hibbsmonitor.workers.dev`, update the GitHub repository variable:
 
 - `FRED_PROXY_BASE=https://your-worker.workers.dev`
 
@@ -116,3 +123,4 @@ After deployment, verify:
 3. The Excel endpoint returns JSON:
    `https://your-worker.workers.dev/api/excel-data`
 4. Charts load in the browser without `404` or CORS errors
+5. `https://your-worker.workers.dev/api/tx-regional-employment?year=2024` returns JSON instead of a missing-key error

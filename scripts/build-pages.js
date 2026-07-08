@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const { syncCurrentFiscalFallback } = require('./update-current-fiscal-fallback');
+const { syncRegionalEmploymentFallback } = require('./update-regional-employment-fallback');
 
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
@@ -12,7 +14,7 @@ const publicCssPath = path.join(publicDir, 'styles.css');
 const imagesDir = path.join(rootDir, 'images');
 const dataDefinitionsDir = path.join(rootDir, 'data', 'definitions');
 
-const defaultFredProxyBase = 'https://fred-proxy.hibbsdashboard.workers.dev';
+const defaultFredProxyBase = 'https://fred-proxy.hibbsmonitor.workers.dev';
 const fredProxyBase = normalizeUrl(process.env.FRED_PROXY_BASE || defaultFredProxyBase);
 const excelDataEndpoint = normalizeUrl(
     process.env.EXCEL_DATA_ENDPOINT || `${fredProxyBase}/api/excel-data`
@@ -21,9 +23,26 @@ const fredProxyOrigin = getUrlOrigin(fredProxyBase);
 const excelDataOrigin = getUrlOrigin(excelDataEndpoint);
 const connectOrigins = Array.from(new Set([fredProxyOrigin, excelDataOrigin])).join(' ');
 
-buildPagesSite();
+if (require.main === module) {
+    buildPagesSite().catch((error) => {
+        console.error('[build-pages] Build failed:', error);
+        process.exit(1);
+    });
+}
 
-function buildPagesSite() {
+async function buildPagesSite() {
+    try {
+        await syncCurrentFiscalFallback();
+    } catch (error) {
+        console.warn('[build-pages] Fiscal fallback refresh skipped:', error?.message || error);
+    }
+
+    try {
+        await syncRegionalEmploymentFallback();
+    } catch (error) {
+        console.warn('[build-pages] Regional employment fallback refresh skipped:', error?.message || error);
+    }
+
     fs.rmSync(distDir, { recursive: true, force: true });
     fs.mkdirSync(distDir, { recursive: true });
 
@@ -76,11 +95,11 @@ function rewriteIndexHtml(html) {
             `$1${excelDataEndpoint}$2`
         )
         .replace(
-            /https:\/\/fred-proxy\.hibbsdashboard\.workers\.dev(?= https:\/\/data\.texas\.gov)/g,
+            /https:\/\/fred-proxy\.[a-z0-9-]+\.workers\.dev(?= https:\/\/data\.texas\.gov)/g,
             connectOrigins
         )
         .replace(
-            /(<link\s+rel="preconnect"\s+href=")https:\/\/fred-proxy\.hibbsdashboard\.workers\.dev(")/,
+            /(<link\s+rel="preconnect"\s+href=")https:\/\/fred-proxy\.[a-z0-9-]+\.workers\.dev(")/,
             `$1${fredProxyOrigin}$2`
         )
         .replace(/\.\.\/src\/css\/styles\.css/g, './css/styles.css')
@@ -100,3 +119,9 @@ function normalizeUrl(url) {
 function getUrlOrigin(url) {
     return new URL(url).origin;
 }
+
+module.exports = {
+    buildPagesSite,
+    distDir,
+    rootDir
+};
