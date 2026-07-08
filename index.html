@@ -1,0 +1,792 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="Interactive economic dashboard for East Texas and US - GDP, CPI-U, Employment, and Sales Tax data">
+    <meta name="theme-color" content="#CB6015">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- Security headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="fred-proxy-base" content="https://fred-proxy.hibbsmonitor.workers.dev">
+    <meta name="excel-data-endpoint" content="https://fred-proxy.hibbsmonitor.workers.dev/api/excel-data">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://api.stlouisfed.org https://api.allorigins.win https://thingproxy.freeboard.io https://*.workers.dev https://fred-proxy.hibbsmonitor.workers.dev https://data.texas.gov https://cdn.jsdelivr.net https://www.countyhealthrankings.org https://raw.githubusercontent.com; frame-ancestors 'self';">
+    <title>Hibbs Monitor - East Texas Economic Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="./images/favicon.svg">
+    <link rel="apple-touch-icon" href="./images/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/styles.css">
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="preconnect" href="https://api.stlouisfed.org">
+    <link rel="preconnect" href="https://api.allorigins.win">
+    <link rel="preconnect" href="https://thingproxy.freeboard.io">
+    <link rel="preconnect" href="https://fred-proxy.hibbsmonitor.workers.dev">
+    <link rel="preconnect" href="https://data.texas.gov">
+    <link rel="preconnect" href="https://www.countyhealthrankings.org">
+    <link rel="preconnect" href="https://raw.githubusercontent.com">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" integrity="sha384-y49Zu59jZHJL/PLKgZPv3k2WI9c0Yp3pWB76V8OBVCb0QBKS8l4Ff3YslzHVX76Y" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous" defer></script>
+</head>
+<body>
+    <div class="page">
+        <header class="topbar">
+            <div class="brand">
+                <div class="logo" aria-hidden="true">
+                    <img src="./images/utt_rgb_Level_1C_Hibbs_stacked-fullcolor (1).png" alt="UT Tyler Hibbs Institute logo" style="width: 100%; height: auto; object-fit: contain;">
+                </div>
+                <div>
+                    <h1>Hibbs Monitor Dashboard</h1>
+                </div>
+            </div>
+            <div class="top-actions">
+                <div class="social-links" style="display: flex; gap: 12px; align-items: center;">
+                    <a href="https://www.uttyler.edu/academics/colleges-schools/business/centers/hibbs-institute/" target="_blank" rel="noopener noreferrer" aria-label="Hibbs Institute Website" style="color: #0f172a; text-decoration: none; font-size: 20px;" title="Visit Hibbs Institute Website">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    </a>
+                    <a href="https://www.linkedin.com/company/hibbs-institute-for-business-and-economic-research/posts/?feedView=all" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style="color: #0f172a; text-decoration: none; font-size: 20px;" title="Follow us on LinkedIn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                    </a>
+                </div>
+                <a class="link" href="https://fred.stlouisfed.org/" target="_blank" rel="noreferrer">FRED</a>
+            </div>
+        </header>
+
+        <main>
+            <section class="hero">
+                <div>
+                    <p class="eyebrow">East Texas & US Economic Dashboard</p>
+                    <h2>Monitor Economic Indicators for Tyler MSA and the United States</h2>
+                    <p class="lede">Track national economic indicators (GDP, inflation, unemployment, mortgage rates) alongside Tyler MSA regional data (employment, sales tax, median home prices) and Texas state tax collections. Live data sources include FRED, U.S. Census ACS 5-Year, Texas Open Data, County Health Rankings, and Texas Comptroller files.</p>
+                    <div class="controls" aria-label="Date range controls">
+                        <label for="startDate">From</label>
+                        <input type="month" id="startDate" min="1947-01" max="2099-12" value="2023-01" aria-label="Start Month">
+                        <label for="endDate">to</label>
+                        <input type="month" id="endDate" min="1947-01" max="2099-12" value="2026-01" aria-label="End Month">
+                        <button id="updateBtn" class="primary">Update</button>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="fullHistoryToggle" aria-label="View full history">
+                            Full history
+                        </label>
+                    </div>
+                    <p class="status" id="statusText" role="status" aria-live="polite">Loading data...</p>
+                    <div class="data-badges" aria-label="Data badges">
+                        <span class="badge">Source: FRED + Census + Texas Data Portal + County Health + Comptroller</span>
+                        <span class="badge">Mode: Live / Fallback</span>
+                        <span class="badge">Updated: Auto</span>
+                    </div>
+                </div>
+                <div class="stat-cards">
+                    <div class="card">
+                        <p class="eyebrow">Data Sources</p>
+                        <h3>Official Sources</h3>
+                        <p class="muted">Federal Reserve, Texas Comptroller, Freddie Mac</p>
+                    </div>
+                    <div class="card">
+                        <p class="eyebrow">Coverage</p>
+                        <h3>Regional & National</h3>
+                        <p class="muted">Tyler MSA (9 cities) and US economy</p>
+                    </div>
+                    <div class="card">
+                        <p class="eyebrow">Interest Rates</p>
+                        <h3>Latest FOMC Statement</h3>
+                        <p class="muted">Federal Reserve Board of Governors</p>
+                        <a href="https://www.federalreserve.gov/newsevents/pressreleases/monetary20260128a.htm" target="_blank" rel="noopener noreferrer" style="color: #CB6015; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+                            January 28, 2026 Statement
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                <polyline points="15 3 21 3 21 9"></polyline>
+                                <line x1="10" y1="14" x2="21" y2="3"></line>
+                            </svg>
+                        </a>
+                    </div>
+                    <div class="card">
+                        <p class="eyebrow">Monthly Report</p>
+                        <h3>Latest Edition</h3>
+                        <p class="muted">January 2026 Analysis</p>
+                        <a href="THE HIBBS MONITOR (January 26).pdf" download class="report-download-btn" aria-label="Download Hibbs Monitor January 26 Report">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Download Latest Report
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Main Tab Navigation -->
+            <nav class="main-tab-nav" aria-label="Main dashboard sections">
+                <button class="main-tab-btn active" data-main-tab="us-economy">US Economy</button>
+                <button class="main-tab-btn" data-main-tab="labor-market">Labor Market</button>
+                <button class="main-tab-btn" data-main-tab="housing-market">Housing Market</button>
+                <button class="main-tab-btn" data-main-tab="public-finances">Public Finances</button>
+                <button class="main-tab-btn" data-main-tab="regional-comparison">Regional Comparison</button>
+            </nav>
+
+            <!-- US Economy Sub-tabs -->
+            <div class="sub-tabs-container active" id="us-economy-tabs">
+                <nav class="sub-tab-nav" aria-label="US Economy sections">
+                    <button class="sub-tab-btn active" data-tab="gdp">GDP</button>
+                    <button class="sub-tab-btn" data-tab="cpi">CPI-U</button>
+                </nav>
+            </div>
+
+            <!-- Labor Market Sub-tabs -->
+            <div class="sub-tabs-container" id="labor-market-tabs">
+                <nav class="sub-tab-nav" aria-label="Labor Market sections">
+                    <button class="sub-tab-btn active" data-tab="unemployment">Unemployment</button>
+                    <button class="sub-tab-btn" data-tab="nonfarm-employment">Total Nonfarm Employment</button>
+                    <button class="sub-tab-btn" data-tab="employment">Regional Employment</button>
+                </nav>
+            </div>
+
+            <!-- Housing Market Sub-tabs -->
+            <div class="sub-tabs-container" id="housing-market-tabs">
+                <nav class="sub-tab-nav" aria-label="Housing Market sections">
+                    <button class="sub-tab-btn active" data-tab="median-home-price">Median Home Price</button>
+                    <button class="sub-tab-btn" data-tab="mortgage-rates">Mortgage Rates</button>
+                </nav>
+            </div>
+
+            <!-- Public Finances Sub-tabs -->
+            <div class="sub-tabs-container" id="public-finances-tabs">
+                <nav class="sub-tab-nav" aria-label="Public Finances sections">
+                    <button class="sub-tab-btn active" data-tab="sales-tax">Sales Tax</button>
+                    <button class="sub-tab-btn" data-tab="tax-revenue">Tax Revenue Trends</button>
+                </nav>
+            </div>
+
+            <!-- Regional Comparison Sub-tabs -->
+            <div class="sub-tabs-container" id="regional-comparison-tabs">
+                <nav class="sub-tab-nav" aria-label="Regional comparison sections">
+                    <button class="sub-tab-btn active" data-tab="tx-compare">Texas County/MSA Compare</button>
+                    <button class="sub-tab-btn" data-tab="regional-employment">Regional Employment Comparison</button>
+                    <button class="sub-tab-btn" data-tab="regional-demographics">Demographics Comparison</button>
+                    <button class="sub-tab-btn" data-tab="edu-attainment">Educational Attainment</button>
+                </nav>
+            </div>
+
+            <!-- GDP Tab -->
+            <div class="tab-content active" id="gdp">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>US Real GDP</h2>
+                            <p class="chip gdp">FRED: A191RL1Q225SBEA</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/A191RL1Q225SBEA" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareGDPBtn" class="ghost" title="Share GDP chart" aria-label="Share Real GDP chart on social media">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadGDPBtn" class="ghost">Download CSV</button>
+                            <button id="downloadGDPPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Quarterly Growth Rate (%)</h3>
+                        <canvas id="gdpChart" role="img" aria-label="Bar chart showing US Real GDP quarterly growth rate from 2023 to 2026"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- CPI Tab -->
+            <div class="tab-content" id="cpi">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>US Inflation (CPI-U)</h2>
+                            <p class="chip cpi">FRED: CPIAUCSL</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/CPIAUCSL" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareCPIBtn" class="ghost" title="Share CPI chart" aria-label="Share CPI-U inflation chart on social media">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadCPIBtn" class="ghost">Download CSV</button>
+                            <button id="downloadCPIPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Change (%)</h3>
+                        <canvas id="cpiChart" role="img" aria-label="CPI-U Chart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Unemployment Tab -->
+            <div class="tab-content" id="unemployment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>US Unemployment Rate</h2>
+                            <p class="chip" style="background: #CB6015; color: white;">FRED: UNRATE, TXUR, TYLE348UR</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/UNRATE" target="_blank" rel="noopener noreferrer">US</a> <span aria-hidden="true">|</span> <a href="https://fred.stlouisfed.org/series/TXUR" target="_blank" rel="noopener noreferrer">Texas</a> <span aria-hidden="true">|</span> <a href="https://fred.stlouisfed.org/series/TYLE348UR" target="_blank" rel="noopener noreferrer">Tyler</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareUnemploymentBtn" class="ghost" title="Share chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadUnemploymentBtn" class="ghost">Download CSV</button>
+                            <button id="downloadUnemploymentPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Unemployment Rate (%)</h3>
+                        <canvas id="unemploymentChart" role="img" aria-label="Unemployment Rate Chart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Total Nonfarm Employment Tab -->
+            <div class="tab-content" id="nonfarm-employment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Total Nonfarm Employment</h2>
+                            <p class="chip" style="background: #002F6C; color: white;">FRED: PAYEMS</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/PAYEMS" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="sharePayemsBtn" class="ghost" title="Share chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadPayemsBtn" class="ghost">Download CSV</button>
+                            <button id="downloadPayemsPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Change in Thousands of Jobs (Seasonally Adjusted)</h3>
+                        <canvas id="payemsChart" role="img" aria-label="Nonfarm Payroll Employment Chart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Employment Tab -->
+            <div class="tab-content" id="employment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Regional Employment Trends</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">FRED: TYLSA158MFRBDAL, TX0000000M175FRBDAL</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/TYLSA158MFRBDAL" target="_blank" rel="noopener noreferrer">Tyler</a> <span aria-hidden="true">|</span> <a href="https://fred.stlouisfed.org/series/TX0000000M175FRBDAL" target="_blank" rel="noopener noreferrer">Texas</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareEmploymentBtn" class="ghost" title="Share chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadEmploymentBtn" class="ghost">Download CSV</button>
+                            <button id="downloadEmploymentPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Employment Growth Rate (%) - Tyler vs. Texas</h3>
+                        <canvas id="employmentChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Sales Tax Tab -->
+            <div class="tab-content" id="sales-tax">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Tyler MSA Sales Tax Collections</h2>
+                            <p class="chip" style="background: var(--gdp); color: white;">Texas Comptroller Data</p>
+                            <p class="source-inline-links"><a href="https://data.texas.gov/resource/53pa-m7sm.json" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareSalesTaxBtn" class="ghost" title="Share chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadSalesTaxBtn" class="ghost">Download CSV</button>
+                            <button id="downloadSalesTaxPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Monthly Sales Tax Collections ($)</h3>
+                        <p style="color: #64748b; font-size: 13px; margin-top: 8px;">Tyler, Lindale, Whitehouse, Bullard, Troup, Noonday, Arp, Winona, New Chapel Hill</p>
+                        <div class="chart-scroll-frame">
+                            <div class="chart-scroll-surface">
+                                <canvas id="salesTaxChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Median Home Price Tab -->
+            <div class="tab-content" id="median-home-price">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Tyler MSA Median Listing Price Month-Over-Month % Change</h2>
+                            <p class="chip" style="background: var(--cpi); color: white;">FRED: MEDLISPRIMM46340</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/MEDLISPRIMM46340" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareMedianPriceBtn" class="ghost" title="Share median price chart" aria-label="Share Tyler MSA median listing price chart on social media">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadMedianPriceBtn" class="ghost">Download CSV</button>
+                            <button id="downloadMedianPricePngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Median Listing Price ($)</h3>
+                        <canvas id="medianPriceChart" role="img" aria-label="Tyler MSA Median Listing Price by Month"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Tax Revenue Trends Tab -->
+            <div class="tab-content" id="tax-revenue">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas Historical Tax Revenue by Category</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">All Funds (Excluding Trusts) - Monthly Breakdown</p>
+                            <p class="source-inline-links"><a href="https://comptroller.texas.gov/transparency/revenue/" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareTaxBtn" class="ghost" title="Share chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadTaxBtn" class="ghost">Download CSV</button>
+                            <button id="downloadTaxPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div style="margin: 20px 0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <label for="taxYearSelect" style="font-weight: 600; margin-right: 8px;">Select Fiscal Year:</label>
+                            <select id="taxYearSelect" style="padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: white; font-weight: 600; font-family: inherit; font-size: 14px; min-width: 150px;">
+                                <option>Loading...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-card" style="margin-top: 20px;">
+                        <h3>Tax Revenue by Category (September - August)</h3>
+                        <canvas id="taxChart" role="img" aria-label="Stacked bar chart showing Texas tax revenue by category for selected fiscal year"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Mortgage Rates Tab -->
+            <div class="tab-content" id="mortgage-rates">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>US Mortgage Rates</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">FRED: MORTGAGE30US, MORTGAGE15US</p>
+                            <p class="source-inline-links"><a href="https://fred.stlouisfed.org/series/MORTGAGE30US" target="_blank" rel="noopener noreferrer">30-year</a> <span aria-hidden="true">|</span> <a href="https://fred.stlouisfed.org/series/MORTGAGE15US" target="_blank" rel="noopener noreferrer">15-year</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareMortgageBtn" class="ghost" title="Share chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadMortgageBtn" class="ghost">Download CSV</button>
+                            <button id="downloadMortgage30PngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+                    <div class="charts">
+                        <div class="chart-card">
+                            <h3>30-Year Fixed Rate Mortgage (%)</h3>
+                            <canvas id="mortgage30Chart"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3>15-Year Fixed Rate Mortgage (%)</h3>
+                            <canvas id="mortgage15Chart"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Texas County/MSA Comparison Tab -->
+            <div class="tab-content" id="tx-compare">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas County/MSA Comparison</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">County Health Rankings Texas files (2018-2025)</p>
+                            <p class="source-inline-links"><a href="https://www.countyhealthrankings.org/health-data/texas" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareTexasCompareBtn" class="ghost" title="Share chart" aria-label="Share Texas county comparison chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadTexasCompareBtn" class="ghost">Download CSV</button>
+                            <button id="downloadTexasComparePngBtn" class="ghost">Download PNG</button>
+                            <button id="downloadTexasMapGeoJsonBtn" class="ghost">Download Map GeoJSON</button>
+                        </div>
+                    </div>
+
+                    <div class="tx-compare-workflow">
+                        <div class="tx-compare-step">
+                            <p class="tx-step-label">1. Choose Locations and Year</p>
+                            <div class="tx-compare-controls" aria-label="Texas regional comparison controls">
+                                <div class="tx-compare-control-group">
+                                    <label for="compareLeftSelect">Location A</label>
+                                    <select id="compareLeftSelect" aria-label="Select first Texas county or MSA"></select>
+                                </div>
+                                <div class="tx-compare-control-group">
+                                    <label for="compareRightSelect">Location B</label>
+                                    <select id="compareRightSelect" aria-label="Select second Texas county or MSA"></select>
+                                </div>
+                                <div class="tx-compare-control-group">
+                                    <label for="compareYearSelect">Year</label>
+                                    <select id="compareYearSelect" aria-label="Select year for comparison"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tx-compare-step">
+                            <p class="tx-step-label">2. Pick an Indicator</p>
+                            <div class="tx-category-nav" aria-label="Comparison categories">
+                                <button class="tx-category-btn active" data-category="smoking">Adult Smoking</button>
+                                <button class="tx-category-btn" data-category="obesity">Adult Obesity</button>
+                                <button class="tx-category-btn" data-category="mentalHealth">Mental Health Coverage</button>
+                                <button class="tx-category-btn" data-category="primaryCare">Primary Care Physicians</button>
+                                <button class="tx-category-btn" data-category="prematureDeath">Premature Death</button>
+                                <button class="tx-category-btn" data-category="poorHealth">Poor or Fair Health</button>
+                                <button class="tx-category-btn" data-category="teenBirth">Teen Birth (/1,000)</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p id="txCompareSummary" class="tx-compare-summary">Compare two Texas counties or metro areas across key health and wellbeing indicators.</p>
+
+                    <div class="charts tx-compare-charts">
+                        <div class="chart-card">
+                            <h3 id="txCompareCountyTitle">County Breakdown</h3>
+                            <canvas id="txCompareCountyChart" role="img" aria-label="County-level comparison chart for selected Texas metric"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3 id="txCompareTrendTitle">Trend Over Time</h3>
+                            <canvas id="txCompareTrendChart" role="img" aria-label="Trend chart over time for selected Texas metric"></canvas>
+                        </div>
+                        <div class="chart-card tx-map-card">
+                            <h3 id="txCompareMapTitle">Texas County Footprint</h3>
+                            <div class="tx-map-wrap">
+                                <div class="tx-map-pane">
+                                    <p id="txCompareMapLeftLabel" class="tx-map-pane-label">Location A</p>
+                                    <div class="tx-map" id="txCompareMapLeft" aria-label="Map for first selected location"></div>
+                                </div>
+                                <div class="tx-map-pane">
+                                    <p id="txCompareMapRightLabel" class="tx-map-pane-label">Location B</p>
+                                    <div class="tx-map" id="txCompareMapRight" aria-label="Map for second selected location"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-section" style="margin-top: 16px;">
+                        <h3>County Detail Table</h3>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Location</th>
+                                        <th>County</th>
+                                        <th id="txCompareTableMetricLabel">Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="txCompareTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Educational Attainment Tab -->
+            <div class="tab-content" id="regional-demographics">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas County Demographics Comparison</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">U.S. Census ACS 5-Year (B01003, B01002, B21001, B03003, B02001, B01001)</p>
+                            <p class="source-inline-links"><a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="downloadRegionalDemoCsvBtn" class="ghost">Download CSV</button>
+                            <button id="downloadRegionalDemoPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+
+                    <div class="demo-compare-toolbar" aria-label="Texas county demographics comparison controls">
+                        <div class="demo-control-group">
+                            <label for="regionalDemoLeftSelect">Location A</label>
+                            <select id="regionalDemoLeftSelect" aria-label="Select first Texas county profile"></select>
+                        </div>
+                        <div class="demo-control-group">
+                            <label for="regionalDemoYearSelect">Year</label>
+                            <select id="regionalDemoYearSelect" aria-label="Select year for demographics comparison"></select>
+                        </div>
+                        <div class="demo-control-group">
+                            <label for="regionalDemoRightSelect">Location B</label>
+                            <select id="regionalDemoRightSelect" aria-label="Select second Texas county profile"></select>
+                        </div>
+                    </div>
+
+                    <p id="regionalDemographicsSummary" class="demo-compare-summary">Compare two Texas counties across age structure, race composition, veteran share, and Hispanic share.</p>
+
+                    <div class="demo-compare-highlights">
+                        <article class="demo-location-card demo-left">
+                            <p class="demo-location-eyebrow">Location A</p>
+                            <h3 id="regionalDemoLeftTitle" class="demo-location-title">Smith County, TX</h3>
+                            <div class="demo-stat-grid">
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Population</span>
+                                    <strong id="regionalDemoLeftPopulation">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Median Age</span>
+                                    <strong id="regionalDemoLeftMedianAge">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Veteran Share</span>
+                                    <strong id="regionalDemoLeftVeteran">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Hispanic Share</span>
+                                    <strong id="regionalDemoLeftHispanic">-</strong>
+                                </div>
+                            </div>
+                        </article>
+
+                        <article class="demo-location-card demo-right">
+                            <p class="demo-location-eyebrow">Location B</p>
+                            <h3 id="regionalDemoRightTitle" class="demo-location-title">Dallas County, TX</h3>
+                            <div class="demo-stat-grid">
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Population</span>
+                                    <strong id="regionalDemoRightPopulation">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Median Age</span>
+                                    <strong id="regionalDemoRightMedianAge">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Veteran Share</span>
+                                    <strong id="regionalDemoRightVeteran">-</strong>
+                                </div>
+                                <div class="demo-stat-pill">
+                                    <span class="demo-stat-label">Hispanic Share</span>
+                                    <strong id="regionalDemoRightHispanic">-</strong>
+                                </div>
+                            </div>
+                        </article>
+                    </div>
+
+                    <div class="demo-compare-grid">
+                        <div class="chart-card demo-chart-card demo-age-card">
+                            <h3>Age Distribution</h3>
+                            <p class="demo-card-note">Population pyramid style comparison normalized to percentage shares for direct comparison.</p>
+                            <div class="demo-chart-frame">
+                                <canvas id="regionalDemoAgeChart" role="img" aria-label="Age distribution comparison chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card demo-chart-card demo-community-card">
+                            <h3>Community Profile Shares</h3>
+                            <p class="demo-card-note">Selected percentage-based indicators for each county.</p>
+                            <div class="demo-chart-frame small">
+                                <canvas id="regionalDemoCommunityChart" role="img" aria-label="Community profile comparison chart"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="chart-card demo-chart-card demo-race-card">
+                            <h3>Race Composition</h3>
+                            <p class="demo-card-note">Share of total population by race grouping. Hispanic share is shown separately above because it spans race categories.</p>
+                            <div class="demo-chart-frame medium">
+                                <canvas id="regionalDemoRaceChart" role="img" aria-label="Race composition comparison chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="demo-note muted">Source: U.S. Census Bureau ACS 5-Year Estimates via dashboard API. Metrics are computed from county-level table cells B01003_001E (population), B01002_001E (median age), B21001_001E/B21001_002E (veteran share), B03003_001E/B03003_003E (Hispanic share), B02001 race totals, and B01001 age buckets.</p>
+                </section>
+            </div>
+
+            <div class="tab-content" id="regional-employment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Texas Regional Employment Comparison</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">U.S. Census ACS 5-Year (S2301, S2403, B24031)</p>
+                            <p class="source-inline-links"><a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="downloadRegionalEmploymentCsvBtn" class="ghost">Download CSV</button>
+                            <button id="downloadRegionalEmploymentPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+
+                    <div class="tx-compare-controls" aria-label="Regional employment comparison controls">
+                        <div class="tx-compare-control-group">
+                            <label for="regionalEmploymentLeftSelect">Location A</label>
+                            <select id="regionalEmploymentLeftSelect" aria-label="Select first Texas region"></select>
+                        </div>
+                        <div class="tx-compare-control-group">
+                            <label for="regionalEmploymentYearSelect">Year</label>
+                            <select id="regionalEmploymentYearSelect" aria-label="Select year for employment comparison"></select>
+                        </div>
+                        <div class="tx-compare-control-group">
+                            <label for="regionalEmploymentRightSelect">Location B</label>
+                            <select id="regionalEmploymentRightSelect" aria-label="Select second Texas region"></select>
+                        </div>
+                    </div>
+
+                    <p id="regionalEmploymentSummary" class="tx-compare-summary">Compare labor market conditions and industry structure between two Texas regions.</p>
+
+                    <div class="charts tx-compare-charts">
+                        <div class="chart-card">
+                            <h3 id="regionalEmploymentRatesTitle">Labor Market Rates</h3>
+                            <canvas id="regionalEmploymentRatesChart" role="img" aria-label="Comparison of unemployment and labor force participation rates"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3 id="regionalEmploymentWagesTitle">Annual Average Weekly Wages by Industry</h3>
+                            <canvas id="regionalEmploymentWagesChart" role="img" aria-label="Comparison of annual average weekly wages by industry"></canvas>
+                        </div>
+                        <div class="chart-card regional-employment-wide">
+                            <h3 id="regionalEmploymentIndustryTitle">Annual Average Employment by Industry</h3>
+                            <canvas id="regionalEmploymentIndustryChart" role="img" aria-label="Comparison of annual average employment by industry"></canvas>
+                        </div>
+                    </div>
+
+                    <p class="muted" style="font-size: 0.9rem; margin-top: 4px;">Source: U.S. Census Bureau ACS 5-Year subject/detailed tables. Labor market rates use S2301 fields, industry employment uses S2403, and weekly wages use B24031 for selected Texas metro areas.</p>
+                </section>
+            </div>
+
+            <!-- Educational Attainment Tab -->
+            <div class="tab-content" id="edu-attainment">
+                <section class="card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Educational Attainment by Race &amp; Ethnicity</h2>
+                            <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">ACS 5-Year Estimates &mdash; Population 25+</p>
+                            <p class="source-inline-links"><a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">View source</a></p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="shareEduBtn" class="ghost" title="Share chart" aria-label="Share educational attainment chart">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;" aria-hidden="true">
+                                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                                </svg>
+                            </button>
+                            <button id="downloadEduCsvBtn" class="ghost">Download CSV</button>
+                            <button id="downloadEduPngBtn" class="ghost">Download PNG</button>
+                        </div>
+                    </div>
+
+                    <div class="edu-controls">
+                        <div class="edu-control-group">
+                            <label for="eduLeftSelect">Location A</label>
+                            <select id="eduLeftSelect" aria-label="Select first Texas county"></select>
+                        </div>
+                        <div class="edu-control-group">
+                            <label for="eduYearSelect">Year</label>
+                            <select id="eduYearSelect" aria-label="Select ACS year"></select>
+                        </div>
+                        <div class="edu-control-group">
+                            <label for="eduRightSelect">Location B</label>
+                            <select id="eduRightSelect" aria-label="Select second Texas county"></select>
+                        </div>
+                    </div>
+
+                    <div class="edu-charts-grid">
+                        <div class="edu-chart-wrap">
+                            <h3 id="eduLeftTitle" class="edu-chart-title">Location A</h3>
+                            <p class="edu-chart-subtitle">Educational Attainment by Race and Ethnicity</p>
+                            <div class="edu-chart-container">
+                                <canvas id="eduLeftChart" role="img" aria-label="Educational attainment stacked bar chart for Location A"></canvas>
+                            </div>
+                        </div>
+                        <div class="edu-chart-wrap">
+                            <h3 id="eduRightTitle" class="edu-chart-title">Location B</h3>
+                            <p class="edu-chart-subtitle">Educational Attainment by Race and Ethnicity</p>
+                            <div class="edu-chart-container">
+                                <canvas id="eduRightChart" role="img" aria-label="Educational attainment stacked bar chart for Location B"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="edu-legend" aria-label="Education level legend">
+                        <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#002F6C;"></span>Bachelor&apos;s degree or higher</div>
+                        <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#4A9EE8;"></span>High School Diploma</div>
+                        <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#193C5A;"></span>No High School Diploma</div>
+                        <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#5C8F66;"></span>Some College or Associate&apos;s</div>
+                    </div>
+
+                    <p class="edu-note muted">Source: U.S. Census Bureau ACS 5-Year Estimates, county-level table groups C15002A through C15002I for population age 25+, including White, Hispanic, Black, Asian, and Other race groupings.</p>
+                </section>
+            </div>
+
+        </main>
+
+        <footer>
+            <p><strong>Hibbs Monitor</strong> - East Texas &amp; US Economic Dashboard by UT Tyler Hibbs Institute</p>
+            <div class="source-note">
+                <p><strong>Primary Data Sources (linked):</strong></p>
+                <p>
+                    <a href="https://fred.stlouisfed.org/" target="_blank" rel="noopener noreferrer">Federal Reserve Economic Data (FRED)</a>
+                    - Series: A191RL1Q225SBEA, CPIAUCSL, UNRATE, TXUR, TYLE348UR, PAYEMS, MEDLISPRIMM46340, TYLSA158MFRBDAL, TX0000000M175FRBDAL, MORTGAGE30US, MORTGAGE15US.
+                </p>
+                <p>
+                    <a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">U.S. Census Bureau APIs</a>
+                    - ACS 5-Year tables and subjects used in dashboard endpoints: B01003, B01002, B21001, B03003, B02001, B01001, S2301, S2403, B24031, C15002A/B/I.
+                </p>
+                <p>
+                    <a href="https://www.countyhealthrankings.org/" target="_blank" rel="noopener noreferrer">County Health Rankings &amp; Roadmaps</a>
+                    - Texas annual county indicator files (2018-2025) used for county/MSA health comparisons.
+                </p>
+                <p>
+                    <a href="https://data.texas.gov/" target="_blank" rel="noopener noreferrer">Texas Open Data Portal</a>
+                    - Texas Comptroller sales tax remittance records for Tyler-area city aggregation.
+                </p>
+                <p>
+                    <a href="https://comptroller.texas.gov/transparency/revenue/" target="_blank" rel="noopener noreferrer">Texas Comptroller Revenue Transparency</a>
+                    - State all-funds monthly revenue workbook used for tax revenue trend charts.
+                </p>
+            </div>
+            <p style="margin-top: 8px; font-size: 0.85rem; color: #64748b;">Tyler MSA includes Tyler, Lindale, Whitehouse, Bullard, Troup, Noonday, Arp, Winona, and New Chapel Hill. Texas fiscal year runs September through August.</p>
+        </footer>
+    </div>
+
+    <script src="./data/definitions/demographics-data.js"></script>
+    <script src="./data/definitions/education-data.js"></script>
+    <script src="./data/definitions/regional-employment-data.js"></script>
+    <script src="./js/excel-loader.js?v=2" defer></script>
+    <script src="./js/tax-chart.js?v=2" defer></script>
+    <script src="./js/dashboard.js?v=49" defer></script>
+</body>
+</html>
+
+
+
