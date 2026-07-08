@@ -27,6 +27,17 @@ const FRED_PROXY_BASE = (() => {
 const FRED_URL = FRED_PROXY_BASE
     ? `${FRED_PROXY_BASE.replace(/\/$/, '')}/fred/series/observations`
     : '/api/fred/series/observations';
+const DASHBOARD_ASSET_VERSION = (() => {
+    try {
+        const currentScript = document.currentScript
+            || Array.from(document.scripts || []).find((script) => /dashboard\.js(?:\?|$)/i.test(script.src || ''));
+        const src = currentScript?.getAttribute('src') || '';
+        const match = src.match(/[?&]v=([^&#]+)/i);
+        return match?.[1] || '1';
+    } catch (error) {
+        return '1';
+    }
+})();
 
 const SAMPLE_DATA = {
     gdp: [
@@ -675,6 +686,50 @@ function normalizeYearList(values, fallbackYears = []) {
     return years.length ? years : [...fallbackYears];
 }
 
+function hasLocationYearData(payloadData, locations, years) {
+    if (!payloadData || typeof payloadData !== 'object') {
+        return false;
+    }
+
+    if (!Array.isArray(locations) || !locations.length || !Array.isArray(years) || !years.length) {
+        return false;
+    }
+
+    return locations.some((location) => {
+        const byYear = payloadData[location];
+        if (!byYear || typeof byYear !== 'object') {
+            return false;
+        }
+
+        return years.some((year) => {
+            const record = byYear[year];
+            return record && typeof record === 'object' && Object.keys(record).length > 0;
+        });
+    });
+}
+
+function hasCompleteLocationYearData(payloadData, locations, years) {
+    if (!payloadData || typeof payloadData !== 'object') {
+        return false;
+    }
+
+    if (!Array.isArray(locations) || !locations.length || !Array.isArray(years) || !years.length) {
+        return false;
+    }
+
+    return locations.every((location) => {
+        const byYear = payloadData[location];
+        if (!byYear || typeof byYear !== 'object') {
+            return false;
+        }
+
+        return years.every((year) => {
+            const record = byYear[year];
+            return record && typeof record === 'object' && Object.keys(record).length > 0;
+        });
+    });
+}
+
 function applyRegionalDemographicsPayload(payload, source = 'live') {
     regionalDemographicsApiState.years = normalizeYearList(payload?.years, REGIONAL_COMPARISON_DEFAULT_YEARS);
     regionalDemographicsApiState.locations = Array.isArray(payload?.locations) ? payload.locations : [];
@@ -685,7 +740,11 @@ function applyRegionalDemographicsPayload(payload, source = 'live') {
         ? payload.raceGroups
         : [...REGIONAL_DEMOGRAPHICS_DEFAULT_RACE_GROUPS];
     regionalDemographicsApiState.data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
-    regionalDemographicsApiState.ready = regionalDemographicsApiState.locations.length > 0;
+    regionalDemographicsApiState.ready = hasLocationYearData(
+        regionalDemographicsApiState.data,
+        regionalDemographicsApiState.locations,
+        regionalDemographicsApiState.years
+    );
     regionalDemographicsApiState.source = source;
 }
 
@@ -710,6 +769,14 @@ async function loadRegionalDemographicsApiData() {
     try {
         const yearsParam = REGIONAL_COMPARISON_DEFAULT_YEARS.join(',');
         const payload = await fetchTexasCompareJson(`/api/tx-regional-demographics?years=${encodeURIComponent(yearsParam)}`);
+        const liveLocations = Array.isArray(payload?.locations) ? payload.locations : [];
+        const liveData = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+
+        if (!hasCompleteLocationYearData(liveData, liveLocations, REGIONAL_COMPARISON_DEFAULT_YEARS)
+            && tryUseRegionalDemographicsFallback('Live regional demographics API returned partial data, using bundled fallback data.')) {
+            return;
+        }
+
         applyRegionalDemographicsPayload(payload, 'live');
 
         if (!regionalDemographicsApiState.ready && !tryUseRegionalDemographicsFallback('Regional demographics API returned no locations.')) {
@@ -3999,15 +4066,27 @@ function getTexasCompareEndpoint(path) {
     return base ? `${base}${path}` : path;
 }
 
+function appendDashboardRequestVersion(url) {
+    const normalizedUrl = String(url || '').trim();
+    if (!normalizedUrl) {
+        return normalizedUrl;
+    }
+
+    const separator = normalizedUrl.includes('?') ? '&' : '?';
+    return `${normalizedUrl}${separator}dashboard_build=${encodeURIComponent(DASHBOARD_ASSET_VERSION)}`;
+}
+
 async function fetchTexasCompareJson(path) {
-    const primaryUrl = getTexasCompareEndpoint(path);
+    const primaryUrl = appendDashboardRequestVersion(getTexasCompareEndpoint(path));
     const isAbsolutePrimary = /^https?:\/\//i.test(primaryUrl);
 
-    const urlsToTry = isAbsolutePrimary ? [primaryUrl, path] : [primaryUrl];
+    const urlsToTry = isAbsolutePrimary
+        ? [primaryUrl, appendDashboardRequestVersion(path)]
+        : [primaryUrl];
     const host = window.location?.hostname || '';
     const isLocalBrowserHost = host === 'localhost' || host === '127.0.0.1';
     if (isLocalBrowserHost) {
-        urlsToTry.push(`http://localhost:3000${path}`);
+        urlsToTry.push(appendDashboardRequestVersion(`http://localhost:3000${path}`));
     }
 
     const uniqueUrls = [...new Set(urlsToTry)];
@@ -4015,7 +4094,7 @@ async function fetchTexasCompareJson(path) {
 
     for (const url of uniqueUrls) {
         try {
-            const response = await fetch(url);
+            const response = await fetch(url, { cache: 'no-store' });
             if (!response.ok) {
                 const bodyText = await response.text();
                 let message = `Request failed (${response.status}) for ${url}`;
@@ -5502,7 +5581,11 @@ function applyRegionalEducationPayload(payload, source = 'live') {
     regionalEducationApiState.locations = Array.isArray(payload?.locations) ? payload.locations : [];
     regionalEducationApiState.years = normalizeYearList(payload?.years, REGIONAL_COMPARISON_DEFAULT_YEARS);
     regionalEducationApiState.data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
-    regionalEducationApiState.ready = regionalEducationApiState.locations.length > 0;
+    regionalEducationApiState.ready = hasLocationYearData(
+        regionalEducationApiState.data,
+        regionalEducationApiState.locations,
+        regionalEducationApiState.years
+    );
     regionalEducationApiState.source = source;
 }
 
@@ -5527,6 +5610,14 @@ async function loadEducationApiData() {
     try {
         const yearsParam = REGIONAL_COMPARISON_DEFAULT_YEARS.join(',');
         const payload = await fetchTexasCompareJson(`/api/tx-education-attainment?years=${encodeURIComponent(yearsParam)}`);
+        const liveLocations = Array.isArray(payload?.locations) ? payload.locations : [];
+        const liveData = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+
+        if (!hasCompleteLocationYearData(liveData, liveLocations, REGIONAL_COMPARISON_DEFAULT_YEARS)
+            && tryUseRegionalEducationFallback('Live education API returned partial data, using bundled fallback data.')) {
+            return;
+        }
+
         applyRegionalEducationPayload(payload, 'live');
 
         if (!regionalEducationApiState.ready && !tryUseRegionalEducationFallback('Education API returned no locations.')) {

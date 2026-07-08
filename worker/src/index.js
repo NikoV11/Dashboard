@@ -221,11 +221,11 @@ export default {
         }
 
         if (url.pathname === '/api/tx-regional-demographics') {
-            return handleTexasRegionalDemographics(url);
+            return handleTexasRegionalDemographics(url, env);
         }
 
         if (url.pathname === '/api/tx-education-attainment') {
-            return handleTexasEducationAttainment(url);
+            return handleTexasEducationAttainment(url, env);
         }
 
         if (url.pathname === '/api/us-counties-geojson') {
@@ -512,12 +512,12 @@ function normalizeDistribution(source, orderedKeys, digits = 1) {
     return normalized;
 }
 
-async function fetchCensusMetroRecord(year, variables, metroCode) {
+async function fetchCensusMetroRecord(year, variables, metroCode, censusApiKey = '') {
     const url = new URL(`https://api.census.gov/data/${year}/acs/acs5`);
     url.searchParams.set('get', variables.join(','));
     url.searchParams.set('for', `metropolitan statistical area/micropolitan statistical area:${metroCode}`);
 
-    const rows = await fetchCensusJson(url);
+    const rows = await fetchCensusJson(url, censusApiKey);
     if (!Array.isArray(rows) || rows.length < 2) {
         throw new Error(`Census metro response missing data for ${metroCode} (${year}).`);
     }
@@ -615,15 +615,15 @@ function computeMetroDemographicsRecord(valueMap) {
     };
 }
 
-async function loadTexasRegionalDemographicsYear(year) {
+async function loadTexasRegionalDemographicsYear(year, censusApiKey = '') {
     if (texasRegionalDemographicsCache.has(year)) {
         return texasRegionalDemographicsCache.get(year);
     }
 
     const rows = await Promise.all(TX_METRO_LOCATIONS.map(async (metro) => {
         const [baseRecord, ageRecord] = await Promise.all([
-            fetchCensusMetroRecord(year, CENSUS_DEMOGRAPHICS_BASE_VARS, metro.code),
-            fetchCensusMetroRecord(year, CENSUS_DEMOGRAPHICS_AGE_VARS, metro.code)
+            fetchCensusMetroRecord(year, CENSUS_DEMOGRAPHICS_BASE_VARS, metro.code, censusApiKey),
+            fetchCensusMetroRecord(year, CENSUS_DEMOGRAPHICS_AGE_VARS, metro.code, censusApiKey)
         ]);
 
         const mergedValues = new Map([
@@ -677,16 +677,16 @@ function educationBucketFromRaceTable(headers, row, prefix) {
     };
 }
 
-async function loadTexasEducationAttainmentYear(year) {
+async function loadTexasEducationAttainmentYear(year, censusApiKey = '') {
     if (texasEducationAttainmentCache.has(year)) {
         return texasEducationAttainmentCache.get(year);
     }
 
     const rows = await Promise.all(TX_METRO_LOCATIONS.map(async (metro) => {
         const [white, black, hispanic] = await Promise.all([
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_A_VARS, metro.code),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_B_VARS, metro.code),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_I_VARS, metro.code)
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_A_VARS, metro.code, censusApiKey),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_B_VARS, metro.code, censusApiKey),
+            fetchCensusMetroRecord(year, CENSUS_EDUCATION_I_VARS, metro.code, censusApiKey)
         ]);
 
         return {
@@ -1221,7 +1221,18 @@ async function handleTexasRegionalEmployment(url, env) {
     }
 }
 
-async function handleTexasRegionalDemographics(url) {
+async function handleTexasRegionalDemographics(url, env) {
+    const censusApiKey = String(env?.CENSUS_API_KEY || '').trim();
+    if (!censusApiKey) {
+        return new Response(JSON.stringify({
+            error: 'CENSUS_API_KEY is required for live Texas regional demographics data.',
+            detail: 'Configure CENSUS_API_KEY on the worker to enable metro-level demographics refreshes.'
+        }), {
+            status: 500,
+            headers: corsHeaders
+        });
+    }
+
     try {
         const yearsParam = String(url.searchParams.get('years') || '').trim();
         const years = yearsParam
@@ -1235,16 +1246,28 @@ async function handleTexasRegionalDemographics(url) {
             });
         }
 
-        const entries = await Promise.all(years.map(async (year) => {
+        let lastError = null;
+        const entries = [];
+        for (const year of years) {
             try {
-                return { year, recordsByLocation: await loadTexasRegionalDemographicsYear(year) };
+                entries.push({ year, recordsByLocation: await loadTexasRegionalDemographicsYear(year, censusApiKey) });
             } catch (error) {
+                lastError = error;
                 console.warn(`[tx-regional-demographics] Year ${year} skipped:`, error?.message || String(error));
-                return null;
             }
-        }));
+        }
 
         const available = entries.filter(Boolean);
+        if (!available.length) {
+            return new Response(JSON.stringify({
+                error: 'Failed to load Census regional demographics data.',
+                detail: lastError?.message || 'No regional demographics data was returned for the requested years.'
+            }), {
+                status: 500,
+                headers: corsHeaders
+            });
+        }
+
         const data = {};
         TX_METRO_LOCATIONS.forEach((metro) => {
             data[metro.name] = {};
@@ -1284,7 +1307,18 @@ async function handleTexasRegionalDemographics(url) {
     }
 }
 
-async function handleTexasEducationAttainment(url) {
+async function handleTexasEducationAttainment(url, env) {
+    const censusApiKey = String(env?.CENSUS_API_KEY || '').trim();
+    if (!censusApiKey) {
+        return new Response(JSON.stringify({
+            error: 'CENSUS_API_KEY is required for live Texas education attainment data.',
+            detail: 'Configure CENSUS_API_KEY on the worker to enable metro-level education refreshes.'
+        }), {
+            status: 500,
+            headers: corsHeaders
+        });
+    }
+
     try {
         const yearsParam = String(url.searchParams.get('years') || '').trim();
         const years = yearsParam
@@ -1298,16 +1332,28 @@ async function handleTexasEducationAttainment(url) {
             });
         }
 
-        const entries = await Promise.all(years.map(async (year) => {
+        let lastError = null;
+        const entries = [];
+        for (const year of years) {
             try {
-                return { year, recordsByLocation: await loadTexasEducationAttainmentYear(year) };
+                entries.push({ year, recordsByLocation: await loadTexasEducationAttainmentYear(year, censusApiKey) });
             } catch (error) {
+                lastError = error;
                 console.warn(`[tx-education-attainment] Year ${year} skipped:`, error?.message || String(error));
-                return null;
             }
-        }));
+        }
 
         const available = entries.filter(Boolean);
+        if (!available.length) {
+            return new Response(JSON.stringify({
+                error: 'Failed to load Census education attainment data.',
+                detail: lastError?.message || 'No education attainment data was returned for the requested years.'
+            }), {
+                status: 500,
+                headers: corsHeaders
+            });
+        }
+
         const data = {};
         TX_METRO_LOCATIONS.forEach((metro) => {
             data[metro.name] = {};
