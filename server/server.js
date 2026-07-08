@@ -426,6 +426,20 @@ async function fetchCensusMetroRecord(year, variables, metroCode, censusApiKey =
     };
 }
 
+async function fetchTexasCountyTable(year, variables, censusApiKey = process.env.CENSUS_API_KEY || '') {
+    const url = new URL(`https://api.census.gov/data/${year}/acs/acs5`);
+    url.searchParams.set('get', variables.join(','));
+    url.searchParams.set('for', 'county:*');
+    url.searchParams.set('in', 'state:48');
+
+    const rows = await fetchCensusJson(url, censusApiKey);
+    if (!Array.isArray(rows) || rows.length < 2) {
+        throw new Error(`Census county response missing data for Texas (${year}).`);
+    }
+
+    return rows;
+}
+
 function sumCensusCodes(headers, row, codes) {
     return codes.reduce((sum, code) => {
         const value = readCensusValue(headers, row, code);
@@ -518,33 +532,51 @@ async function loadTexasRegionalDemographicsYear(year, censusApiKey = process.en
         return texasRegionalDemographicsCache.get(year);
     }
 
-    const rows = await Promise.all(TX_METRO_LOCATIONS.map(async (metro) => {
-        const [baseRecord, ageRecord] = await Promise.all([
-            fetchCensusMetroRecord(year, CENSUS_DEMOGRAPHICS_BASE_VARS, metro.code, censusApiKey),
-            fetchCensusMetroRecord(year, CENSUS_DEMOGRAPHICS_AGE_VARS, metro.code, censusApiKey)
-        ]);
+    const [baseRows, ageRows] = await Promise.all([
+        fetchTexasCountyTable(year, CENSUS_DEMOGRAPHICS_BASE_VARS, censusApiKey),
+        fetchTexasCountyTable(year, CENSUS_DEMOGRAPHICS_AGE_VARS, censusApiKey)
+    ]);
+
+    const baseHeaders = Array.isArray(baseRows) && baseRows.length ? baseRows[0] : [];
+    const ageHeaders = Array.isArray(ageRows) && ageRows.length ? ageRows[0] : [];
+    const baseMap = censusRowsToMap(baseRows);
+    const ageMap = censusRowsToMap(ageRows);
+    const byLocation = {};
+
+    baseMap.forEach((baseRow, fips) => {
+        const ageRow = ageMap.get(fips);
+        if (!ageRow) {
+            return;
+        }
+
+        const location = formatTexasCountyLocationName(baseHeaders, baseRow);
+        if (!location) {
+            return;
+        }
 
         const mergedValues = new Map([
-            ...rowToCensusValueMap(baseRecord.headers, baseRecord.row),
-            ...rowToCensusValueMap(ageRecord.headers, ageRecord.row)
+            ...rowToCensusValueMap(baseHeaders, baseRow),
+            ...rowToCensusValueMap(ageHeaders, ageRow)
         ]);
 
-        return {
-            location: metro.name,
-            record: computeMetroDemographicsRecord(mergedValues)
-        };
-    }));
-
-    const byLocation = {};
-    rows.forEach(({ location, record }) => {
-        byLocation[location] = record;
+        byLocation[location] = computeMetroDemographicsRecord(mergedValues);
     });
 
-    texasRegionalDemographicsCache.set(year, byLocation);
-    return byLocation;
+    const sortedLocations = sortLocationRecordMap(byLocation);
+    texasRegionalDemographicsCache.set(year, sortedLocations);
+    return sortedLocations;
 }
 
 function educationBucketFromRaceTable(headers, row, prefix) {
+    if (!Array.isArray(headers) || !Array.isArray(row)) {
+        return {
+            bachelors: null,
+            highSchool: null,
+            noHighSchool: null,
+            someCollege: null
+        };
+    }
+
     const total = readCensusValue(headers, row, `${prefix}_001E`);
     const noHighSchool = sumCensusCodes(headers, row, [`${prefix}_003E`, `${prefix}_008E`]);
     const highSchool = sumCensusCodes(headers, row, [`${prefix}_004E`, `${prefix}_009E`]);
@@ -632,37 +664,60 @@ async function loadTexasEducationAttainmentYear(year, censusApiKey = process.env
         return texasEducationAttainmentCache.get(year);
     }
 
-    const rows = await Promise.all(TX_METRO_LOCATIONS.map(async (metro) => {
-        const [white, black, hispanic, asian, nativeAm, hawaiian, otherRace, multirace] = await Promise.all([
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_A_VARS, metro.code, censusApiKey),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_B_VARS, metro.code, censusApiKey),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_I_VARS, metro.code, censusApiKey),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_D_VARS, metro.code, censusApiKey),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_C_VARS, metro.code, censusApiKey),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_E_VARS, metro.code, censusApiKey),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_F_VARS, metro.code, censusApiKey),
-            fetchCensusMetroRecord(year, CENSUS_EDUCATION_G_VARS, metro.code, censusApiKey)
-        ]);
+    const [
+        whiteRows,
+        blackRows,
+        hispanicRows,
+        asianRows,
+        nativeAmRows,
+        hawaiianRows,
+        otherRaceRows,
+        multiraceRows
+    ] = await Promise.all([
+        fetchTexasCountyTable(year, CENSUS_EDUCATION_A_VARS, censusApiKey),
+        fetchTexasCountyTable(year, CENSUS_EDUCATION_B_VARS, censusApiKey),
+        fetchTexasCountyTable(year, CENSUS_EDUCATION_I_VARS, censusApiKey),
+        fetchTexasCountyTable(year, CENSUS_EDUCATION_D_VARS, censusApiKey),
+        fetchTexasCountyTable(year, CENSUS_EDUCATION_C_VARS, censusApiKey),
+        fetchTexasCountyTable(year, CENSUS_EDUCATION_E_VARS, censusApiKey),
+        fetchTexasCountyTable(year, CENSUS_EDUCATION_F_VARS, censusApiKey),
+        fetchTexasCountyTable(year, CENSUS_EDUCATION_G_VARS, censusApiKey)
+    ]);
 
-        return {
-            location: metro.name,
-            record: {
-                White: educationBucketFromRaceTable(white.headers, white.row, 'C15002A'),
-                Black: educationBucketFromRaceTable(black.headers, black.row, 'C15002B'),
-                Hispanic: educationBucketFromRaceTable(hispanic.headers, hispanic.row, 'C15002I'),
-                Asian: educationBucketFromRaceTable(asian.headers, asian.row, 'C15002D'),
-                Other: computeOtherRaceEducation(nativeAm, hawaiian, otherRace, multirace)
-            }
-        };
-    }));
-
+    const whiteHeaders = Array.isArray(whiteRows) && whiteRows.length ? whiteRows[0] : [];
+    const whiteMap = censusRowsToMap(whiteRows);
+    const blackMap = censusRowsToMap(blackRows);
+    const hispanicMap = censusRowsToMap(hispanicRows);
+    const asianMap = censusRowsToMap(asianRows);
+    const nativeAmMap = censusRowsToMap(nativeAmRows);
+    const hawaiianMap = censusRowsToMap(hawaiianRows);
+    const otherRaceMap = censusRowsToMap(otherRaceRows);
+    const multiraceMap = censusRowsToMap(multiraceRows);
     const byLocation = {};
-    rows.forEach(({ location, record }) => {
-        byLocation[location] = record;
+
+    whiteMap.forEach((whiteRow, fips) => {
+        const location = formatTexasCountyLocationName(whiteHeaders, whiteRow);
+        if (!location) {
+            return;
+        }
+
+        byLocation[location] = {
+            White: educationBucketFromRaceTable(whiteHeaders, whiteRow, 'C15002A'),
+            Black: educationBucketFromRaceTable(blackRows[0], blackMap.get(fips), 'C15002B'),
+            Hispanic: educationBucketFromRaceTable(hispanicRows[0], hispanicMap.get(fips), 'C15002I'),
+            Asian: educationBucketFromRaceTable(asianRows[0], asianMap.get(fips), 'C15002D'),
+            Other: computeOtherRaceEducation(
+                { headers: nativeAmRows[0], row: nativeAmMap.get(fips) },
+                { headers: hawaiianRows[0], row: hawaiianMap.get(fips) },
+                { headers: otherRaceRows[0], row: otherRaceMap.get(fips) },
+                { headers: multiraceRows[0], row: multiraceMap.get(fips) }
+            )
+        };
     });
 
-    texasEducationAttainmentCache.set(year, byLocation);
-    return byLocation;
+    const sortedLocations = sortLocationRecordMap(byLocation);
+    texasEducationAttainmentCache.set(year, sortedLocations);
+    return sortedLocations;
 }
 
 function parseNumeric(value) {
@@ -690,6 +745,22 @@ function parseTexasCountyNameFromCensus(name) {
         .replace(/,\s*Texas$/i, '')
         .replace(/\s+County$/i, '')
         .trim();
+}
+
+function formatTexasCountyLocationName(headers, row) {
+    const nameIndex = Array.isArray(headers) ? headers.indexOf('NAME') : -1;
+    if (nameIndex < 0 || !Array.isArray(row)) {
+        return '';
+    }
+
+    const countyName = parseTexasCountyNameFromCensus(row[nameIndex]);
+    return countyName ? `${countyName} County, TX` : '';
+}
+
+function sortLocationRecordMap(recordsByLocation) {
+    return Object.fromEntries(
+        Object.entries(recordsByLocation || {}).sort(([left], [right]) => left.localeCompare(right))
+    );
 }
 
 function withCensusApiKey(url, censusApiKey = process.env.CENSUS_API_KEY || '') {
@@ -1164,24 +1235,25 @@ app.get('/api/tx-regional-demographics', async (req, res) => {
             });
         }
 
-        const data = {};
-        TX_METRO_LOCATIONS.forEach((metro) => {
-            data[metro.name] = {};
-        });
+        const locations = [...new Set(
+            available.flatMap((entry) => Object.keys(entry.recordsByLocation || {}))
+        )].sort((left, right) => left.localeCompare(right));
+        const data = Object.fromEntries(locations.map((location) => [location, {}]));
 
         available.forEach((entry) => {
-            TX_METRO_LOCATIONS.forEach((metro) => {
-                const record = entry.recordsByLocation?.[metro.name];
+            locations.forEach((location) => {
+                const record = entry.recordsByLocation?.[location];
                 if (record) {
-                    data[metro.name][entry.year] = record;
+                    data[location][entry.year] = record;
                 }
             });
         });
 
         return res.json({
             source: 'US Census ACS 5-Year',
+            geography: 'county',
             years: available.map((entry) => entry.year),
-            locations: TX_METRO_LOCATIONS.map((metro) => metro.name),
+            locations,
             ageGroups: REGIONAL_DEMOGRAPHICS_AGE_GROUPS,
             raceGroups: REGIONAL_DEMOGRAPHICS_RACE_GROUPS,
             data
@@ -1199,7 +1271,7 @@ app.get('/api/tx-education-attainment', async (req, res) => {
     if (!censusApiKey) {
         return res.status(500).json({
             error: 'CENSUS_API_KEY is required for live Texas education attainment data.',
-            detail: 'Configure CENSUS_API_KEY on the server to enable metro-level education refreshes.'
+            detail: 'Configure CENSUS_API_KEY on the server to enable county-level education refreshes.'
         });
     }
 
@@ -1232,24 +1304,25 @@ app.get('/api/tx-education-attainment', async (req, res) => {
             });
         }
 
-        const data = {};
-        TX_METRO_LOCATIONS.forEach((metro) => {
-            data[metro.name] = {};
-        });
+        const locations = [...new Set(
+            available.flatMap((entry) => Object.keys(entry.recordsByLocation || {}))
+        )].sort((left, right) => left.localeCompare(right));
+        const data = Object.fromEntries(locations.map((location) => [location, {}]));
 
         available.forEach((entry) => {
-            TX_METRO_LOCATIONS.forEach((metro) => {
-                const record = entry.recordsByLocation?.[metro.name];
+            locations.forEach((location) => {
+                const record = entry.recordsByLocation?.[location];
                 if (record) {
-                    data[metro.name][entry.year] = record;
+                    data[location][entry.year] = record;
                 }
             });
         });
 
         return res.json({
             source: 'US Census ACS 5-Year (Live API)',
+            geography: 'county',
             years: available.map((entry) => entry.year),
-            locations: TX_METRO_LOCATIONS.map((metro) => metro.name),
+            locations,
             races: ['White', 'Black', 'Hispanic', 'Asian', 'Other'],
             educationLevels: ['bachelors', 'highSchool', 'noHighSchool', 'someCollege'],
             data

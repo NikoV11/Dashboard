@@ -604,9 +604,13 @@ let regionalDemoAgeChart = null;
 let regionalDemoRaceChart = null;
 let regionalDemoCommunityChart = null;
 
+const DEFAULT_REGIONAL_COUNTY_LEFT_LOCATION = 'Smith County, TX';
+const DEFAULT_REGIONAL_COUNTY_RIGHT_LOCATION = 'Dallas County, TX';
+const REGIONAL_COUNTY_LOCATION_MIN_COUNT = 200;
+
 const regionalDemographicsState = {
-    leftLocation: 'Tyler, TX Metro Area',
-    rightLocation: 'Dallas-Fort Worth-Arlington, TX Metro Area',
+    leftLocation: DEFAULT_REGIONAL_COUNTY_LEFT_LOCATION,
+    rightLocation: DEFAULT_REGIONAL_COUNTY_RIGHT_LOCATION,
     year: 2024
 };
 
@@ -638,7 +642,9 @@ const regionalDemographicsApiState = {
     ageGroups: [...REGIONAL_DEMOGRAPHICS_DEFAULT_AGE_GROUPS],
     raceGroups: [...REGIONAL_DEMOGRAPHICS_DEFAULT_RACE_GROUPS],
     data: {},
-    source: 'live'
+    loadedYears: new Set(),
+    source: 'live',
+    geography: 'county'
 };
 
 function getBundledDataset(name) {
@@ -730,31 +736,84 @@ function hasCompleteLocationYearData(payloadData, locations, years) {
     });
 }
 
-function applyRegionalDemographicsPayload(payload, source = 'live') {
-    regionalDemographicsApiState.years = normalizeYearList(payload?.years, REGIONAL_COMPARISON_DEFAULT_YEARS);
-    regionalDemographicsApiState.locations = Array.isArray(payload?.locations) ? payload.locations : [];
+function isTexasCountyLocationName(location) {
+    return /\bCounty,\s*TX$/i.test(String(location || '').trim());
+}
+
+function hasTexasCountyLocationCoverage(locations, minCount = REGIONAL_COUNTY_LOCATION_MIN_COUNT) {
+    if (!Array.isArray(locations) || !locations.length) {
+        return false;
+    }
+
+    return locations.filter((location) => isTexasCountyLocationName(location)).length >= minCount;
+}
+
+function mergeLocationYearPayloadData(target, incoming) {
+    if (!incoming || typeof incoming !== 'object') {
+        return target;
+    }
+
+    Object.entries(incoming).forEach(([location, byYear]) => {
+        if (!byYear || typeof byYear !== 'object') {
+            return;
+        }
+
+        if (!target[location] || typeof target[location] !== 'object') {
+            target[location] = {};
+        }
+
+        Object.entries(byYear).forEach(([year, record]) => {
+            if (record && typeof record === 'object' && Object.keys(record).length) {
+                target[location][year] = record;
+            }
+        });
+    });
+
+    return target;
+}
+
+function applyRegionalDemographicsPayload(payload, source = 'live', merge = false) {
+    const incomingYears = normalizeYearList(payload?.years, []);
+    const incomingLocations = Array.isArray(payload?.locations)
+        ? [...payload.locations].sort((left, right) => left.localeCompare(right))
+        : [];
+
+    if (!merge) {
+        regionalDemographicsApiState.data = {};
+        regionalDemographicsApiState.loadedYears.clear();
+    }
+
+    regionalDemographicsApiState.years = [...REGIONAL_COMPARISON_DEFAULT_YEARS];
+    regionalDemographicsApiState.locations = incomingLocations.length
+        ? incomingLocations
+        : regionalDemographicsApiState.locations;
     regionalDemographicsApiState.ageGroups = Array.isArray(payload?.ageGroups) && payload.ageGroups.length
         ? payload.ageGroups
         : [...REGIONAL_DEMOGRAPHICS_DEFAULT_AGE_GROUPS];
     regionalDemographicsApiState.raceGroups = Array.isArray(payload?.raceGroups) && payload.raceGroups.length
         ? payload.raceGroups
         : [...REGIONAL_DEMOGRAPHICS_DEFAULT_RACE_GROUPS];
-    regionalDemographicsApiState.data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+    mergeLocationYearPayloadData(
+        regionalDemographicsApiState.data,
+        payload?.data && typeof payload.data === 'object' ? payload.data : {}
+    );
+    incomingYears.forEach((year) => regionalDemographicsApiState.loadedYears.add(year));
     regionalDemographicsApiState.ready = hasLocationYearData(
         regionalDemographicsApiState.data,
         regionalDemographicsApiState.locations,
-        regionalDemographicsApiState.years
+        [...regionalDemographicsApiState.loadedYears]
     );
     regionalDemographicsApiState.source = source;
+    regionalDemographicsApiState.geography = String(payload?.geography || regionalDemographicsApiState.geography || '').trim() || 'county';
 }
 
 function tryUseRegionalDemographicsFallback(reason = '') {
     const fallback = getBundledDataset('DEMOGRAPHICS_DATA');
-    if (!fallback) {
+    if (!fallback || !hasTexasCountyLocationCoverage(fallback?.locations)) {
         return false;
     }
 
-    applyRegionalDemographicsPayload(fallback, 'bundled-fallback');
+    applyRegionalDemographicsPayload(fallback, 'bundled-fallback', false);
     regionalDemographicsApiState.loadError = regionalDemographicsApiState.ready
         ? 'Live demographics API unavailable, using bundled fallback data.'
         : (reason || 'Bundled demographics fallback data is unavailable.');
@@ -762,34 +821,54 @@ function tryUseRegionalDemographicsFallback(reason = '') {
     return regionalDemographicsApiState.ready;
 }
 
-async function loadRegionalDemographicsApiData() {
-    regionalDemographicsApiState.ready = false;
-    regionalDemographicsApiState.loadError = '';
+async function loadRegionalDemographicsApiData(requestedYear = regionalDemographicsState.year) {
+    const year = Number(requestedYear) || regionalDemographicsState.year;
+    if (
+        regionalDemographicsApiState.loadedYears.has(year)
+        && hasLocationYearData(regionalDemographicsApiState.data, regionalDemographicsApiState.locations, [year])
+    ) {
+        return true;
+    }
+
+    if (!regionalDemographicsApiState.loadedYears.size) {
+        regionalDemographicsApiState.ready = false;
+        regionalDemographicsApiState.loadError = '';
+    }
 
     try {
-        const yearsParam = REGIONAL_COMPARISON_DEFAULT_YEARS.join(',');
-        const payload = await fetchTexasCompareJson(`/api/tx-regional-demographics?years=${encodeURIComponent(yearsParam)}`);
+        const payload = await fetchTexasCompareJson(`/api/tx-regional-demographics?years=${encodeURIComponent(year)}`);
         const liveLocations = Array.isArray(payload?.locations) ? payload.locations : [];
         const liveData = payload?.data && typeof payload.data === 'object' ? payload.data : {};
 
-        if (!hasCompleteLocationYearData(liveData, liveLocations, REGIONAL_COMPARISON_DEFAULT_YEARS)
-            && tryUseRegionalDemographicsFallback('Live regional demographics API returned partial data, using bundled fallback data.')) {
-            return;
+        if (!hasTexasCountyLocationCoverage(liveLocations)) {
+            throw new Error('Regional demographics API returned an incomplete Texas county list.');
         }
 
-        applyRegionalDemographicsPayload(payload, 'live');
+        if (!hasLocationYearData(liveData, liveLocations, [year])
+            && tryUseRegionalDemographicsFallback('Regional demographics API returned no county data for the selected year.')) {
+            return true;
+        }
+
+        applyRegionalDemographicsPayload(payload, 'live', true);
+        regionalDemographicsApiState.loadError = '';
 
         if (!regionalDemographicsApiState.ready && !tryUseRegionalDemographicsFallback('Regional demographics API returned no locations.')) {
             regionalDemographicsApiState.loadError = 'Regional demographics API returned no locations.';
         }
+        return hasLocationYearData(regionalDemographicsApiState.data, regionalDemographicsApiState.locations, [year]);
     } catch (error) {
-        if (tryUseRegionalDemographicsFallback(error?.message || 'Failed to load regional demographics API data.')) {
-            return;
+        if (!regionalDemographicsApiState.loadedYears.size
+            && tryUseRegionalDemographicsFallback(error?.message || 'Failed to load regional demographics API data.')) {
+            return true;
         }
 
-        applyRegionalDemographicsPayload(null, 'live');
-        regionalDemographicsApiState.ready = false;
+        regionalDemographicsApiState.ready = hasLocationYearData(
+            regionalDemographicsApiState.data,
+            regionalDemographicsApiState.locations,
+            [...regionalDemographicsApiState.loadedYears]
+        );
         regionalDemographicsApiState.loadError = error?.message || 'Failed to load regional demographics API data.';
+        return false;
     }
 }
 
@@ -837,10 +916,10 @@ function formatRegionalPercent(value) {
 
         function updateRegionalDemographicsCards(prefix, location, record) {
             document.getElementById(`regionalDemo${prefix}Title`).textContent = location;
-            document.getElementById(`regionalDemo${prefix}Population`).textContent = formatRegionalPopulation(record.totalPopulation);
-            document.getElementById(`regionalDemo${prefix}MedianAge`).textContent = Number.isFinite(record.medianAge) ? record.medianAge.toFixed(1) : 'N/A';
-            document.getElementById(`regionalDemo${prefix}Veteran`).textContent = formatRegionalPercent(record.veteranShare);
-            document.getElementById(`regionalDemo${prefix}Hispanic`).textContent = formatRegionalPercent(record.hispanicShare);
+            document.getElementById(`regionalDemo${prefix}Population`).textContent = record ? formatRegionalPopulation(record.totalPopulation) : 'N/A';
+            document.getElementById(`regionalDemo${prefix}MedianAge`).textContent = record && Number.isFinite(record.medianAge) ? record.medianAge.toFixed(1) : 'N/A';
+            document.getElementById(`regionalDemo${prefix}Veteran`).textContent = record ? formatRegionalPercent(record.veteranShare) : 'N/A';
+            document.getElementById(`regionalDemo${prefix}Hispanic`).textContent = record ? formatRegionalPercent(record.hispanicShare) : 'N/A';
         }
 
         function renderRegionalDemographics() {
@@ -852,6 +931,11 @@ function formatRegionalPercent(value) {
             const summaryEl = document.getElementById('regionalDemographicsSummary');
 
             if (!leftRecord || !rightRecord) {
+                updateRegionalDemographicsCards('Left', leftLocation, leftRecord);
+                updateRegionalDemographicsCards('Right', rightLocation, rightRecord);
+                regionalDemoAgeChart = destroyChart(regionalDemoAgeChart);
+                regionalDemoCommunityChart = destroyChart(regionalDemoCommunityChart);
+                regionalDemoRaceChart = destroyChart(regionalDemoRaceChart);
                 if (summaryEl) {
                     summaryEl.textContent = regionalDemographicsApiState.loadError
                         ? `Demographics data is unavailable: ${regionalDemographicsApiState.loadError}`
@@ -866,7 +950,7 @@ function formatRegionalPercent(value) {
             if (summaryEl) {
                 const populationGap = rightRecord.totalPopulation - leftRecord.totalPopulation;
                 const largerLabel = populationGap >= 0 ? rightLocation : leftLocation;
-                summaryEl.textContent = `${leftLocation} vs ${rightLocation} (${year}). ${largerLabel} has the larger resident base, while the panels below compare age structure, race composition, veteran share, and Hispanic share.`;
+                summaryEl.textContent = `${leftLocation} vs ${rightLocation} (${year}). ${largerLabel} has the larger resident base, while the panels below compare age structure, race composition, veteran share, and Hispanic share across both counties.`;
             }
 
             const ageGroups = [...regionalDemographicsApiState.ageGroups].reverse();
@@ -1046,10 +1130,11 @@ function formatRegionalPercent(value) {
             });
         }
 
-        function handleRegionalDemographicsDownload() {
+        async function handleRegionalDemographicsDownload() {
             const leftLocation = regionalDemographicsState.leftLocation;
             const rightLocation = regionalDemographicsState.rightLocation;
             const year = regionalDemographicsState.year;
+            await loadRegionalDemographicsApiData(year);
             const leftRecord = getRegionalDemographicsRecord(leftLocation, year);
             const rightRecord = getRegionalDemographicsRecord(rightLocation, year);
 
@@ -1114,7 +1199,7 @@ function formatRegionalPercent(value) {
                 return;
             }
 
-            await loadRegionalDemographicsApiData();
+            await loadRegionalDemographicsApiData(regionalDemographicsState.year);
 
             if (!regionalDemographicsApiState.locations.length) {
                 renderRegionalDemographics();
@@ -1157,8 +1242,9 @@ function formatRegionalPercent(value) {
                 renderRegionalDemographics();
             });
 
-            yearSelect.addEventListener('change', (event) => {
+            yearSelect.addEventListener('change', async (event) => {
                 regionalDemographicsState.year = Number(event.target.value) || regionalDemographicsState.year;
+                await loadRegionalDemographicsApiData(regionalDemographicsState.year);
                 renderRegionalDemographics();
             });
 
@@ -5554,6 +5640,8 @@ function fallbackShareMortgage(image30Url, image15Url, blob30, blob15, shareText
 let eduLeftChart = null;
 let eduRightChart = null;
 
+const EDU_RACES = ['White', 'Hispanic', 'Black', 'Asian', 'Other'];
+
 const EDU_COLORS = {
     bachelors:    '#002F6C',
     highSchool:   '#4A9EE8',
@@ -5568,34 +5656,59 @@ const EDU_LABELS = {
     someCollege:  "Some College or Associate's",
 };
 
+const regionalEducationState = {
+    leftLocation: DEFAULT_REGIONAL_COUNTY_LEFT_LOCATION,
+    rightLocation: DEFAULT_REGIONAL_COUNTY_RIGHT_LOCATION,
+    year: 2024
+};
+
 const regionalEducationApiState = {
     ready: false,
     loadError: '',
     locations: [],
     years: [...REGIONAL_COMPARISON_DEFAULT_YEARS],
     data: {},
-    source: 'live'
+    loadedYears: new Set(),
+    source: 'live',
+    geography: 'county'
 };
 
-function applyRegionalEducationPayload(payload, source = 'live') {
-    regionalEducationApiState.locations = Array.isArray(payload?.locations) ? payload.locations : [];
-    regionalEducationApiState.years = normalizeYearList(payload?.years, REGIONAL_COMPARISON_DEFAULT_YEARS);
-    regionalEducationApiState.data = payload?.data && typeof payload.data === 'object' ? payload.data : {};
+function applyRegionalEducationPayload(payload, source = 'live', merge = false) {
+    const incomingYears = normalizeYearList(payload?.years, []);
+    const incomingLocations = Array.isArray(payload?.locations)
+        ? [...payload.locations].sort((left, right) => left.localeCompare(right))
+        : [];
+
+    if (!merge) {
+        regionalEducationApiState.data = {};
+        regionalEducationApiState.loadedYears.clear();
+    }
+
+    regionalEducationApiState.locations = incomingLocations.length
+        ? incomingLocations
+        : regionalEducationApiState.locations;
+    regionalEducationApiState.years = [...REGIONAL_COMPARISON_DEFAULT_YEARS];
+    mergeLocationYearPayloadData(
+        regionalEducationApiState.data,
+        payload?.data && typeof payload.data === 'object' ? payload.data : {}
+    );
+    incomingYears.forEach((year) => regionalEducationApiState.loadedYears.add(year));
     regionalEducationApiState.ready = hasLocationYearData(
         regionalEducationApiState.data,
         regionalEducationApiState.locations,
-        regionalEducationApiState.years
+        [...regionalEducationApiState.loadedYears]
     );
     regionalEducationApiState.source = source;
+    regionalEducationApiState.geography = String(payload?.geography || regionalEducationApiState.geography || '').trim() || 'county';
 }
 
 function tryUseRegionalEducationFallback(reason = '') {
     const fallback = getBundledDataset('EDUCATION_DATA');
-    if (!fallback) {
+    if (!fallback || !hasTexasCountyLocationCoverage(fallback?.locations)) {
         return false;
     }
 
-    applyRegionalEducationPayload(fallback, 'bundled-fallback');
+    applyRegionalEducationPayload(fallback, 'bundled-fallback', false);
     regionalEducationApiState.loadError = regionalEducationApiState.ready
         ? 'Live education API unavailable, using bundled fallback data.'
         : (reason || 'Bundled education fallback data is unavailable.');
@@ -5603,34 +5716,80 @@ function tryUseRegionalEducationFallback(reason = '') {
     return regionalEducationApiState.ready;
 }
 
-async function loadEducationApiData() {
-    regionalEducationApiState.ready = false;
-    regionalEducationApiState.loadError = '';
+async function loadEducationApiData(requestedYear = regionalEducationState.year) {
+    const year = Number(requestedYear) || regionalEducationState.year;
+    if (
+        regionalEducationApiState.loadedYears.has(year)
+        && hasLocationYearData(regionalEducationApiState.data, regionalEducationApiState.locations, [year])
+    ) {
+        return true;
+    }
+
+    if (!regionalEducationApiState.loadedYears.size) {
+        regionalEducationApiState.ready = false;
+        regionalEducationApiState.loadError = '';
+    }
 
     try {
-        const yearsParam = REGIONAL_COMPARISON_DEFAULT_YEARS.join(',');
-        const payload = await fetchTexasCompareJson(`/api/tx-education-attainment?years=${encodeURIComponent(yearsParam)}`);
+        const payload = await fetchTexasCompareJson(`/api/tx-education-attainment?years=${encodeURIComponent(year)}`);
         const liveLocations = Array.isArray(payload?.locations) ? payload.locations : [];
         const liveData = payload?.data && typeof payload.data === 'object' ? payload.data : {};
 
-        if (!hasCompleteLocationYearData(liveData, liveLocations, REGIONAL_COMPARISON_DEFAULT_YEARS)
-            && tryUseRegionalEducationFallback('Live education API returned partial data, using bundled fallback data.')) {
-            return;
+        if (!hasTexasCountyLocationCoverage(liveLocations)) {
+            throw new Error('Education API returned an incomplete Texas county list.');
         }
 
-        applyRegionalEducationPayload(payload, 'live');
+        if (!hasLocationYearData(liveData, liveLocations, [year])
+            && tryUseRegionalEducationFallback('Education API returned no county data for the selected year.')) {
+            return true;
+        }
+
+        applyRegionalEducationPayload(payload, 'live', true);
+        regionalEducationApiState.loadError = '';
 
         if (!regionalEducationApiState.ready && !tryUseRegionalEducationFallback('Education API returned no locations.')) {
             regionalEducationApiState.loadError = 'Education API returned no locations.';
         }
+        return hasLocationYearData(regionalEducationApiState.data, regionalEducationApiState.locations, [year]);
     } catch (error) {
-        if (tryUseRegionalEducationFallback(error?.message || 'Failed to load education API data.')) {
-            return;
+        if (!regionalEducationApiState.loadedYears.size
+            && tryUseRegionalEducationFallback(error?.message || 'Failed to load education API data.')) {
+            return true;
         }
 
-        applyRegionalEducationPayload(null, 'live');
-        regionalEducationApiState.ready = false;
+        regionalEducationApiState.ready = hasLocationYearData(
+            regionalEducationApiState.data,
+            regionalEducationApiState.locations,
+            [...regionalEducationApiState.loadedYears]
+        );
         regionalEducationApiState.loadError = error?.message || 'Failed to load education API data.';
+        return false;
+    }
+}
+
+function ensureDistinctRegionalEducationSelections(changedSide) {
+    if (regionalEducationState.leftLocation !== regionalEducationState.rightLocation) {
+        return;
+    }
+
+    const fallback = regionalEducationApiState.locations.find((location) => location !== regionalEducationState.leftLocation);
+    if (!fallback) {
+        return;
+    }
+
+    if (changedSide === 'left') {
+        regionalEducationState.rightLocation = fallback;
+        const rightSelect = document.getElementById('eduRightSelect');
+        if (rightSelect) {
+            rightSelect.value = fallback;
+        }
+        return;
+    }
+
+    regionalEducationState.leftLocation = fallback;
+    const leftSelect = document.getElementById('eduLeftSelect');
+    if (leftSelect) {
+        leftSelect.value = fallback;
     }
 }
 
@@ -5641,7 +5800,7 @@ async function initEducationCharts() {
 
     if (!leftSel || !rightSel || !yearSel) return;
 
-    await loadEducationApiData();
+    await loadEducationApiData(regionalEducationState.year);
 
     if (!regionalEducationApiState.locations.length) {
         console.warn('[Edu] Education API did not return locations:', regionalEducationApiState.loadError);
@@ -5658,44 +5817,78 @@ async function initEducationCharts() {
         const optB = new Option(loc, loc);
         leftSel.appendChild(optA);
         rightSel.appendChild(optB);
-        if (i === 0) optA.selected = true;
-        if (i === 2) optB.selected = true;
     });
 
     // Populate year dropdown
     [...regionalEducationApiState.years].reverse().forEach((yr, i) => {
         const opt = new Option(yr, yr);
-        if (i === 0) opt.selected = true;
         yearSel.appendChild(opt);
     });
 
+    if (!regionalEducationApiState.locations.includes(regionalEducationState.leftLocation)) {
+        regionalEducationState.leftLocation = regionalEducationApiState.locations[0];
+    }
+    if (!regionalEducationApiState.locations.includes(regionalEducationState.rightLocation)) {
+        regionalEducationState.rightLocation = regionalEducationApiState.locations[1] || regionalEducationApiState.locations[0];
+    }
+    if (!regionalEducationApiState.years.includes(regionalEducationState.year)) {
+        regionalEducationState.year = regionalEducationApiState.years[regionalEducationApiState.years.length - 1];
+    }
+
+    leftSel.value = regionalEducationState.leftLocation;
+    rightSel.value = regionalEducationState.rightLocation;
+    yearSel.value = String(regionalEducationState.year);
+
     // Don't render yet — charts must render inside a visible tab
-    leftSel.addEventListener('change',  renderEducationCharts);
-    rightSel.addEventListener('change', renderEducationCharts);
-    yearSel.addEventListener('change',  renderEducationCharts);
+    leftSel.addEventListener('change', () => {
+        regionalEducationState.leftLocation = leftSel.value;
+        ensureDistinctRegionalEducationSelections('left');
+        renderEducationCharts();
+    });
+    rightSel.addEventListener('change', () => {
+        regionalEducationState.rightLocation = rightSel.value;
+        ensureDistinctRegionalEducationSelections('right');
+        renderEducationCharts();
+    });
+    yearSel.addEventListener('change', async () => {
+        regionalEducationState.year = Number(yearSel.value) || regionalEducationState.year;
+        await loadEducationApiData(regionalEducationState.year);
+        renderEducationCharts();
+    });
 
     // CSV download
     document.getElementById('downloadEduCsvBtn')?.addEventListener('click', downloadEduCsv);
 
     // PNG download
     document.getElementById('downloadEduPngBtn')?.addEventListener('click', () => {
-        const canvas = document.getElementById('eduLeftChart');
-        if (!canvas) return;
-        const link = document.createElement('a');
-        link.download = 'educational-attainment.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
+        const chartSet = [eduLeftChart, eduRightChart].filter(Boolean);
+        if (!chartSet.length) {
+            return;
+        }
+
+        downloadChartsAsCompositeImage(
+            chartSet,
+            `educational_attainment_${regionalEducationState.year}_${new Date().toISOString().split('T')[0]}.png`,
+            {
+                title: `${regionalEducationState.leftLocation} vs ${regionalEducationState.rightLocation} (${regionalEducationState.year})`,
+                chartLabels: [regionalEducationState.leftLocation, regionalEducationState.rightLocation]
+            }
+        );
     });
 }
 
 function renderEducationCharts() {
     if (!regionalEducationApiState.ready) return;
 
-    const leftLoc  = document.getElementById('eduLeftSelect')?.value;
-    const rightLoc = document.getElementById('eduRightSelect')?.value;
-    const year     = parseInt(document.getElementById('eduYearSelect')?.value, 10);
+    const leftLoc  = document.getElementById('eduLeftSelect')?.value || regionalEducationState.leftLocation;
+    const rightLoc = document.getElementById('eduRightSelect')?.value || regionalEducationState.rightLocation;
+    const year     = parseInt(document.getElementById('eduYearSelect')?.value, 10) || regionalEducationState.year;
 
     if (!leftLoc || !rightLoc || !year) return;
+
+    regionalEducationState.leftLocation = leftLoc;
+    regionalEducationState.rightLocation = rightLoc;
+    regionalEducationState.year = year;
 
     document.getElementById('eduLeftTitle').textContent  = leftLoc;
     document.getElementById('eduRightTitle').textContent = rightLoc;
@@ -5715,16 +5908,17 @@ function buildEduChart(canvasId, location, year, existingChart) {
     const locData = regionalEducationApiState.data?.[location]?.[year];
     if (!locData) {
         console.warn('[Edu] No data for', location, year);
-        return existingChart;
+        if (existingChart) {
+            existingChart.destroy();
+        }
+        return null;
     }
-
-    const races = ['White', 'Hispanic', 'Black', 'Asian', 'Other'];
 
     // Build datasets — stacked downward from 0% (reverse scale)
     const keys = ['bachelors', 'highSchool', 'noHighSchool', 'someCollege'];
     const datasets = keys.map(key => ({
         label: EDU_LABELS[key],
-        data:  races.map(race => locData[race]?.[key] ?? 0),
+        data:  EDU_RACES.map(race => locData[race]?.[key] ?? 0),
         backgroundColor: EDU_COLORS[key],
         borderColor: 'rgba(255,255,255,0.35)',
         borderWidth: 1,
@@ -5735,7 +5929,7 @@ function buildEduChart(canvasId, location, year, existingChart) {
 
     return new Chart(canvas, {
         type: 'bar',
-        data: { labels: races, datasets },
+        data: { labels: EDU_RACES, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -5782,16 +5976,17 @@ function buildEduChart(canvasId, location, year, existingChart) {
     });
 }
 
-function downloadEduCsv() {
-    if (!regionalEducationApiState.ready) return;
+async function downloadEduCsv() {
+    if (!regionalEducationApiState.ready && !regionalEducationApiState.loadedYears.size) return;
 
-    const year = parseInt(document.getElementById('eduYearSelect')?.value, 10);
+    const year = parseInt(document.getElementById('eduYearSelect')?.value, 10) || regionalEducationState.year;
+    await loadEducationApiData(year);
     const rows = ['Location,Year,Race,Metric,Value'];
 
     regionalEducationApiState.locations.forEach(loc => {
         const yearData = regionalEducationApiState.data?.[loc]?.[year];
         if (!yearData) return;
-        ['White', 'Hispanic', 'Black'].forEach(race => {
+        EDU_RACES.forEach(race => {
             const d = yearData[race];
             if (!d) return;
             Object.entries(d).forEach(([key, val]) => {

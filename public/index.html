@@ -530,7 +530,7 @@
                 <section class="card">
                     <div class="section-header">
                         <div>
-                            <h2>Texas Regional Demographics Comparison</h2>
+                            <h2>Texas County Demographics Comparison</h2>
                             <p class="chip" style="background: linear-gradient(135deg, var(--gdp), var(--cpi)); color: white;">U.S. Census ACS 5-Year (B01003, B01002, B21001, B03003, B02001, B01001)</p>
                             <p class="source-inline-links"><a href="https://api.census.gov/data.html" target="_blank" rel="noopener noreferrer">View source</a></p>
                         </div>
@@ -540,10 +540,10 @@
                         </div>
                     </div>
 
-                    <div class="demo-compare-toolbar" aria-label="Regional demographics comparison controls">
+                    <div class="demo-compare-toolbar" aria-label="Texas county demographics comparison controls">
                         <div class="demo-control-group">
                             <label for="regionalDemoLeftSelect">Location A</label>
-                            <select id="regionalDemoLeftSelect" aria-label="Select first regional profile"></select>
+                            <select id="regionalDemoLeftSelect" aria-label="Select first Texas county profile"></select>
                         </div>
                         <div class="demo-control-group">
                             <label for="regionalDemoYearSelect">Year</label>
@@ -551,16 +551,16 @@
                         </div>
                         <div class="demo-control-group">
                             <label for="regionalDemoRightSelect">Location B</label>
-                            <select id="regionalDemoRightSelect" aria-label="Select second regional profile"></select>
+                            <select id="regionalDemoRightSelect" aria-label="Select second Texas county profile"></select>
                         </div>
                     </div>
 
-                    <p id="regionalDemographicsSummary" class="demo-compare-summary">Compare two Texas metro areas across age structure, race composition, veteran share, and Hispanic share.</p>
+                    <p id="regionalDemographicsSummary" class="demo-compare-summary">Compare two Texas counties across age structure, race composition, veteran share, and Hispanic share.</p>
 
                     <div class="demo-compare-highlights">
                         <article class="demo-location-card demo-left">
                             <p class="demo-location-eyebrow">Location A</p>
-                            <h3 id="regionalDemoLeftTitle" class="demo-location-title">Tyler, TX Metro Area</h3>
+                            <h3 id="regionalDemoLeftTitle" class="demo-location-title">Smith County, TX</h3>
                             <div class="demo-stat-grid">
                                 <div class="demo-stat-pill">
                                     <span class="demo-stat-label">Population</span>
@@ -583,7 +583,7 @@
 
                         <article class="demo-location-card demo-right">
                             <p class="demo-location-eyebrow">Location B</p>
-                            <h3 id="regionalDemoRightTitle" class="demo-location-title">Dallas-Fort Worth-Arlington, TX Metro Area</h3>
+                            <h3 id="regionalDemoRightTitle" class="demo-location-title">Dallas County, TX</h3>
                             <div class="demo-stat-grid">
                                 <div class="demo-stat-pill">
                                     <span class="demo-stat-label">Population</span>
@@ -616,7 +616,7 @@
 
                         <div class="chart-card demo-chart-card demo-community-card">
                             <h3>Community Profile Shares</h3>
-                            <p class="demo-card-note">Selected percentage-based indicators for each metro area.</p>
+                            <p class="demo-card-note">Selected percentage-based indicators for each county.</p>
                             <div class="demo-chart-frame small">
                                 <canvas id="regionalDemoCommunityChart" role="img" aria-label="Community profile comparison chart"></canvas>
                             </div>
@@ -631,7 +631,7 @@
                         </div>
                     </div>
 
-                    <p class="demo-note muted">Source: U.S. Census Bureau ACS 5-Year Estimates via dashboard API. Metrics are computed from table cells B01003_001E (population), B01002_001E (median age), B21001_001E/B21001_002E (veteran share), B03003_001E/B03003_003E (Hispanic share), B02001 race totals, and B01001 age buckets.</p>
+                    <p class="demo-note muted">Source: U.S. Census Bureau ACS 5-Year Estimates via dashboard API. Metrics are computed from county-level table cells B01003_001E (population), B01002_001E (median age), B21001_001E/B21001_002E (veteran share), B03003_001E/B03003_003E (Hispanic share), B02001 race totals, and B01001 age buckets.</p>
                 </section>
             </div>
 
@@ -708,7 +708,7 @@
                     <div class="edu-controls">
                         <div class="edu-control-group">
                             <label for="eduLeftSelect">Location A</label>
-                            <select id="eduLeftSelect" aria-label="Select first metro area"></select>
+                            <select id="eduLeftSelect" aria-label="Select first Texas county"></select>
                         </div>
                         <div class="edu-control-group">
                             <label for="eduYearSelect">Year</label>
@@ -716,7 +716,7 @@
                         </div>
                         <div class="edu-control-group">
                             <label for="eduRightSelect">Location B</label>
-                            <select id="eduRightSelect" aria-label="Select second metro area"></select>
+                            <select id="eduRightSelect" aria-label="Select second Texas county"></select>
                         </div>
                     </div>
 
@@ -744,7 +744,7 @@
                         <div class="edu-legend-item"><span class="edu-legend-swatch" style="background:#5C8F66;"></span>Some College or Associate&apos;s</div>
                     </div>
 
-                    <p class="edu-note muted">Source: U.S. Census Bureau ACS 5-Year Estimates, table groups C15002A/C15002B/C15002I (White alone, Black alone, Hispanic or Latino) for population age 25+. Asian and Other races aggregated from historical Census data trends.</p>
+                    <p class="edu-note muted">Source: U.S. Census Bureau ACS 5-Year Estimates, county-level table groups C15002A through C15002I for population age 25+, including White, Hispanic, Black, Asian, and Other race groupings.</p>
                 </section>
             </div>
 
@@ -784,7 +784,7 @@
     <script src="../data/definitions/regional-employment-data.js"></script>
     <script src="./js/excel-loader.js?v=2" defer></script>
     <script src="./js/tax-chart.js?v=2" defer></script>
-    <script src="../src/js/dashboard.js?v=48" defer></script>
+    <script src="../src/js/dashboard.js?v=49" defer></script>
 </body>
 </html>
 
